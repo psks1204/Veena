@@ -56,7 +56,7 @@ class AuthService extends ChangeNotifier {
         AuthorizationTokenRequest(
           AuthConfig.clientId,
           AuthConfig.redirectUri,
-          issuer: 'https://${AuthConfig.cognitoDomain}',
+          issuer: 'https://${AuthConfig.issuer}',
           scopes: AuthConfig.scopes,
           promptValues: ['login'],
           additionalParameters: {
@@ -124,7 +124,7 @@ class AuthService extends ChangeNotifier {
         TokenRequest(
           AuthConfig.clientId,
           AuthConfig.redirectUri,
-          issuer: 'https://${AuthConfig.cognitoDomain}',
+          issuer: 'https://${AuthConfig.issuer}',
           refreshToken: _refreshToken,
           scopes: AuthConfig.scopes,
         ),

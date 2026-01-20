@@ -41,10 +41,15 @@ class ArtworkCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     
+    // Calculate text area height (title + subtitle + spacing)
+    final textAreaHeight = subtitle != null ? 44.0 : 24.0;
+    final totalHeight = _size + AppSpacing.sm + textAreaHeight;
+    
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
         width: _size,
+        height: totalHeight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -120,8 +125,7 @@ class ArtworkCard extends StatelessWidget {
             ),
             
             // Subtitle
-            if (subtitle != null) ...[
-              const SizedBox(height: AppSpacing.xs),
+            if (subtitle != null)
               Text(
                 subtitle!,
                 style: theme.textTheme.bodySmall?.copyWith(
@@ -130,7 +134,6 @@ class ArtworkCard extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-            ],
           ],
         ),
       ),

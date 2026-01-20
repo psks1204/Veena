@@ -5,6 +5,7 @@ class AuthConfig {
   AuthConfig._();
 
   /// Cognito Domain
+  static const String issuer = 'cognito-idp.ap-south-1.amazonaws.com/ap-south-1_cuVCqjF2k';
   static const String cognitoDomain = 'veena-auth.auth.ap-south-1.amazoncognito.com';
   
   /// Full authorization endpoint
@@ -20,7 +21,7 @@ class AuthConfig {
       'https://$cognitoDomain/logout';
   
   /// Client ID (public - no secret needed for PKCE)
-  static const String clientId = 'd8jr78io0e1l7b7bu8eva7vqr';
+  static const String clientId = '5l1bg4rrgnvnl5csoqiabamm0f';
   
   /// OAuth scopes
   static const List<String> scopes = ['openid', 'email', 'profile'];
