@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 /// AWS Cognito Authentication Configuration
 /// 
 /// Production configuration for OAuth PKCE flow with Google.
@@ -29,9 +31,15 @@ class AuthConfig {
   /// Redirect URI for mobile (deep link)
   static const String redirectUri = 'veena://auth/callback';
   
-  /// Redirect URI for web - uses fixed localhost URL
-  /// Make sure this EXACT URL is added to Cognito App Client callback URLs
-  static const String webRedirectUri = 'http://localhost:3000/auth/callback';
+  /// Redirect URI for web
+  /// Development: uses fixed localhost:3000
+  /// Production: uses current origin (e.g., CloudFront URL)
+  static String get webRedirectUri {
+    if (kIsWeb && kReleaseMode) {
+      return '${Uri.base.origin}/auth/callback';
+    }
+    return 'http://localhost:3000/auth/callback';
+  }
   
   /// Alternative common ports - add all these to Cognito if testing on different ports
   /// http://localhost:3000/auth/callback
