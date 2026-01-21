@@ -6,7 +6,9 @@ import 'auth_service.dart';
 final _appAuth = const FlutterAppAuth();
 final _secureStorage = const FlutterSecureStorage();
 
-/// Mobile sign in using flutter_appauth
+Map<String, dynamic> decodeJwt(String token) => {};
+void redirectToAdmin(String? token) {}
+
 Future<AuthResult> signIn() async {
   try {
     final result = await _appAuth.authorizeAndExchangeCode(
@@ -16,28 +18,16 @@ Future<AuthResult> signIn() async {
         issuer: 'https://${AuthConfig.issuer}',
         scopes: AuthConfig.scopes,
         promptValues: ['login'],
-        additionalParameters: {
-          'identity_provider': 'Google',
-        },
+        additionalParameters: {'identity_provider': 'Google'},
       ),
     );
-
     if (result != null) {
-      return AuthResult(
-        success: true,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        idToken: result.idToken,
-      );
-    } else {
-      return AuthResult(success: false, error: 'Authentication failed.');
+      return AuthResult(success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, idToken: result.idToken);
     }
-  } catch (e) {
-    return AuthResult(success: false, error: e.toString());
-  }
+    return AuthResult(success: false, error: 'Auth failed');
+  } catch (e) { return AuthResult(success: false, error: e.toString()); }
 }
 
-/// Get stored tokens from secure storage
 Future<Map<String, String?>> getStoredTokens() async {
   return {
     'access_token': await _secureStorage.read(key: 'access_token'),
@@ -46,59 +36,22 @@ Future<Map<String, String?>> getStoredTokens() async {
   };
 }
 
-/// Store tokens in secure storage
-Future<void> storeTokens({
-  String? accessToken,
-  String? refreshToken,
-  String? idToken,
-}) async {
-  if (accessToken != null) {
-    await _secureStorage.write(key: 'access_token', value: accessToken);
-  }
-  if (refreshToken != null) {
-    await _secureStorage.write(key: 'refresh_token', value: refreshToken);
-  }
-  if (idToken != null) {
-    await _secureStorage.write(key: 'id_token', value: idToken);
-  }
+Future<void> storeTokens({String? accessToken, String? refreshToken, String? idToken}) async {
+  if (accessToken != null) await _secureStorage.write(key: 'access_token', value: accessToken);
+  if (refreshToken != null) await _secureStorage.write(key: 'refresh_token', value: refreshToken);
+  if (idToken != null) await _secureStorage.write(key: 'id_token', value: idToken);
 }
 
-/// Clear tokens from secure storage
 Future<void> clearTokens() async {
-  await _secureStorage.delete(key: 'access_token');
-  await _secureStorage.delete(key: 'refresh_token');
-  await _secureStorage.delete(key: 'id_token');
+  await _secureStorage.deleteAll();
 }
 
-/// Refresh access token
 Future<AuthResult> refreshToken(String refreshTokenValue) async {
   try {
-    final result = await _appAuth.token(
-      TokenRequest(
-        AuthConfig.clientId,
-        AuthConfig.redirectUri,
-        issuer: 'https://${AuthConfig.issuer}',
-        refreshToken: refreshTokenValue,
-        scopes: AuthConfig.scopes,
-      ),
-    );
-
-    if (result != null) {
-      return AuthResult(
-        success: true,
-        accessToken: result.accessToken,
-        refreshToken: result.refreshToken,
-        idToken: result.idToken,
-      );
-    }
-  } catch (e) {
-    return AuthResult(success: false, error: e.toString());
-  }
-
-  return AuthResult(success: false, error: 'Token refresh failed.');
+    final result = await _appAuth.token(TokenRequest(AuthConfig.clientId, AuthConfig.redirectUri, issuer: 'https://${AuthConfig.issuer}', refreshToken: refreshTokenValue, scopes: AuthConfig.scopes));
+    if (result != null) return AuthResult(success: true, accessToken: result.accessToken, idToken: result.idToken);
+  } catch (e) { return AuthResult(success: false, error: e.toString()); }
+  return AuthResult(success: false);
 }
 
-/// Handle web callback (not used on mobile, always returns null)
-Future<AuthResult?> handleWebCallback() async {
-  return null;
-}
+Future<AuthResult?> handleWebCallback() async => null;

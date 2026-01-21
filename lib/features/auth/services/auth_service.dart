@@ -4,12 +4,20 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
+// Conditional import based on platform
 import 'auth_service_mobile.dart' if (dart.library.html) 'auth_service_web.dart' as platform;
 
-/// Authentication Service
-/// 
-/// Handles AWS Cognito OAuth PKCE flow with Google.
-/// Supports both mobile (flutter_appauth) and web (URL redirect).
+class AuthResult {
+  final bool success;
+  final String? accessToken;
+  final String? refreshToken;
+  final String? idToken;
+  final String? error;
+  AuthResult({required this.success, this.accessToken, this.refreshToken, this.idToken, this.error});
+}
+
+enum AuthState { initial, loading, authenticated, unauthenticated, error }
+
 class AuthService extends ChangeNotifier {
   AuthState _state = AuthState.initial;
   String? _accessToken;
@@ -20,53 +28,49 @@ class AuthService extends ChangeNotifier {
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage => _errorMessage; // Added getter for Login Screen
   bool get isAuthenticated => _accessToken != null;
 
-  /// Initialize - check for existing tokens or handle OAuth callback
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
 
     try {
-      // On web, check if this is an OAuth callback
       if (kIsWeb) {
         final result = await platform.handleWebCallback();
-        if (result != null) {
-          if (result.success) {
-            _accessToken = result.accessToken;
-            _refreshToken = result.refreshToken;
-            _idToken = result.idToken;
-            _state = AuthState.authenticated;
-          } else {
-            _errorMessage = result.error;
-            _state = AuthState.error;
-          }
+        if (result != null && result.success) {
+          _accessToken = result.accessToken;
+          _idToken = result.idToken;
+          _state = AuthState.authenticated;
           notifyListeners();
           return;
         }
       }
 
-      // Check for stored tokens
       final tokens = await platform.getStoredTokens();
       _accessToken = tokens['access_token'];
       _refreshToken = tokens['refresh_token'];
       _idToken = tokens['id_token'];
 
       if (_accessToken != null) {
+        if (kIsWeb && _idToken != null) {
+          final payload = platform.decodeJwt(_idToken!);
+          final List? groups = payload['cognito:groups'];
+          if (groups != null && groups.contains('ADMIN')) {
+            platform.redirectToAdmin(_accessToken);
+            return;
+          }
+        }
         _state = AuthState.authenticated;
       } else {
         _state = AuthState.unauthenticated;
       }
     } catch (e) {
       _state = AuthState.unauthenticated;
-      debugPrint('Auth initialization error: $e');
     }
-
     notifyListeners();
   }
 
-  /// Sign in with Google via Cognito
   Future<bool> signInWithGoogle() async {
     _state = AuthState.loading;
     _errorMessage = null;
@@ -74,7 +78,8 @@ class AuthService extends ChangeNotifier {
 
     try {
       final result = await platform.signIn();
-      
+      if (kIsWeb) return result.success; 
+
       if (result.success) {
         _accessToken = result.accessToken;
         _refreshToken = result.refreshToken;
@@ -91,24 +96,21 @@ class AuthService extends ChangeNotifier {
         return true;
       } else {
         _state = AuthState.error;
-        _errorMessage = result.error ?? 'Authentication failed. Please try again.';
+        _errorMessage = result.error ?? 'Authentication failed.';
         notifyListeners();
         return false;
       }
     } catch (e) {
       _state = AuthState.error;
-      _errorMessage = 'Authentication error: ${e.toString()}';
-      debugPrint('Sign in error: $e');
+      _errorMessage = e.toString();
       notifyListeners();
       return false;
     }
   }
 
-  /// Sign out
   Future<void> signOut() async {
     _state = AuthState.loading;
     notifyListeners();
-
     try {
       await platform.clearTokens();
       _accessToken = null;
@@ -116,69 +118,27 @@ class AuthService extends ChangeNotifier {
       _idToken = null;
       _state = AuthState.unauthenticated;
     } catch (e) {
-      debugPrint('Sign out error: $e');
       _state = AuthState.unauthenticated;
     }
-
     notifyListeners();
   }
 
-  /// Refresh token
   Future<bool> refreshAccessToken() async {
     if (_refreshToken == null) return false;
-
     try {
       final result = await platform.refreshToken(_refreshToken!);
-      
       if (result.success) {
         _accessToken = result.accessToken;
-        if (result.refreshToken != null) {
-          _refreshToken = result.refreshToken;
-        }
         _idToken = result.idToken;
-
-        await platform.storeTokens(
-          accessToken: _accessToken,
-          refreshToken: _refreshToken,
-          idToken: _idToken,
-        );
-
+        await platform.storeTokens(accessToken: _accessToken, idToken: _idToken);
         return true;
       }
-    } catch (e) {
-      debugPrint('Token refresh error: $e');
-    }
-
+    } catch (e) { debugPrint(e.toString()); }
     return false;
   }
 }
 
-/// Result of an authentication operation
-class AuthResult {
-  final bool success;
-  final String? accessToken;
-  final String? refreshToken;
-  final String? idToken;
-  final String? error;
-
-  AuthResult({
-    required this.success,
-    this.accessToken,
-    this.refreshToken,
-    this.idToken,
-    this.error,
-  });
-}
-
-enum AuthState {
-  initial,
-  loading,
-  authenticated,
-  unauthenticated,
-  error,
-}
-
-// PKCE Helper functions
+// PKCE Helpers
 String generateCodeVerifier() {
   final random = Random.secure();
   final values = List<int>.generate(32, (_) => random.nextInt(256));
