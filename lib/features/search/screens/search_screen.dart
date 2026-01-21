@@ -156,11 +156,11 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 220,
               mainAxisSpacing: AppSpacing.md,
               crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 1.8,
+              childAspectRatio: 1.6,
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) {

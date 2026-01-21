@@ -1,15 +1,16 @@
+import 'dart:convert';
+import 'dart:math';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
+import 'auth_service_mobile.dart' if (dart.library.html) 'auth_service_web.dart' as platform;
 
 /// Authentication Service
 /// 
 /// Handles AWS Cognito OAuth PKCE flow with Google.
+/// Supports both mobile (flutter_appauth) and web (URL redirect).
 class AuthService extends ChangeNotifier {
-  final FlutterAppAuth _appAuth = const FlutterAppAuth();
-  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
-
   AuthState _state = AuthState.initial;
   String? _accessToken;
   String? _refreshToken;
@@ -22,15 +23,35 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _accessToken != null;
 
-  /// Initialize - check for existing tokens
+  /// Initialize - check for existing tokens or handle OAuth callback
   Future<void> initialize() async {
     _state = AuthState.loading;
     notifyListeners();
 
     try {
-      _accessToken = await _secureStorage.read(key: 'access_token');
-      _refreshToken = await _secureStorage.read(key: 'refresh_token');
-      _idToken = await _secureStorage.read(key: 'id_token');
+      // On web, check if this is an OAuth callback
+      if (kIsWeb) {
+        final result = await platform.handleWebCallback();
+        if (result != null) {
+          if (result.success) {
+            _accessToken = result.accessToken;
+            _refreshToken = result.refreshToken;
+            _idToken = result.idToken;
+            _state = AuthState.authenticated;
+          } else {
+            _errorMessage = result.error;
+            _state = AuthState.error;
+          }
+          notifyListeners();
+          return;
+        }
+      }
+
+      // Check for stored tokens
+      final tokens = await platform.getStoredTokens();
+      _accessToken = tokens['access_token'];
+      _refreshToken = tokens['refresh_token'];
+      _idToken = tokens['id_token'];
 
       if (_accessToken != null) {
         _state = AuthState.authenticated;
@@ -52,35 +73,25 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
-          AuthConfig.clientId,
-          AuthConfig.redirectUri,
-          issuer: 'https://${AuthConfig.issuer}',
-          scopes: AuthConfig.scopes,
-          promptValues: ['login'],
-          additionalParameters: {
-            'identity_provider': 'Google',
-          },
-        ),
-      );
-
-      if (result != null) {
+      final result = await platform.signIn();
+      
+      if (result.success) {
         _accessToken = result.accessToken;
         _refreshToken = result.refreshToken;
         _idToken = result.idToken;
 
-        // Store tokens securely
-        await _secureStorage.write(key: 'access_token', value: _accessToken);
-        await _secureStorage.write(key: 'refresh_token', value: _refreshToken);
-        await _secureStorage.write(key: 'id_token', value: _idToken);
+        await platform.storeTokens(
+          accessToken: _accessToken,
+          refreshToken: _refreshToken,
+          idToken: _idToken,
+        );
 
         _state = AuthState.authenticated;
         notifyListeners();
         return true;
       } else {
         _state = AuthState.error;
-        _errorMessage = 'Authentication failed. Please try again.';
+        _errorMessage = result.error ?? 'Authentication failed. Please try again.';
         notifyListeners();
         return false;
       }
@@ -99,10 +110,7 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _secureStorage.delete(key: 'access_token');
-      await _secureStorage.delete(key: 'refresh_token');
-      await _secureStorage.delete(key: 'id_token');
-
+      await platform.clearTokens();
       _accessToken = null;
       _refreshToken = null;
       _idToken = null;
@@ -120,26 +128,20 @@ class AuthService extends ChangeNotifier {
     if (_refreshToken == null) return false;
 
     try {
-      final result = await _appAuth.token(
-        TokenRequest(
-          AuthConfig.clientId,
-          AuthConfig.redirectUri,
-          issuer: 'https://${AuthConfig.issuer}',
-          refreshToken: _refreshToken,
-          scopes: AuthConfig.scopes,
-        ),
-      );
-
-      if (result != null) {
+      final result = await platform.refreshToken(_refreshToken!);
+      
+      if (result.success) {
         _accessToken = result.accessToken;
         if (result.refreshToken != null) {
           _refreshToken = result.refreshToken;
         }
         _idToken = result.idToken;
 
-        await _secureStorage.write(key: 'access_token', value: _accessToken);
-        await _secureStorage.write(key: 'refresh_token', value: _refreshToken);
-        await _secureStorage.write(key: 'id_token', value: _idToken);
+        await platform.storeTokens(
+          accessToken: _accessToken,
+          refreshToken: _refreshToken,
+          idToken: _idToken,
+        );
 
         return true;
       }
@@ -151,10 +153,46 @@ class AuthService extends ChangeNotifier {
   }
 }
 
+/// Result of an authentication operation
+class AuthResult {
+  final bool success;
+  final String? accessToken;
+  final String? refreshToken;
+  final String? idToken;
+  final String? error;
+
+  AuthResult({
+    required this.success,
+    this.accessToken,
+    this.refreshToken,
+    this.idToken,
+    this.error,
+  });
+}
+
 enum AuthState {
   initial,
   loading,
   authenticated,
   unauthenticated,
   error,
+}
+
+// PKCE Helper functions
+String generateCodeVerifier() {
+  final random = Random.secure();
+  final values = List<int>.generate(32, (_) => random.nextInt(256));
+  return base64UrlEncode(values).replaceAll('=', '');
+}
+
+String generateCodeChallenge(String verifier) {
+  final bytes = utf8.encode(verifier);
+  final digest = sha256.convert(bytes);
+  return base64UrlEncode(digest.bytes).replaceAll('=', '');
+}
+
+String generateRandomState() {
+  final random = Random.secure();
+  final values = List<int>.generate(16, (_) => random.nextInt(256));
+  return base64UrlEncode(values).replaceAll('=', '');
 }

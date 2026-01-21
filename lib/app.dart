@@ -7,6 +7,7 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
+import 'features/profile/screens/profile_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/widgets/full_player.dart';
 
@@ -140,6 +141,8 @@ class _AppRouterState extends State<_AppRouter> {
   }
 
   Widget _buildCurrentScreen() {
+    final authService = context.read<AuthService>();
+    
     switch (_currentIndex) {
       case 0:
         return const HomeScreen();
@@ -147,6 +150,12 @@ class _AppRouterState extends State<_AppRouter> {
         return const SearchScreen();
       case 2:
         return const LibraryScreen();
+      case 3:
+        return ProfileScreen(
+          onSignOut: () async {
+            await authService.signOut();
+          },
+        );
       default:
         return const HomeScreen();
     }

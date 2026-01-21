@@ -45,11 +45,11 @@ class HomeScreen extends StatelessWidget {
           SliverPadding(
             padding: const EdgeInsets.all(AppSpacing.screenPadding),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 300,
                 mainAxisSpacing: AppSpacing.sm,
                 crossAxisSpacing: AppSpacing.sm,
-                childAspectRatio: 3.5,
+                childAspectRatio: 3.0,
               ),
               delegate: SliverChildListDelegate([
                 _QuickAccessCard(
@@ -99,7 +99,7 @@ class HomeScreen extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 230,
+              height: 250,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(
@@ -143,7 +143,7 @@ class HomeScreen extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 230,
+              height: 250,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(
@@ -186,7 +186,7 @@ class HomeScreen extends StatelessWidget {
           ),
           SliverToBoxAdapter(
             child: SizedBox(
-              height: 210,
+              height: 230,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 padding: const EdgeInsets.symmetric(

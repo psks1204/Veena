@@ -58,7 +58,10 @@ class FullPlayer extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final screenSize = MediaQuery.of(context).size;
-    final artworkSize = screenSize.width - (AppSpacing.xl * 2);
+    // Cap artwork size for web/desktop to prevent overflow
+    final artworkSize = screenSize.width > 500 
+        ? 400.0 
+        : screenSize.width - (AppSpacing.xl * 2);
 
     return Container(
       decoration: BoxDecoration(

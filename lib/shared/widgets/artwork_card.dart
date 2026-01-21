@@ -42,14 +42,11 @@ class ArtworkCard extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     
     // Calculate text area height (title + subtitle + spacing)
-    final textAreaHeight = subtitle != null ? 44.0 : 24.0;
-    final totalHeight = _size + AppSpacing.sm + textAreaHeight;
     
     return GestureDetector(
       onTap: onTap,
       child: SizedBox(
         width: _size,
-        height: totalHeight,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,

@@ -46,6 +46,11 @@ class _AppShellState extends State<AppShell> {
       selectedIcon: Icon(Icons.library_music_rounded),
       label: 'Library',
     ),
+    NavigationDestination(
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: 'Profile',
+    ),
   ];
 
   static const _railDestinations = [
@@ -63,6 +68,11 @@ class _AppShellState extends State<AppShell> {
       icon: Icon(Icons.library_music_outlined),
       selectedIcon: Icon(Icons.library_music_rounded),
       label: Text('Library'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: Text('Profile'),
     ),
   ];
 
@@ -218,7 +228,7 @@ class _AppShellState extends State<AppShell> {
                     onDestinationSelected: widget.onDestinationSelected,
                     destinations: _railDestinations,
                     backgroundColor: Colors.transparent,
-                    labelType: NavigationRailLabelType.all,
+                    labelType: NavigationRailLabelType.none,
                     extended: true,
                   ),
                 ),

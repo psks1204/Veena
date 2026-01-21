@@ -50,6 +50,12 @@ dependencies:
   
   # Image caching
   cached_network_image: ^3.4.1
+  
+  # HTTP client
+  http: ^1.2.2
+  
+  # Crypto for PKCE
+  crypto: ^3.0.5
 
 dev_dependencies:
   flutter_test:
