@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/floating_nav_bar.dart';
 
 /// Responsive App Shell
 /// 
@@ -102,30 +103,63 @@ class _AppShellState extends State<AppShell> {
 
   Widget _buildMobileLayout(bool isDark) {
     return Scaffold(
-      body: widget.child,
-      bottomNavigationBar: Column(
-        mainAxisSize: MainAxisSize.min,
+      extendBody: true, // Allow body to go behind the floating nav
+      body: Stack(
         children: [
-          if (widget.showMiniPlayer && widget.miniPlayerData != null)
-            MiniPlayer(
-              trackTitle: widget.miniPlayerData!.trackTitle,
-              artistName: widget.miniPlayerData!.artistName,
-              artworkUrl: widget.miniPlayerData!.artworkUrl,
-              isPlaying: widget.miniPlayerData!.isPlaying,
-              progress: widget.miniPlayerData!.progress,
-              onTap: widget.miniPlayerData!.onTap,
-              onPlayPause: widget.miniPlayerData!.onPlayPause,
-              onNext: widget.miniPlayerData!.onNext,
+          // Main Content
+          widget.child,
+
+          // Floating Player & Nav
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.showMiniPlayer && widget.miniPlayerData != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: MiniPlayer(
+                      trackTitle: widget.miniPlayerData!.trackTitle,
+                      artistName: widget.miniPlayerData!.artistName,
+                      artworkUrl: widget.miniPlayerData!.artworkUrl,
+                      isPlaying: widget.miniPlayerData!.isPlaying,
+                      progress: widget.miniPlayerData!.progress,
+                      onTap: widget.miniPlayerData!.onTap,
+                      onPlayPause: widget.miniPlayerData!.onPlayPause,
+                      onNext: widget.miniPlayerData!.onNext,
+                    ),
+                  ),
+                  
+                FloatingNavBar(
+                  currentIndex: widget.currentIndex,
+                  onTap: widget.onDestinationSelected,
+                  items: const [
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.home_outlined),
+                      activeIcon: Icon(Icons.home_rounded),
+                      label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.search_outlined),
+                      activeIcon: Icon(Icons.search_rounded),
+                      label: 'Search',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.library_music_outlined),
+                      activeIcon: Icon(Icons.library_music_rounded),
+                      label: 'Library',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.person_outline_rounded),
+                      activeIcon: Icon(Icons.person_rounded),
+                      label: 'Profile',
+                    ),
+                  ],
+                ),
+              ],
             ),
-          NavigationBar(
-            selectedIndex: widget.currentIndex,
-            onDestinationSelected: widget.onDestinationSelected,
-            destinations: _destinations,
-            backgroundColor: isDark 
-                ? AppColors.darkSurface 
-                : AppColors.lightSurface,
-            elevation: 0,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           ),
         ],
       ),
@@ -201,7 +235,7 @@ class _AppShellState extends State<AppShell> {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.accent,
+                          color: AppColors.primary,
                           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                         ),
                         child: const Icon(

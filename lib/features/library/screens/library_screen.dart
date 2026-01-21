@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_spacing.dart';
-import '../../../shared/widgets/artwork_card.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_spacing.dart';
+import '../../../../shared/widgets/aura_cards.dart';
 
-/// Library Screen
-/// 
-/// User's playlists, albums, and artists with filtering and sorting.
+/// Library Screen - Aura Design
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -14,61 +13,62 @@ class LibraryScreen extends StatefulWidget {
 
 class _LibraryScreenState extends State<LibraryScreen> {
   LibraryFilter _currentFilter = LibraryFilter.all;
-  bool _isGridView = false;
-  LibrarySort _sortBy = LibrarySort.recent;
+  
+  // Hardcoded grid view for "Albums List" style as per wireframe request, 
+  // but keeping toggle capability logic if needed, defaulting to true for the visual.
+  final bool _isGridView = true; 
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App bar
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            title: Row(
-              children: [
-                // User avatar
-                Container(
-                  width: 32,
-                  height: 32,
-                  decoration: BoxDecoration(
-                    color: colorScheme.primary,
-                    shape: BoxShape.circle,
+          // App bar Area
+          SliverPadding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + AppSpacing.md,
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              bottom: AppSpacing.sm,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                children: [
+                  // User Avatar
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person, color: Colors.white),
                   ),
-                  child: const Center(
-                    child: Text(
-                      'U',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                  const SizedBox(width: AppSpacing.md),
+                  Text(
+                    'Your Library',
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Your Library',
-                  style: theme.textTheme.headlineMedium,
-                ),
-              ],
+                  const Spacer(),
+                  IconButton(
+                    onPressed: () {}, 
+                    icon: const Icon(Icons.search, size: 28),
+                  ),
+                  IconButton(
+                    onPressed: () {}, 
+                    icon: const Icon(Icons.add_rounded, size: 28),
+                  ),
+                ],
+              ),
             ),
-            actions: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.search_rounded),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.add_rounded),
-              ),
-            ],
           ),
 
-          // Filter chips
+          // Filters
           SliverToBoxAdapter(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -90,14 +90,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                         });
                       },
                       showCheckmark: false,
-                      selectedColor: colorScheme.primary,
+                      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
+                      selectedColor: AppColors.primary,
                       labelStyle: TextStyle(
-                        color: isSelected 
-                            ? Colors.white 
-                            : colorScheme.onSurface,
-                        fontWeight: isSelected 
-                            ? FontWeight.w600 
-                            : FontWeight.normal,
+                        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide.none,
                       ),
                     ),
                   );
@@ -105,71 +106,37 @@ class _LibraryScreenState extends State<LibraryScreen> {
               ),
             ),
           ),
+          
+          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
 
-          // Sort and view toggle
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenPadding,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  // Sort button
-                  InkWell(
-                    onTap: _showSortOptions,
-                    borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
-                        vertical: AppSpacing.xs,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.swap_vert_rounded,
-                            size: 20,
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                          const SizedBox(width: AppSpacing.xs),
-                          Text(
-                            _sortBy.label,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.6),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  
-                  const Spacer(),
-                  
-                  // View toggle
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isGridView = !_isGridView;
-                      });
-                    },
-                    icon: Icon(
-                      _isGridView 
-                          ? Icons.view_list_rounded 
-                          : Icons.grid_view_rounded,
-                      size: 24,
-                    ),
-                  ),
-                ],
-              ),
+          // Grid Content
+          SliverPadding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+            sliver: SliverGrid(
+               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                 maxCrossAxisExtent: 200,
+                 mainAxisSpacing: AppSpacing.md,
+                 crossAxisSpacing: AppSpacing.md,
+                 childAspectRatio: 0.8,
+               ),
+               delegate: SliverChildBuilderDelegate(
+                 (context, index) {
+                   final item = _getMockItems()[index];
+                   return AuraAlbumCard(
+                     title: item.title,
+                     subtitle: item.subtitle,
+                     imageUrl: item.imageUrl, // In real app, handling item type
+                     onTap: () {
+                         // Mock navigation to detail
+                         // context.push('/album/1');
+                     },
+                   );
+                 },
+                 childCount: _getMockItems().length,
+               ),
             ),
           ),
-
-          // Library items
-          _isGridView
-              ? _buildGridView(theme)
-              : _buildListView(theme),
-
+          
           // Bottom padding
           const SliverToBoxAdapter(
             child: SizedBox(height: 120),
@@ -179,143 +146,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
     );
   }
 
-  Widget _buildListView(ThemeData theme) {
-    final items = _getLibraryItems();
-    
-    return SliverList(
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final item = items[index];
-          return _LibraryListItem(
-            title: item.title,
-            subtitle: item.subtitle,
-            imageUrl: item.imageUrl,
-            isCircular: item.type == LibraryItemType.artist,
-            isPinned: item.isPinned,
-            onTap: () {},
-          );
-        },
-        childCount: items.length,
-      ),
-    );
-  }
-
-  Widget _buildGridView(ThemeData theme) {
-    final items = _getLibraryItems();
-    
-    return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: AppSpacing.md,
-          crossAxisSpacing: AppSpacing.md,
-          childAspectRatio: 0.85,
-        ),
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final item = items[index];
-            return ArtworkCard(
-              imageUrl: item.imageUrl,
-              title: item.title,
-              subtitle: item.subtitle,
-              isCircular: item.type == LibraryItemType.artist,
-              onTap: () {},
-            );
-          },
-          childCount: items.length,
-        ),
-      ),
-    );
-  }
-
-  void _showSortOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text(
-                  'Sort by',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-              ),
-              ...LibrarySort.values.map((sort) {
-                return ListTile(
-                  title: Text(sort.label),
-                  trailing: _sortBy == sort 
-                      ? Icon(
-                          Icons.check_rounded,
-                          color: Theme.of(context).colorScheme.primary,
-                        )
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _sortBy = sort;
-                    });
-                    Navigator.pop(context);
-                  },
-                );
-              }),
-              const SizedBox(height: AppSpacing.md),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  List<LibraryItem> _getLibraryItems() {
-    // Mock data
-    return [
-      LibraryItem(
-        title: 'Liked Songs',
-        subtitle: 'Playlist • 234 songs',
-        imageUrl: '',
-        type: LibraryItemType.playlist,
-        isPinned: true,
-      ),
-      LibraryItem(
-        title: 'The Weeknd',
-        subtitle: 'Artist',
-        imageUrl: '',
-        type: LibraryItemType.artist,
-      ),
-      LibraryItem(
-        title: 'After Hours',
-        subtitle: 'Album • The Weeknd',
-        imageUrl: '',
-        type: LibraryItemType.album,
-      ),
-      LibraryItem(
-        title: 'Chill Vibes',
-        subtitle: 'Playlist • 56 songs',
-        imageUrl: '',
-        type: LibraryItemType.playlist,
-      ),
-      LibraryItem(
-        title: 'Drake',
-        subtitle: 'Artist',
-        imageUrl: '',
-        type: LibraryItemType.artist,
-      ),
-      LibraryItem(
-        title: 'Focus Flow',
-        subtitle: 'Playlist • 120 songs',
-        imageUrl: '',
-        type: LibraryItemType.playlist,
-      ),
-      LibraryItem(
-        title: 'Scorpion',
-        subtitle: 'Album • Drake',
-        imageUrl: '',
-        type: LibraryItemType.album,
-      ),
-    ];
+  List<LibraryItem> _getMockItems() {
+    return List.generate(10, (index) => LibraryItem(
+       title: 'Album ${index + 1}',
+       subtitle: 'Artist Name',
+       imageUrl: 'https://picsum.photos/300?random=${index + 50}',
+       type: LibraryItemType.album,
+    ));
   }
 }
 
@@ -326,16 +163,6 @@ enum LibraryFilter {
   albums('Albums');
 
   const LibraryFilter(this.label);
-  final String label;
-}
-
-enum LibrarySort {
-  recent('Recents'),
-  recentlyAdded('Recently Added'),
-  alphabetical('Alphabetical'),
-  creator('Creator');
-
-  const LibrarySort(this.label);
   final String label;
 }
 
@@ -357,77 +184,3 @@ class LibraryItem {
   final bool isPinned;
 }
 
-class _LibraryListItem extends StatelessWidget {
-  const _LibraryListItem({
-    required this.title,
-    required this.subtitle,
-    required this.imageUrl,
-    this.isCircular = false,
-    this.isPinned = false,
-    this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final String imageUrl;
-  final bool isCircular;
-  final bool isPinned;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screenPadding,
-        vertical: AppSpacing.xs,
-      ),
-      leading: Container(
-        width: 56,
-        height: 56,
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          borderRadius: isCircular 
-              ? BorderRadius.circular(28) 
-              : BorderRadius.circular(AppSpacing.radiusSm),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.music_note_rounded,
-            color: colorScheme.onSurface.withOpacity(0.3),
-          ),
-        ),
-      ),
-      title: Row(
-        children: [
-          if (isPinned) ...[
-            Icon(
-              Icons.push_pin_rounded,
-              size: 14,
-              color: colorScheme.primary,
-            ),
-            const SizedBox(width: AppSpacing.xs),
-          ],
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: colorScheme.onSurface.withOpacity(0.6),
-        ),
-      ),
-    );
-  }
-}

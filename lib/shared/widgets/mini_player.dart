@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 
-/// Mini Player Widget
+/// Floating Mini Player Widget
 /// 
-/// Persistent bottom bar showing current track with playback controls.
-/// Features smooth animations and premium feel.
+/// Floating capsule-style player showing current track with playback controls.
+/// Sits above the bottom navigation bar.
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
     super.key,
@@ -17,6 +17,7 @@ class MiniPlayer extends StatelessWidget {
     this.onTap,
     this.onPlayPause,
     this.onNext,
+    this.onFavorite,
   });
 
   final String trackTitle;
@@ -27,66 +28,93 @@ class MiniPlayer extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
+  final VoidCallback? onFavorite;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: AppSpacing.miniPlayerHeight,
+        height: 64, // Slightly taller for floating look
+        margin: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
         decoration: BoxDecoration(
           color: isDark 
-              ? AppColors.darkSurface 
-              : AppColors.lightSurface,
+              ? AppColors.darkSurfaceVariant.withOpacity(0.95)
+              : Colors.white.withOpacity(0.95),
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl), // Rounded capsule
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
-              offset: const Offset(0, -2),
+              color: Colors.black.withOpacity(0.2), // Stronger shadow for float
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+              spreadRadius: -5,
             ),
           ],
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Progress indicator
-            LinearProgressIndicator(
-              value: progress,
-              backgroundColor: colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(colorScheme.primary),
-              minHeight: 2,
-            ),
-            
-            // Content
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+          child: Stack(
+            alignment: Alignment.bottomLeft,
+            children: [
+               // Progress indicator at bottom ( subtle line )
+               Positioned(
+                 bottom: 0, 
+                 left: 12, 
+                 right: 12,
+                 child: ClipRRect(
+                   borderRadius: BorderRadius.circular(2),
+                   child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05),
+                    valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+                    minHeight: 2,
+                               ),
+                 ),
+               ),
+              
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: AppSpacing.sm,
+                  right: AppSpacing.md,
+                  top: AppSpacing.xs,
+                  bottom: AppSpacing.xs + 4, // Space for progress bar
                 ),
                 child: Row(
                   children: [
                     // Artwork
-                    Container(
-                      width: 48,
-                      height: 48,
-                      margin: const EdgeInsets.only(right: AppSpacing.sm),
-                      decoration: BoxDecoration(
-                        color: colorScheme.surfaceContainerHighest,
-                        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+                    Hero(
+                      tag: 'mini_player_artwork',
+                      child: Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: artworkUrl != null && artworkUrl!.isNotEmpty
+                            ? Image.network(
+                                artworkUrl!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
+                              )
+                            : _buildPlaceholder(theme),
                       ),
-                      clipBehavior: Clip.antiAlias,
-                      child: artworkUrl != null && artworkUrl!.isNotEmpty
-                          ? Image.network(
-                              artworkUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _buildPlaceholder(theme),
-                            )
-                          : _buildPlaceholder(theme),
                     ),
+                    const SizedBox(width: AppSpacing.md),
                     
                     // Track info
                     Expanded(
@@ -96,15 +124,19 @@ class MiniPlayer extends StatelessWidget {
                         children: [
                           Text(
                             trackTitle,
-                            style: theme.textTheme.titleSmall,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
                           Text(
                             artistName,
                             style: theme.textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurface.withOpacity(0.6),
+                              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                              fontWeight: FontWeight.w500,
+                              fontSize: 12,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -117,37 +149,50 @@ class MiniPlayer extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Play/Pause
+                        // Favorite - Heart
+                        if (onFavorite != null)
                         IconButton(
-                          onPressed: onPlayPause,
-                          icon: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            child: Icon(
-                              isPlaying 
-                                  ? Icons.pause_rounded 
-                                  : Icons.play_arrow_rounded,
-                              key: ValueKey(isPlaying),
-                              size: 32,
-                            ),
+                          onPressed: onFavorite,
+                          icon: Icon(
+                            Icons.favorite_border_rounded, // or favorite_rounded based on state
+                            size: 24,
+                            color: isDark ? Colors.white : AppColors.lightTextPrimary,
                           ),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
-                          ),
+                          constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                         ),
-                        
-                        // Next
-                        IconButton(
-                          onPressed: onNext,
-                          icon: const Icon(
-                            Icons.skip_next_rounded,
-                            size: 28,
+
+                        const SizedBox(width: 4),
+
+                        // Play/Pause - Floating Circle
+                        Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppColors.primary.withOpacity(0.4),
+                                blurRadius: 10,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(
-                            minWidth: 48,
-                            minHeight: 48,
+                          child: IconButton(
+                            onPressed: onPlayPause,
+                            icon: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              child: Icon(
+                                isPlaying 
+                                    ? Icons.pause_rounded 
+                                    : Icons.play_arrow_rounded,
+                                key: ValueKey(isPlaying),
+                                size: 24,
+                                color: Colors.white,
+                              ),
+                            ),
+                            padding: EdgeInsets.zero,
                           ),
                         ),
                       ],
@@ -155,8 +200,8 @@ class MiniPlayer extends StatelessWidget {
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

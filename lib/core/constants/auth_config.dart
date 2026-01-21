@@ -21,7 +21,7 @@ class AuthConfig {
       'https://$cognitoDomain/logout';
   
   /// Client ID (public - no secret needed for PKCE)
-  static const String clientId = '5l1bg4rrgnvnl5csoqiabamm0f';
+  static const String clientId = '8snvvu2cchipad20n6umug5l0';
   
   /// OAuth scopes
   static const List<String> scopes = ['openid', 'email', 'profile'];

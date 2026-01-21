@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../shared/widgets/artwork_card.dart';
 import '../../../shared/widgets/section_header.dart';
+import '../../../shared/widgets/aura_cards.dart';
 
-/// Home Screen
-/// 
-/// Featured playlists, recommendations, and recently played.
-/// Typography-driven with confident visual hierarchy.
+/// Home Screen - Studio One Layout
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
@@ -17,273 +15,154 @@ class HomeScreen extends StatelessWidget {
     return Scaffold(
       body: CustomScrollView(
         slivers: [
-          // App bar
-          SliverAppBar(
-            floating: true,
-            snap: true,
-            title: Text(
-              'Good evening',
-              style: theme.textTheme.headlineMedium,
-            ),
-            actions: [
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.notifications_outlined),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.history_rounded),
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const Icon(Icons.settings_outlined),
-              ),
-            ],
-          ),
-
-          // Quick access grid
+          // Custom App Bar Area
           SliverPadding(
-            padding: const EdgeInsets.all(AppSpacing.screenPadding),
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + AppSpacing.md,
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              bottom: AppSpacing.md,
+            ),
+            sliver: SliverToBoxAdapter(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                       Text(
+                         'Good Evening,',
+                         style: theme.textTheme.bodyMedium?.copyWith(
+                           color: theme.colorScheme.onSurface.withOpacity(0.6),
+                         ),
+                       ),
+                       Text(
+                         'Kai',
+                         style: theme.textTheme.headlineMedium?.copyWith(
+                           fontWeight: FontWeight.bold,
+                         ),
+                       ),
+                    ],
+                  ),
+                  CircleAvatar(
+                    backgroundColor: theme.colorScheme.surfaceContainerHighest,
+                    child: const Icon(Icons.person),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // Latest Releases (Horizontal Scroll)
+          SliverToBoxAdapter(
+            child: SectionHeader(
+              title: 'Latest releases',
+              actionLabel: 'See all',
+              onActionTap: () {},
+            ),
+          ),
+          SliverToBoxAdapter(
+             child: SizedBox(
+               height: 220, // Adjusted for Aura Album Card
+               child: ListView.separated(
+                 padding: const EdgeInsets.symmetric(
+                   horizontal: AppSpacing.screenPadding,
+                   vertical: AppSpacing.md,
+                 ),
+                 scrollDirection: Axis.horizontal,
+                 itemCount: 5,
+                 separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                 itemBuilder: (context, index) {
+                    final titles = ['Midnight Rain', 'Solar Power', 'After Hours', 'Future Nostalgia', 'Planet Her'];
+                    final artists = ['Taylor Swift', 'Lorde', 'The Weeknd', 'Dua Lipa', 'Doja Cat'];
+                    return SizedBox(
+                      width: 160,
+                      child: AuraAlbumCard(
+                        title: titles[index],
+                        subtitle: artists[index],
+                        imageUrl: 'https://picsum.photos/300?random=$index',
+                        isNew: index == 0,
+                        onTap: () {},
+                      ),
+                    );
+                 },
+               ),
+             ),
+          ),
+
+          // Studio Albums Header
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.xl),
+              child: SectionHeader(title: 'Studio Albums'),
+            ),
+          ),
+
+          // Studio Albums Grid
+          SliverPadding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              top: AppSpacing.md,
+            ),
             sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                maxCrossAxisExtent: 300,
-                mainAxisSpacing: AppSpacing.sm,
-                crossAxisSpacing: AppSpacing.sm,
-                childAspectRatio: 3.0,
-              ),
-              delegate: SliverChildListDelegate([
-                _QuickAccessCard(
-                  title: 'Liked Songs',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-                _QuickAccessCard(
-                  title: 'Chill Vibes',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-                _QuickAccessCard(
-                  title: 'Daily Mix 1',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-                _QuickAccessCard(
-                  title: 'Discover Weekly',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-                _QuickAccessCard(
-                  title: 'Focus Flow',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-                _QuickAccessCard(
-                  title: 'Your Top 2024',
-                  imageUrl: '',
-                  onTap: () {},
-                ),
-              ]),
+               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                 maxCrossAxisExtent: 200,
+                 mainAxisSpacing: AppSpacing.md,
+                 crossAxisSpacing: AppSpacing.md,
+                 childAspectRatio: 0.8, // Taller for title/subtitle
+               ),
+               delegate: SliverChildBuilderDelegate(
+                 (context, index) {
+                   return AuraAlbumCard(
+                      title: 'Album ${index + 1}',
+                      subtitle: 'Artist Name',
+                      imageUrl: 'https://picsum.photos/300?random=${index + 10}',
+                      onTap: () {},
+                   );
+                 },
+                 childCount: 4,
+               ),
             ),
           ),
 
-          // Made for you section
+          // Popular Tracks
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: SectionHeader(
-                title: 'Made for you',
-                actionLabel: 'See all',
-                onActionTap: () {},
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 250,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenPadding,
-                  vertical: AppSpacing.md,
-                ),
-                itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, index) {
-                  final playlists = [
-                    ('Daily Mix ${index + 1}', 'Your personalized mix'),
-                    ('Discover Weekly', 'New music picked for you'),
-                    ('Release Radar', 'Fresh releases from artists you follow'),
-                    ('Time Capsule', 'Songs you loved years ago'),
-                    ('Repeat Rewind', 'Your past favorites'),
-                    ('On Repeat', 'Songs you can\'t stop playing'),
-                  ];
-                  return ArtworkCard(
-                    imageUrl: '',
-                    title: playlists[index].$1,
-                    subtitle: playlists[index].$2,
-                    size: ArtworkCardSize.medium,
-                    showPlayButton: true,
-                    onTap: () {},
-                  );
-                },
-              ),
+              padding: const EdgeInsets.only(top: AppSpacing.xl),
+              child: SectionHeader(title: 'Popular Tracks'),
             ),
           ),
 
-          // Recently played section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: SectionHeader(
-                title: 'Recently played',
-                actionLabel: 'See all',
-                onActionTap: () {},
-              ),
+          SliverPadding(
+            padding: const EdgeInsets.only(
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              top: AppSpacing.md,
             ),
+             sliver: SliverList(
+               delegate: SliverChildBuilderDelegate(
+                 (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AuraTrackTile(
+                        title: 'Track Title ${index + 1}',
+                        subtitle: 'Artist Name • Album',
+                        imageUrl: 'https://picsum.photos/100?random=${index + 20}',
+                        duration: '3:45',
+                        isPlaying: index == 0, // Mock playing state
+                        onTap: () {},
+                      ),
+                    );
+                 },
+                 childCount: 6,
+               ),
+             ),
           ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 250,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenPadding,
-                  vertical: AppSpacing.md,
-                ),
-                itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, index) {
-                  final items = [
-                    ('Starboy', 'The Weeknd'),
-                    ('Blinding Lights', 'The Weeknd'),
-                    ('One Dance', 'Drake'),
-                    ('Shape of You', 'Ed Sheeran'),
-                    ('Thinking Out Loud', 'Ed Sheeran'),
-                    ('Uptown Funk', 'Bruno Mars'),
-                  ];
-                  return ArtworkCard(
-                    imageUrl: '',
-                    title: items[index].$1,
-                    subtitle: items[index].$2,
-                    size: ArtworkCardSize.medium,
-                    onTap: () {},
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Popular artists section
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: SectionHeader(
-                title: 'Popular artists',
-                actionLabel: 'See all',
-                onActionTap: () {},
-              ),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: SizedBox(
-              height: 230,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenPadding,
-                  vertical: AppSpacing.md,
-                ),
-                itemCount: 6,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-                itemBuilder: (context, index) {
-                  final artists = [
-                    'The Weeknd',
-                    'Drake',
-                    'Ed Sheeran',
-                    'Taylor Swift',
-                    'Billie Eilish',
-                    'Bruno Mars',
-                  ];
-                  return ArtworkCard(
-                    imageUrl: '',
-                    title: artists[index],
-                    subtitle: 'Artist',
-                    size: ArtworkCardSize.small,
-                    isCircular: true,
-                    onTap: () {},
-                  );
-                },
-              ),
-            ),
-          ),
-
-          // Bottom padding for mini player
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 120),
-          ),
+          
+          // Bottom padding for floating nav
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
-      ),
-    );
-  }
-}
-
-/// Quick access card for top grid
-class _QuickAccessCard extends StatelessWidget {
-  const _QuickAccessCard({
-    required this.title,
-    required this.imageUrl,
-    required this.onTap,
-  });
-
-  final String title;
-  final String imageUrl;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Material(
-      color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
-      borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
-        child: Row(
-          children: [
-            // Artwork
-            Container(
-              width: 56,
-              height: double.infinity,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: const BorderRadius.horizontal(
-                  left: Radius.circular(AppSpacing.radiusSm),
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.music_note_rounded,
-                  color: colorScheme.onSurface.withOpacity(0.3),
-                ),
-              ),
-            ),
-            
-            // Title
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-                child: Text(
-                  title,
-                  style: theme.textTheme.titleSmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

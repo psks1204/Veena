@@ -2,79 +2,59 @@ import 'package:flutter/material.dart';
 
 /// Veena Design System - Color Palette
 /// 
-/// Premium color system with carefully balanced dark and light themes.
-/// All colors are designed to work together harmoniously.
+/// Aura Design System colors.
+/// Premium, high-contrast, and vibrant.
 class AppColors {
   AppColors._();
+
+  // ─────────────────────────────────────────────────────────────────
+  // BRAND & ACCENT
+  // ─────────────────────────────────────────────────────────────────
+  
+  /// Primary Brand Color - "Primary" (#d41173)
+  static const Color primary = Color(0xFFD41173);
+  
+  /// Success / Functional Green
+  static const Color success = Color(0xFF1DB954);
+  
+  /// Error / Functional Red
+  static const Color error = Color(0xFFE53935);
 
   // ─────────────────────────────────────────────────────────────────
   // DARK THEME
   // ─────────────────────────────────────────────────────────────────
   
-  /// Deep charcoal background (not pure black)
-  static const Color darkBg = Color(0xFF121212);
+  /// Deep dark background (#131315)
+  static const Color darkBg = Color(0xFF131315);
   
-  /// Elevated surface color for cards
-  static const Color darkSurface = Color(0xFF1E1E1E);
+  /// Surface Dark (#1D1E1F or #1E1E20 depending on usage, unifying to #1D1E1F)
+  static const Color darkSurface = Color(0xFF1D1E1F);
   
-  /// Secondary elevated surface
-  static const Color darkSurfaceVariant = Color(0xFF282828);
+  /// Secondary Surface / Card Highlight (#2A2A2D)
+  static const Color darkSurfaceVariant = Color(0xFF2A2A2D);
   
-  /// Primary text - off-white, not stark white
-  static const Color darkTextPrimary = Color(0xFFEDEDED);
+  /// Primary Text - White
+  static const Color darkTextPrimary = Colors.white;
   
-  /// Secondary text for metadata
-  static const Color darkTextSecondary = Color(0xFFB3B3B3);
-  
-  /// Tertiary text for disabled states
-  static const Color darkTextTertiary = Color(0xFF727272);
+  /// Muted Text (#A0A3A6)
+  static const Color darkTextSecondary = Color(0xFFA0A3A6);
 
   // ─────────────────────────────────────────────────────────────────
   // LIGHT THEME
   // ─────────────────────────────────────────────────────────────────
   
-  /// Soft off-white background (not pure white)
+  /// Light Background (#F7F7F7)
   static const Color lightBg = Color(0xFFF7F7F7);
   
-  /// Pure white surface for cards
+  /// Surface Light (#FFFFFF or #EBEBEB)
   static const Color lightSurface = Color(0xFFFFFFFF);
   
-  /// Muted gray secondary surface
-  static const Color lightSurfaceVariant = Color(0xFFEEEEEE);
+  /// Variant Surface (#EBEBEB or #F0F0F0)
+  static const Color lightSurfaceVariant = Color(0xFFF0F0F0);
   
-  /// Primary text - deep charcoal
-  static const Color lightTextPrimary = Color(0xFF121212);
+  /// Primary Text (#2D2D2D)
+  static const Color lightTextPrimary = Color(0xFF2D2D2D);
   
-  /// Secondary text for metadata
-  static const Color lightTextSecondary = Color(0xFF666666);
-  
-  /// Tertiary text for disabled states
-  static const Color lightTextTertiary = Color(0xFF999999);
-
-  // ─────────────────────────────────────────────────────────────────
-  // ACCENT COLORS
-  // ─────────────────────────────────────────────────────────────────
-  
-  /// Primary brand accent - rich green
-  static const Color accent = Color(0xFF1DB954);
-  
-  /// Accent variant for hover/pressed states
-  static const Color accentVariant = Color(0xFF1ED760);
-  
-  /// Error state
-  static const Color error = Color(0xFFE53935);
-  
-  /// Success state
-  static const Color success = Color(0xFF1DB954);
-
-  // ─────────────────────────────────────────────────────────────────
-  // OVERLAY COLORS
-  // ─────────────────────────────────────────────────────────────────
-  
-  /// Semi-transparent overlay for modals
-  static const Color overlayDark = Color(0x99000000);
-  
-  /// Gradient overlay for artwork
-  static const Color gradientStart = Color(0x00000000);
-  static const Color gradientEnd = Color(0xCC000000);
+  /// Muted Text (#7B7B7B)
+  static const Color lightTextSecondary = Color(0xFF7B7B7B);
 }

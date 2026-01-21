@@ -4,6 +4,7 @@ import 'core/providers/theme_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
+import 'features/auth/screens/splash_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
@@ -63,7 +64,7 @@ class _AppRouterState extends State<_AppRouter> {
         // Show loading while initializing
         if (authService.state == AuthState.initial ||
             authService.state == AuthState.loading) {
-          return const _SplashScreen();
+          return const SplashScreen();
         }
 
         // Show login if not authenticated
@@ -159,49 +160,5 @@ class _AppRouterState extends State<_AppRouter> {
       default:
         return const HomeScreen();
     }
-  }
-}
-
-/// Splash Screen
-class _SplashScreen extends StatelessWidget {
-  const _SplashScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Logo
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.music_note_rounded,
-                size: 40,
-                color: Colors.white,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Veena',
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 48),
-            const CircularProgressIndicator(),
-          ],
-        ),
-      ),
-    );
   }
 }
