@@ -28,7 +28,7 @@ class AuthService extends ChangeNotifier {
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
-  String? get errorMessage => _errorMessage;
+  String? get errorMessage => _errorMessage; // Added getter for Login Screen
   bool get isAuthenticated => _accessToken != null;
 
   Future<void> initialize() async {
