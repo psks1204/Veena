@@ -23,13 +23,14 @@ class AuthConfig {
   
   /// Client ID (public - no secret needed for PKCE)
   static const String clientId = '8snvvu2cchipad20n6umug5l0';
-  
+
   /// OAuth scopes
   static const List<String> scopes = ['openid', 'email', 'profile'];
   
   /// Redirect URI for mobile (deep link)
   static const String redirectUri = 'veena://auth/callback';
-  
+
+
   /// Redirect URI for web
   /// Development: uses fixed localhost:3000
   /// Production: uses current origin (e.g., CloudFront URL)
