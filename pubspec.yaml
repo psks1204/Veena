@@ -60,6 +60,9 @@ dependencies:
   # Media playback
   video_player: ^2.9.2
   just_audio: ^0.9.40
+  
+  # URL launcher for desktop OAuth
+  url_launcher: ^6.2.5
 
 dev_dependencies:
   flutter_test:

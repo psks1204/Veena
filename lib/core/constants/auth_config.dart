@@ -40,24 +40,32 @@ class AuthConfig {
     return 'http://localhost:3000/auth/callback';
   }
   
+  /// Redirect URI for desktop (Windows/Linux/macOS)
+  /// Uses a local HTTP server on port 8765
+  static const String desktopRedirectUri = 'http://localhost:8765/auth/callback';
+  
   /// Alternative common ports - add all these to Cognito if testing on different ports
   /// http://localhost:3000/auth/callback
   /// http://localhost:5000/auth/callback
-  /// http://localhost:52024/auth/callback
+  /// http://localhost:8085/auth/callback (desktop)
   
   /// Post-logout redirect URI
   static const String postLogoutRedirectUri = 'veena://auth/logout';
   
-  /// Build the full authorization URL for web OAuth
+  /// Build the full authorization URL for web/desktop OAuth
+  /// Set isDesktop to true for desktop platforms
   static String buildWebAuthorizationUrl({
     required String codeVerifier,
     required String codeChallenge,
     required String state,
+    bool isDesktop = false,
   }) {
+    final redirectUriToUse = isDesktop ? desktopRedirectUri : webRedirectUri;
+    
     final params = {
       'response_type': 'code',
       'client_id': clientId,
-      'redirect_uri': webRedirectUri,
+      'redirect_uri': redirectUriToUse,
       'scope': scopes.join(' '),
       'state': state,
       'code_challenge': codeChallenge,

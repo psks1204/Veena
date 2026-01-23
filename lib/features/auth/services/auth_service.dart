@@ -1,11 +1,14 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
 // Conditional import based on platform
-import 'auth_service_mobile.dart' if (dart.library.html) 'auth_service_web.dart' as platform;
+// Web uses auth_service_web, desktop (Windows/Linux/macOS) uses auth_service_desktop, mobile uses auth_service_mobile
+import 'auth_service_stub.dart'
+    if (dart.library.html) 'auth_service_web.dart'
+    if (dart.library.io) 'auth_service_io.dart' as platform;
 
 class AuthResult {
   final bool success;
