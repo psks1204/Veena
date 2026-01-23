@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/providers/player_provider.dart';
+import 'core/services/media_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -9,6 +11,7 @@ import 'features/home/screens/home_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'features/player/screens/video_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/widgets/full_player.dart';
 
@@ -24,6 +27,8 @@ class VeenaApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
+        ChangeNotifierProvider(create: (_) => MediaService()),
+        ChangeNotifierProvider(create: (_) => PlayerProvider()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -52,15 +57,11 @@ class _AppRouter extends StatefulWidget {
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
   bool _showFullPlayer = false;
-  
-  // Demo player state
-  bool _isPlaying = true;
-  double _progress = 0.35;
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<AuthService>(
-      builder: (context, authService, child) {
+    return Consumer2<AuthService, PlayerProvider>(
+      builder: (context, authService, player, child) {
         // Show loading while initializing
         if (authService.state == AuthState.initial ||
             authService.state == AuthState.loading) {
@@ -86,53 +87,61 @@ class _AppRouterState extends State<_AppRouter> {
                   _currentIndex = index;
                 });
               },
-              showMiniPlayer: true,
-              miniPlayerData: MiniPlayerData(
-                trackTitle: 'Blinding Lights',
-                artistName: 'The Weeknd',
-                isPlaying: _isPlaying,
-                progress: _progress,
-                onTap: () {
-                  setState(() {
-                    _showFullPlayer = true;
-                  });
-                },
-                onPlayPause: () {
-                  setState(() {
-                    _isPlaying = !_isPlaying;
-                  });
-                },
-                onNext: () {},
-              ),
+              showMiniPlayer: player.hasMedia && !player.isVideo,
+              miniPlayerData: player.hasMedia
+                  ? MiniPlayerData(
+                      trackTitle: player.currentMedia!.title,
+                      artistName: player.currentMedia!.description ?? '',
+                      artworkUrl: player.currentMedia!.thumbnailUrl,
+                      isPlaying: player.isPlaying,
+                      progress: player.progress,
+                      onTap: () {
+                        if (player.isVideo) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const VideoPlayerScreen(),
+                            ),
+                          );
+                        } else {
+                          setState(() {
+                            _showFullPlayer = true;
+                          });
+                        }
+                      },
+                      onPlayPause: () {
+                        player.togglePlayPause();
+                      },
+                      onNext: () {},
+                    )
+                  : null,
               child: _buildCurrentScreen(),
             ),
             
-            // Full player overlay
-            if (_showFullPlayer)
+            // Full player overlay (for audio)
+            if (_showFullPlayer && player.hasMedia && player.isAudio)
               Material(
                 child: FullPlayer(
-                  trackTitle: 'Blinding Lights',
-                  artistName: 'The Weeknd',
-                  albumName: 'After Hours',
-                  isPlaying: _isPlaying,
-                  progress: _progress,
-                  currentPosition: const Duration(minutes: 1, seconds: 10),
-                  duration: const Duration(minutes: 3, seconds: 20),
+                  trackTitle: player.currentMedia!.title,
+                  artistName: player.currentMedia!.description ?? '',
+                  albumName: '',
+                  artworkUrl: player.currentMedia!.thumbnailUrl,
+                  isPlaying: player.isPlaying,
+                  progress: player.progress,
+                  currentPosition: player.position,
+                  duration: player.duration,
                   onClose: () {
                     setState(() {
                       _showFullPlayer = false;
                     });
                   },
                   onPlayPause: () {
-                    setState(() {
-                      _isPlaying = !_isPlaying;
-                    });
+                    player.togglePlayPause();
                   },
                   onSeek: (value) {
-                    setState(() {
-                      _progress = value;
-                    });
+                    player.seekToProgress(value);
                   },
+                  onPrevious: () {},
+                  onNext: () {},
                 ),
               ),
           ],
@@ -162,3 +171,4 @@ class _AppRouterState extends State<_AppRouter> {
     }
   }
 }
+

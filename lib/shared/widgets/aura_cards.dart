@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/models/media_item.dart';
 
 /// Aura Album Card - Vertical
-/// Square image with gradient overlay.
+/// Square image with gradient overlay and media type badge.
 class AuraAlbumCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final String imageUrl;
   final VoidCallback? onTap;
   final bool isNew;
+  final MediaType? mediaType;
 
   const AuraAlbumCard({
     super.key,
@@ -19,6 +21,7 @@ class AuraAlbumCard extends StatelessWidget {
     required this.imageUrl,
     this.onTap,
     this.isNew = false,
+    this.mediaType,
   });
 
   @override
@@ -31,7 +34,7 @@ class AuraAlbumCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded( // Assuming usage in a Grid or constrained height container, otherwise AspectRatio
+          Expanded(
             child: AspectRatio(
               aspectRatio: 1,
               child: Stack(
@@ -50,12 +53,14 @@ class AuraAlbumCard extends StatelessWidget {
                         ],
                      ),
                      clipBehavior: Clip.antiAlias,
-                     child: CachedNetworkImage(
-                       imageUrl: imageUrl,
-                       fit: BoxFit.cover,
-                       placeholder: (context, url) => Container(color: theme.colorScheme.surfaceContainerHighest),
-                       errorWidget: (context, url, error) => const Icon(Icons.error),
-                     ),
+                     child: imageUrl.isNotEmpty
+                       ? CachedNetworkImage(
+                           imageUrl: imageUrl,
+                           fit: BoxFit.cover,
+                           placeholder: (context, url) => Container(color: theme.colorScheme.surfaceContainerHighest),
+                           errorWidget: (context, url, error) => _buildPlaceholder(theme),
+                         )
+                       : _buildPlaceholder(theme),
                    ),
                    // Gradient Overlay
                    Container(
@@ -71,6 +76,47 @@ class AuraAlbumCard extends StatelessWidget {
                        ),
                      ),
                    ),
+                   // Media Type Badge (VIDEO/AUDIO)
+                   if (mediaType != null)
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: mediaType == MediaType.video 
+                              ? Colors.red.withOpacity(0.9)
+                              : AppColors.primary.withOpacity(0.9),
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              mediaType == MediaType.video 
+                                  ? Icons.videocam_rounded 
+                                  : Icons.music_note_rounded,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              mediaType == MediaType.video ? 'VIDEO' : 'AUDIO',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                   // NEW Badge
                    if (isNew)
                     Positioned(
                       top: 8,
@@ -125,6 +171,16 @@ class AuraAlbumCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(ThemeData theme) {
+    return Center(
+      child: Icon(
+        mediaType == MediaType.video ? Icons.videocam_rounded : Icons.music_note_rounded,
+        size: 40,
+        color: theme.colorScheme.onSurface.withOpacity(0.3),
       ),
     );
   }

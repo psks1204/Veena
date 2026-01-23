@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../../../core/theme/app_colors.dart';
-import '../../../../core/theme/app_spacing.dart';
-import '../../../../shared/widgets/aura_cards.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/aura_cards.dart';
 
 /// Album Detail Screen - Neon Horizon
 /// 
@@ -189,7 +189,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
                            ),
                          ),
                        ),
-                       const SizedBox(height: AppSpacing.2xl),
+                       const SizedBox(height: AppSpacing.xxl),
                        
                        // Album Info
                        Text(

@@ -56,6 +56,10 @@ dependencies:
   
   # Crypto for PKCE
   crypto: ^3.0.5
+  
+  # Media playback
+  video_player: ^2.9.2
+  just_audio: ^0.9.40
 
 dev_dependencies:
   flutter_test:
