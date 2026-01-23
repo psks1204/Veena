@@ -19,8 +19,7 @@ class AuthConfig {
       'https://$cognitoDomain/oauth2/token';
   
   /// Logout endpoint
-  static const String logoutEndpoint = 
-      'https://$cognitoDomain/logout';
+  static const String logoutEndpoint = 'https://$cognitoDomain/logout';
   
   /// Client ID (public - no secret needed for PKCE)
   static const String clientId = '8snvvu2cchipad20n6umug5l0';
