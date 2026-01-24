@@ -125,10 +125,12 @@ class _AppShellState extends State<AppShell> {
                       artistName: widget.miniPlayerData!.artistName,
                       artworkUrl: widget.miniPlayerData!.artworkUrl,
                       isPlaying: widget.miniPlayerData!.isPlaying,
+                      isLiked: widget.miniPlayerData!.isLiked,
                       progress: widget.miniPlayerData!.progress,
                       onTap: widget.miniPlayerData!.onTap,
                       onPlayPause: widget.miniPlayerData!.onPlayPause,
                       onNext: widget.miniPlayerData!.onNext,
+                      onFavorite: widget.miniPlayerData!.onFavorite,
                     ),
                   ),
                   
@@ -201,10 +203,12 @@ class _AppShellState extends State<AppShell> {
                     artistName: widget.miniPlayerData!.artistName,
                     artworkUrl: widget.miniPlayerData!.artworkUrl,
                     isPlaying: widget.miniPlayerData!.isPlaying,
+                    isLiked: widget.miniPlayerData!.isLiked,
                     progress: widget.miniPlayerData!.progress,
                     onTap: widget.miniPlayerData!.onTap,
                     onPlayPause: widget.miniPlayerData!.onPlayPause,
                     onNext: widget.miniPlayerData!.onNext,
+                    onFavorite: widget.miniPlayerData!.onFavorite,
                   ),
               ],
             ),
@@ -292,10 +296,12 @@ class _AppShellState extends State<AppShell> {
               artistName: widget.miniPlayerData!.artistName,
               artworkUrl: widget.miniPlayerData!.artworkUrl,
               isPlaying: widget.miniPlayerData!.isPlaying,
+              isLiked: widget.miniPlayerData!.isLiked,
               progress: widget.miniPlayerData!.progress,
               onTap: widget.miniPlayerData!.onTap,
               onPlayPause: widget.miniPlayerData!.onPlayPause,
               onNext: widget.miniPlayerData!.onNext,
+              onFavorite: widget.miniPlayerData!.onFavorite,
             )
           : null,
     );
@@ -309,18 +315,22 @@ class MiniPlayerData {
     required this.artistName,
     this.artworkUrl,
     this.isPlaying = false,
+    this.isLiked = false,
     this.progress = 0.0,
     this.onTap,
     this.onPlayPause,
     this.onNext,
+    this.onFavorite,
   });
 
   final String trackTitle;
   final String artistName;
   final String? artworkUrl;
   final bool isPlaying;
+  final bool isLiked;
   final double progress;
   final VoidCallback? onTap;
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
+  final VoidCallback? onFavorite;
 }

@@ -6,7 +6,18 @@ import 'auth_service.dart';
 final _appAuth = const FlutterAppAuth();
 final _secureStorage = const FlutterSecureStorage();
 
-Map<String, dynamic> decodeJwt(String token) => {};
+Map<String, dynamic> decodeJwt(String token) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return {};
+    final payload = parts[1];
+    var normalized = base64.normalize(payload);
+    final resp = utf8.decode(base64.decode(normalized));
+    return json.decode(resp);
+  } catch (e) {
+    return {};
+  }
+}
 void redirectToAdmin(String? token) {}
 
 Future<AuthResult> signIn() async {
@@ -21,10 +32,8 @@ Future<AuthResult> signIn() async {
         additionalParameters: {'identity_provider': 'Google'},
       ),
     );
-    if (result != null) {
-      return AuthResult(success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, idToken: result.idToken);
-    }
-    return AuthResult(success: false, error: 'Auth failed');
+    return AuthResult(success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, idToken: result.idToken);
+      return AuthResult(success: false, error: 'Auth failed');
   } catch (e) { return AuthResult(success: false, error: e.toString()); }
 }
 
@@ -49,7 +58,7 @@ Future<void> clearTokens() async {
 Future<AuthResult> refreshToken(String refreshTokenValue) async {
   try {
     final result = await _appAuth.token(TokenRequest(AuthConfig.clientId, AuthConfig.redirectUri, issuer: 'https://${AuthConfig.issuer}', refreshToken: refreshTokenValue, scopes: AuthConfig.scopes));
-    if (result != null) return AuthResult(success: true, accessToken: result.accessToken, idToken: result.idToken);
+    return AuthResult(success: true, accessToken: result.accessToken, idToken: result.idToken);
   } catch (e) { return AuthResult(success: false, error: e.toString()); }
   return AuthResult(success: false);
 }

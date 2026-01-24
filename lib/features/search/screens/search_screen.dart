@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/search_provider.dart';
+import '../../../core/providers/playback_provider.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/models/media_item.dart';
 
 /// Search Screen
 /// 
@@ -27,6 +31,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final searchProvider = context.watch<SearchProvider>();
 
     return Scaffold(
       body: CustomScrollView(
@@ -55,6 +60,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     setState(() {
                       _isSearching = value.isNotEmpty;
                     });
+                    searchProvider.search(value);
                   },
                   decoration: InputDecoration(
                     hintText: 'What do you want to listen to?',
@@ -66,6 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               setState(() {
                                 _isSearching = false;
                               });
+                              searchProvider.search('');
                             },
                             icon: const Icon(Icons.close_rounded),
                           )
@@ -78,7 +85,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // Search results or browse categories
           if (_isSearching)
-            _buildSearchResults(theme)
+            _buildSearchResults(theme, searchProvider)
           else
             _buildBrowseCategories(theme, colorScheme),
 
@@ -91,33 +98,71 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSearchResults(ThemeData theme) {
-    return SliverPadding(
-      padding: const EdgeInsets.all(AppSpacing.screenPadding),
-      sliver: SliverToBoxAdapter(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Recent searches',
-              style: theme.textTheme.titleMedium,
+  Widget _buildSearchResults(ThemeData theme, SearchProvider provider) {
+    if (provider.state == SearchState.loading) {
+      return const SliverFillRemaining(
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (provider.state == SearchState.error) {
+      return SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.xl),
+          child: Text('Error: ${provider.errorMessage}'),
+        ),
+      );
+    }
+
+    final results = provider.results;
+
+    if (results.isEmpty) {
+      return SliverToBoxAdapter(
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Text(
+              'No results found for "${_searchController.text}"',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withOpacity(0.6),
+              ),
             ),
-            const SizedBox(height: AppSpacing.md),
-            // Show search results here
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
-                child: Text(
-                  'Search for songs, artists, albums, or playlists',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                  ),
-                  textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+
+    return SliverList(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final item = results[index];
+          return ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: Image.network(
+                item.thumbnailUrl ?? 'https://picsum.photos/64/64',
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 48,
+                  height: 48,
+                  color: Colors.grey[800],
+                  child: const Icon(Icons.music_note),
                 ),
               ),
             ),
-          ],
-        ),
+            title: Text(item.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: Text(item.artistName, maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: item.mediaType == 'VIDEO' 
+                ? const Icon(Icons.videocam_rounded, size: 20)
+                : null,
+            onTap: () {
+              context.read<PlaybackProvider>().playMedia(item);
+            },
+          );
+        },
+        childCount: results.length,
       ),
     );
   }

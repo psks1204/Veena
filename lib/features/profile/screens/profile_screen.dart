@@ -282,7 +282,7 @@ class _ThemeToggle extends StatelessWidget {
             onChanged: (value) {
               themeProvider.setDarkMode(value);
             },
-            activeColor: colorScheme.primary,
+            activeThumbColor: colorScheme.primary,
           ),
         ],
       ),

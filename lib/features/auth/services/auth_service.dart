@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import '../../../core/constants/auth_config.dart';
 // Conditional import based on platform
 import 'auth_service_mobile.dart' if (dart.library.html) 'auth_service_web.dart' as platform;
 
@@ -28,8 +26,21 @@ class AuthService extends ChangeNotifier {
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
-  String? get errorMessage => _errorMessage; // Added getter for Login Screen
+  String? get token => _idToken; // Use idToken for backend auth
+  String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _accessToken != null;
+
+  String? get userName {
+    if (_idToken == null) return null;
+    final payload = platform.decodeJwt(_idToken!);
+    return payload['name'] ?? payload['email']?.split('@')[0];
+  }
+
+  String? get userPicture {
+    if (_idToken == null) return null;
+    final payload = platform.decodeJwt(_idToken!);
+    return payload['picture'];
+  }
 
   Future<void> initialize() async {
     _state = AuthState.loading;

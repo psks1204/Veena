@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../core/providers/library_provider.dart';
+import '../../../../core/providers/playback_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_spacing.dart';
 import '../../../../shared/widgets/aura_cards.dart';
@@ -19,9 +22,18 @@ class _LibraryScreenState extends State<LibraryScreen> {
   final bool _isGridView = true; 
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LibraryProvider>().loadLibrary();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final libraryProvider = context.watch<LibraryProvider>();
 
     return Scaffold(
       body: CustomScrollView(
@@ -110,32 +122,58 @@ class _LibraryScreenState extends State<LibraryScreen> {
           const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
 
           // Grid Content
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-            sliver: SliverGrid(
-               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                 maxCrossAxisExtent: 200,
-                 mainAxisSpacing: AppSpacing.md,
-                 crossAxisSpacing: AppSpacing.md,
-                 childAspectRatio: 0.8,
-               ),
-               delegate: SliverChildBuilderDelegate(
-                 (context, index) {
-                   final item = _getMockItems()[index];
-                   return AuraAlbumCard(
-                     title: item.title,
-                     subtitle: item.subtitle,
-                     imageUrl: item.imageUrl, // In real app, handling item type
-                     onTap: () {
-                         // Mock navigation to detail
-                         // context.push('/album/1');
-                     },
-                   );
-                 },
-                 childCount: _getMockItems().length,
-               ),
+          if (libraryProvider.state == LibraryState.loading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (libraryProvider.state == LibraryState.error)
+            SliverFillRemaining(
+              child: Center(child: Text('Error: ${libraryProvider.errorMessage}')),
+            )
+          else if (libraryProvider.history.isEmpty)
+             SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.history_rounded, size: 64, color: theme.colorScheme.onSurface.withOpacity(0.3)),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'No history yet',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        color: theme.colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 200,
+                  mainAxisSpacing: AppSpacing.md,
+                  crossAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.8,
+                ),
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final item = libraryProvider.history[index];
+                    return AuraAlbumCard(
+                      title: item.title,
+                      subtitle: item.artistName,
+                      imageUrl: item.thumbnailUrl ?? 'https://picsum.photos/300?random=$index',
+                      onTap: () {
+                        context.read<PlaybackProvider>().playMedia(item);
+                      },
+                    );
+                  },
+                  childCount: libraryProvider.history.length,
+                ),
+              ),
             ),
-          ),
           
           // Bottom padding
           const SliverToBoxAdapter(

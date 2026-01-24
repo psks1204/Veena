@@ -13,6 +13,7 @@ class MiniPlayer extends StatelessWidget {
     required this.artistName,
     this.artworkUrl,
     this.isPlaying = false,
+    this.isLiked = false,
     this.progress = 0.0,
     this.onTap,
     this.onPlayPause,
@@ -24,6 +25,7 @@ class MiniPlayer extends StatelessWidget {
   final String artistName;
   final String? artworkUrl;
   final bool isPlaying;
+  final bool isLiked;
   final double progress;
   final VoidCallback? onTap;
   final VoidCallback? onPlayPause;
@@ -154,9 +156,9 @@ class MiniPlayer extends StatelessWidget {
                         IconButton(
                           onPressed: onFavorite,
                           icon: Icon(
-                            Icons.favorite_border_rounded, // or favorite_rounded based on state
+                            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                             size: 24,
-                            color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                            color: isLiked ? Colors.red : (isDark ? Colors.white : AppColors.lightTextPrimary),
                           ),
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
