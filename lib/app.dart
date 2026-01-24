@@ -28,7 +28,10 @@ class VeenaApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
-        ChangeNotifierProvider(create: (_) => DashboardProvider()),
+        ChangeNotifierProxyProvider<AuthService, DashboardProvider>(
+          create: (_) => DashboardProvider(),
+          update: (_, auth, dashboard) => dashboard!..updateAuth(auth),
+        ),
         ChangeNotifierProxyProvider<AuthService, SearchProvider>(
           create: (_) => SearchProvider(),
           update: (_, auth, search) => search!..updateAuth(auth),

@@ -60,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: () => dashboardProvider.loadDashboard(token: authService.token),
+        onRefresh: () => dashboardProvider.loadDashboard(),
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [

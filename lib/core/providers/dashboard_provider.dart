@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/dashboard_service.dart';
+import '../../features/auth/services/auth_service.dart';
 import '../../shared/models/dashboard_data.dart';
 import '../../shared/models/media_item.dart';
 
@@ -7,10 +8,15 @@ enum DashboardState { initial, loading, loaded, error }
 
 class DashboardProvider extends ChangeNotifier {
   final DashboardService _dashboardService = DashboardService();
+  AuthService? _authService;
   
   DashboardState _state = DashboardState.initial;
   DashboardData? _data;
   String _errorMessage = '';
+
+  void updateAuth(AuthService auth) {
+    _authService = auth;
+  }
 
   // Pagination state for popular tracks
   List<MediaItem> _popularTracks = [];
@@ -37,7 +43,8 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _data = await _dashboardService.getDashboardData(token: token);
+      final freshToken = await _authService?.ensureAuthenticated() ?? token;
+      _data = await _dashboardService.getDashboardData(token: freshToken);
       _popularTracks = List.from(_data?.popularTracks ?? []);
       _popularTracksPage = 1;
       _hasMoreTracks = _popularTracks.length >= _pageSize;

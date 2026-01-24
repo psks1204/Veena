@@ -26,9 +26,23 @@ class AuthService extends ChangeNotifier {
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
-  String? get token => _idToken; // Use idToken for backend auth
+  String? get token => _accessToken; // Use accessToken as backend now strictly requires it
   String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _accessToken != null;
+  bool get isAuthenticated => _state == AuthState.authenticated;
+
+  bool isTokenExpired(String? token) {
+    if (token == null) return true;
+    try {
+      final payload = platform.decodeJwt(token);
+      final dynamic exp = payload['exp'];
+      if (exp == null) return true;
+      final int expSeconds = exp is int ? exp : (exp as double).toInt();
+      final expiryDate = DateTime.fromMillisecondsSinceEpoch(expSeconds * 1000, isUtc: true);
+      return DateTime.now().toUtc().isAfter(expiryDate.subtract(const Duration(seconds: 30)));
+    } catch (e) {
+      return true;
+    }
+  }
 
   String? get userName {
     if (_idToken == null) return null;
@@ -142,10 +156,26 @@ class AuthService extends ChangeNotifier {
         _accessToken = result.accessToken;
         _idToken = result.idToken;
         await platform.storeTokens(accessToken: _accessToken, idToken: _idToken);
+        notifyListeners();
         return true;
       }
     } catch (e) { debugPrint(e.toString()); }
     return false;
+  }
+
+  /// Ensures current token is valid, refreshing if necessary.
+  /// Returns the valid token or null if unauthenticated.
+  Future<String?> ensureAuthenticated() async {
+    if (_accessToken == null) return null;
+    
+    if (isTokenExpired(_accessToken)) {
+      final success = await refreshAccessToken();
+      if (!success) {
+        await signOut();
+        return null;
+      }
+    }
+    return _accessToken; // Return accessToken as backend now requires it
   }
 }
 
