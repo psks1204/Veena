@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  final String baseUrl = 'http://localhost:8080/api'; // Update for production
+  final String baseUrl = 'https://d17362b1w27h09.cloudfront.net/api'; // Update for production
 
   Future<Map<String, String>> getHeaders([String? token]) async {
     final headers = {
