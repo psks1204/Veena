@@ -136,6 +136,7 @@ class AuraTrackTile extends StatelessWidget {
   final String subtitle;
   final String? duration;
   final VoidCallback? onTap;
+  final VoidCallback? onMoreTap;
   final bool isPlaying;
   final String? imageUrl;
   final int? index;
@@ -146,6 +147,7 @@ class AuraTrackTile extends StatelessWidget {
     required this.subtitle,
     this.duration,
     this.onTap,
+    this.onMoreTap,
     this.isPlaying = false,
     this.imageUrl,
     this.index,
@@ -250,7 +252,7 @@ class AuraTrackTile extends StatelessWidget {
               ),
               
             IconButton(
-              onPressed: () {},
+              onPressed: onMoreTap,
               icon: Icon(
                 Icons.more_vert, 
                 color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,

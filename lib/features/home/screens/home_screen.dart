@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/widgets/track_list_tile.dart';
+import '../../../shared/widgets/add_to_playlist_sheet.dart';
 import '../../../core/providers/dashboard_provider.dart';
 import '../../../core/providers/playback_provider.dart';
 import '../../auth/services/auth_service.dart';
@@ -238,21 +240,21 @@ class _HomeScreenState extends State<HomeScreen> {
                     (context, index) {
                       final item = dashboardProvider.popularTracks[index];
                       final isPlaying = context.watch<PlaybackProvider>().currentMedia?.id == item.id;
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: AuraTrackTile(
-                          title: item.title,
-                          subtitle: '${item.artistName} • ${item.mediaType}',
-                          imageUrl: item.thumbnailUrl ?? 'https://picsum.photos/100?random=${index + 20}',
-                          duration: '3:45',
-                          isPlaying: isPlaying,
-                          onTap: () {
-                            context.read<PlaybackProvider>().setQueue(
-                              dashboardProvider.popularTracks,
-                              initialStateIndex: index,
-                            );
-                          },
-                        ),
+                      return TrackListTile(
+                        title: item.title,
+                        artist: '${item.artistName} • ${item.mediaType}',
+                        artworkUrl: item.thumbnailUrl,
+                        trackNumber: index + 1,
+                        isPlaying: isPlaying,
+                        onTap: () {
+                          context.read<PlaybackProvider>().setQueue(
+                            dashboardProvider.popularTracks,
+                            initialStateIndex: index,
+                          );
+                        },
+                        onMoreTap: () {
+                          showAddToPlaylistSheet(context, item);
+                        },
                       );
                     },
                     childCount: dashboardProvider.popularTracks.length,
