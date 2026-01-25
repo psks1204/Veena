@@ -1,0 +1,107 @@
+import 'package:flutter/foundation.dart';
+import 'api_service.dart';
+import '../models/media_item.dart';
+
+/// Dashboard Service
+/// 
+/// Fetches home screen content from the backend.
+class DashboardService extends ChangeNotifier {
+  final ApiService _api;
+  
+  DashboardService(this._api);
+  
+  List<MediaItem> _latestReleases = [];
+  List<MediaItem> _popularTracks = [];
+  List<MediaItem> _recentlyPlayed = [];
+  bool _isLoading = false;
+  String? _error;
+  
+  List<MediaItem> get latestReleases => _latestReleases;
+  List<MediaItem> get popularTracks => _popularTracks;
+  List<MediaItem> get recentlyPlayed => _recentlyPlayed;
+  bool get isLoading => _isLoading;
+  String? get error => _error;
+  
+  /// Fetch all dashboard data
+  Future<void> fetchDashboard() async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    
+    try {
+      final data = await _api.get('/user/dashboard');
+      
+      // Parse dashboard sections
+      if (data != null) {
+        if (data['latestReleases'] != null) {
+          _latestReleases = (data['latestReleases'] as List)
+              .map((item) => MediaItem.fromJson(item))
+              .toList();
+        }
+        if (data['popularTracks'] != null) {
+          _popularTracks = (data['popularTracks'] as List)
+              .map((item) => MediaItem.fromJson(item))
+              .toList();
+        }
+        if (data['recentlyPlayed'] != null) {
+          _recentlyPlayed = (data['recentlyPlayed'] as List)
+              .map((item) => MediaItem.fromJson(item))
+              .toList();
+        }
+      }
+      
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Dashboard fetch error: $e');
+    }
+  }
+  
+  /// Fetch latest releases only
+  Future<List<MediaItem>> fetchLatestReleases() async {
+    try {
+      final data = await _api.get('/user/dashboard/latest');
+      if (data != null && data is List) {
+        _latestReleases = data.map((item) => MediaItem.fromJson(item)).toList();
+        notifyListeners();
+      }
+      return _latestReleases;
+    } catch (e) {
+      debugPrint('Latest releases error: $e');
+      return [];
+    }
+  }
+  
+  /// Fetch popular/trending tracks
+  Future<List<MediaItem>> fetchPopularTracks() async {
+    try {
+      final data = await _api.get('/user/dashboard/popular');
+      if (data != null && data is List) {
+        _popularTracks = data.map((item) => MediaItem.fromJson(item)).toList();
+        notifyListeners();
+      }
+      return _popularTracks;
+    } catch (e) {
+      debugPrint('Popular tracks error: $e');
+      return [];
+    }
+  }
+  
+  /// Fetch user's recently played
+  Future<List<MediaItem>> fetchRecentlyPlayed() async {
+    try {
+      final data = await _api.get('/user/dashboard/history');
+      if (data != null && data is List) {
+        _recentlyPlayed = data.map((item) => MediaItem.fromJson(item)).toList();
+        notifyListeners();
+      }
+      return _recentlyPlayed;
+    } catch (e) {
+      debugPrint('Recently played error: $e');
+      return [];
+    }
+  }
+}

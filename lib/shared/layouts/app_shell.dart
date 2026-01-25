@@ -118,18 +118,15 @@ class _AppShellState extends State<AppShell> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.showMiniPlayer && widget.miniPlayerData != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: MiniPlayer(
-                      trackTitle: widget.miniPlayerData!.trackTitle,
-                      artistName: widget.miniPlayerData!.artistName,
-                      artworkUrl: widget.miniPlayerData!.artworkUrl,
-                      isPlaying: widget.miniPlayerData!.isPlaying,
-                      progress: widget.miniPlayerData!.progress,
-                      onTap: widget.miniPlayerData!.onTap,
-                      onPlayPause: widget.miniPlayerData!.onPlayPause,
-                      onNext: widget.miniPlayerData!.onNext,
-                    ),
+                  MiniPlayer(
+                    trackTitle: widget.miniPlayerData!.trackTitle,
+                    artistName: widget.miniPlayerData!.artistName,
+                    artworkUrl: widget.miniPlayerData!.artworkUrl,
+                    isPlaying: widget.miniPlayerData!.isPlaying,
+                    progress: widget.miniPlayerData!.progress,
+                    onTap: widget.miniPlayerData!.onTap,
+                    onPlayPause: widget.miniPlayerData!.onPlayPause,
+                    onNext: widget.miniPlayerData!.onNext,
                   ),
                   
                 FloatingNavBar(

@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/models/media_item.dart';
+import '../../../core/services/library_service.dart';
+import '../../../core/services/media_service.dart';
+import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../player/screens/video_player_screen.dart';
+import '../../auth/services/auth_service.dart';
 
-/// Library Screen - Aura Design
+/// Library Screen - Spotify-like Premium Design
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -12,11 +19,70 @@ class LibraryScreen extends StatefulWidget {
 }
 
 class _LibraryScreenState extends State<LibraryScreen> {
-  LibraryFilter _currentFilter = LibraryFilter.all;
-  
-  // Hardcoded grid view for "Albums List" style as per wireframe request, 
-  // but keeping toggle capability logic if needed, defaulting to true for the visual.
-  final bool _isGridView = true; 
+  bool _isLoading = true;
+  String _selectedFilter = 'Playlists'; // Default to Playlists
+  final List<String> _filters = ['Playlists', 'Artists', 'Albums', 'Favorites'];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadLibrary();
+    });
+  }
+
+  Future<void> _loadLibrary() async {
+    setState(() => _isLoading = true);
+    try {
+      await context.read<LibraryService>().fetchLibrary();
+    } catch (e) {
+      debugPrint('Error loading library: $e');
+    }
+    setState(() => _isLoading = false);
+  }
+
+  void _showCreatePlaylistDialog() {
+    final nameController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        title: const Text('Create Playlist', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: TextField(
+          controller: nameController,
+          decoration: InputDecoration(
+            hintText: 'Playlist name',
+            filled: true,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+          autofocus: true,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameController.text.isNotEmpty) {
+                await context.read<LibraryService>().createPlaylist(nameController.text);
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Create'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,163 +90,287 @@ class _LibraryScreenState extends State<LibraryScreen> {
     final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          // App bar Area
-          SliverPadding(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + AppSpacing.md,
-              left: AppSpacing.screenPadding,
-              right: AppSpacing.screenPadding,
-              bottom: AppSpacing.sm,
-            ),
-            sliver: SliverToBoxAdapter(
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Header bar
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+                vertical: AppSpacing.md,
+              ),
               child: Row(
                 children: [
-                  // User Avatar
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person, color: Colors.white),
+                  Builder(
+                    builder: (context) {
+                      final authService = context.watch<AuthService>();
+                      final userPicture = authService.userPicture;
+                      final userInitials = authService.userInitials;
+                      return CircleAvatar(
+                        radius: 18,
+                        backgroundColor: AppColors.primary,
+                        backgroundImage: userPicture != null ? NetworkImage(userPicture) : null,
+                        child: userPicture == null ? Text(userInitials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)) : null,
+                      );
+                    },
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Text(
                     'Your Library',
                     style: theme.textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 24,
+                      letterSpacing: -0.5,
                     ),
                   ),
                   const Spacer(),
                   IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.search, size: 28),
+                    onPressed: () {},
+                    icon: const Icon(Icons.search_rounded, size: 28),
                   ),
                   IconButton(
-                    onPressed: () {}, 
-                    icon: const Icon(Icons.add_rounded, size: 28),
+                    onPressed: _showCreatePlaylistDialog,
+                    icon: const Icon(Icons.add_rounded, size: 30),
                   ),
                 ],
               ),
             ),
-          ),
 
-          // Filters
-          SliverToBoxAdapter(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenPadding,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: LibraryFilter.values.map((filter) {
-                  final isSelected = _currentFilter == filter;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
-                    child: FilterChip(
-                      label: Text(filter.label),
-                      selected: isSelected,
-                      onSelected: (selected) {
-                        setState(() {
-                          _currentFilter = selected ? filter : LibraryFilter.all;
-                        });
-                      },
-                      showCheckmark: false,
-                      backgroundColor: isDark ? AppColors.darkSurfaceVariant : AppColors.lightSurfaceVariant,
-                      selectedColor: AppColors.primary,
-                      labelStyle: TextStyle(
-                        color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black),
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                      shape: RoundedRectangleBorder(
+            // Filter chips
+            SizedBox(
+              height: 40,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                scrollDirection: Axis.horizontal,
+                itemCount: _filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (context, index) {
+                  final filter = _filters[index];
+                  final isSelected = _selectedFilter == filter;
+                  return GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _selectedFilter = isSelected ? 'All' : filter;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: isSelected ? AppColors.primary : (isDark ? Colors.white12 : Colors.black.withOpacity(0.05)),
                         borderRadius: BorderRadius.circular(20),
-                        side: BorderSide.none,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          color: isSelected ? Colors.white : (isDark ? Colors.white : Colors.black87),
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   );
-                }).toList(),
+                },
               ),
             ),
-          ),
-          
-          const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.md)),
 
-          // Grid Content
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-            sliver: SliverGrid(
-               gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                 maxCrossAxisExtent: 200,
-                 mainAxisSpacing: AppSpacing.md,
-                 crossAxisSpacing: AppSpacing.md,
-                 childAspectRatio: 0.8,
-               ),
-               delegate: SliverChildBuilderDelegate(
-                 (context, index) {
-                   final item = _getMockItems()[index];
-                   return AuraAlbumCard(
-                     title: item.title,
-                     subtitle: item.subtitle,
-                     imageUrl: item.imageUrl, // In real app, handling item type
-                     onTap: () {
-                         // Mock navigation to detail
-                         // context.push('/album/1');
-                     },
-                   );
-                 },
-                 childCount: _getMockItems().length,
-               ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Sorting & Layout bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              child: Row(
+                children: [
+                  Icon(Icons.swap_vert_rounded, size: 20, color: isDark ? Colors.white70 : Colors.black54),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Recents',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.grid_view_rounded, size: 20, color: isDark ? Colors.white70 : Colors.black54),
+                ],
+              ),
             ),
-          ),
-          
-          // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 120),
-          ),
-        ],
+
+            const SizedBox(height: AppSpacing.md),
+
+            // Content
+            Expanded(
+              child: _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                  : _buildLibraryContent(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  List<LibraryItem> _getMockItems() {
-    return List.generate(10, (index) => LibraryItem(
-       title: 'Album ${index + 1}',
-       subtitle: 'Artist Name',
-       imageUrl: 'https://picsum.photos/300?random=${index + 50}',
-       type: LibraryItemType.album,
-    ));
+  Widget _buildLibraryContent() {
+    return Consumer<LibraryService>(
+      builder: (context, library, child) {
+        List<dynamic> items = [];
+        bool showLikedSongsTile = (_selectedFilter == 'All' || _selectedFilter == 'Playlists');
+        
+        if (_selectedFilter == 'All') {
+          items = [...library.playlists, ...library.artists, ...library.albums];
+        } else if (_selectedFilter == 'Playlists') {
+          items = library.playlists;
+        } else if (_selectedFilter == 'Artists') {
+          items = library.artists;
+        } else if (_selectedFilter == 'Albums') {
+          items = library.albums;
+        } else if (_selectedFilter == 'Favorites') {
+          items = library.favorites;
+        }
+
+        return ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+          itemCount: items.length + (showLikedSongsTile ? 1 : 0),
+          itemBuilder: (context, index) {
+            // Liked Songs tile at the top
+            if (showLikedSongsTile && index == 0) {
+              return _buildLikedSongsTile(library.favorites.length);
+            }
+
+            final actualIndex = showLikedSongsTile ? index - 1 : index;
+            final item = items[actualIndex];
+
+            if (item is Playlist) {
+              return _buildLibraryTile(
+                title: item.name,
+                subtitle: 'Playlist • ${item.description ?? 'You'}',
+                imageUrl: item.coverUrl,
+                isCircle: false,
+                onTap: () {},
+              );
+            } else if (item is Artist) {
+              return _buildLibraryTile(
+                title: item.name,
+                subtitle: 'Artist',
+                imageUrl: item.imageUrl,
+                isCircle: true,
+                onTap: () {},
+              );
+            } else if (item is Album) {
+              return _buildLibraryTile(
+                title: item.title,
+                subtitle: 'Album • ${item.artistName}',
+                imageUrl: item.coverUrl,
+                isCircle: false,
+                onTap: () {},
+              );
+            } else if (item is MediaItem) {
+              return _buildLibraryTile(
+                title: item.title,
+                subtitle: 'Song • ${item.description ?? ''}',
+                imageUrl: item.thumbnailUrl,
+                isCircle: false,
+                onTap: () {
+                   context.read<PlayerProvider>().play(item);
+                },
+              );
+            }
+            return const SizedBox.shrink();
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildLikedSongsTile(int count) {
+    return _buildLibraryTile(
+      title: 'Liked Songs',
+      subtitle: 'Playlist • $count songs',
+      imageUrl: null,
+      isCircle: false,
+      isLikedSongs: true,
+      onTap: () {
+        setState(() {
+          _selectedFilter = 'Favorites';
+        });
+      },
+    );
+  }
+
+  Widget _buildLibraryTile({
+    required String title,
+    required String subtitle,
+    String? imageUrl,
+    required bool isCircle,
+    required VoidCallback onTap,
+    bool isLikedSongs = false,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: InkWell(
+        onTap: onTap,
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(isCircle ? 32 : 4),
+                color: isLikedSongs ? const Color(0xFF5038A0) : (isDark ? Colors.white10 : Colors.black.withOpacity(0.05)),
+                image: imageUrl != null && imageUrl.isNotEmpty
+                    ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
+                    : null,
+              ),
+              child: isLikedSongs 
+                  ? const Center(child: Icon(Icons.favorite_rounded, color: Colors.white, size: 28))
+                  : (imageUrl == null || imageUrl.isEmpty
+                      ? Icon(isCircle ? Icons.person_rounded : Icons.music_note_rounded, color: Colors.grey)
+                      : null),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                      color: isLikedSongs ? AppColors.primary : (isDark ? Colors.white : Colors.black),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      if (isLikedSongs)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 4.0),
+                          child: Icon(Icons.push_pin_rounded, color: AppColors.primary, size: 14),
+                        ),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: isDark ? Colors.white60 : Colors.black54,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
-
-enum LibraryFilter {
-  all('All'),
-  playlists('Playlists'),
-  artists('Artists'),
-  albums('Albums');
-
-  const LibraryFilter(this.label);
-  final String label;
-}
-
-enum LibraryItemType { playlist, artist, album }
-
-class LibraryItem {
-  const LibraryItem({
-    required this.title,
-    required this.subtitle,
-    required this.imageUrl,
-    required this.type,
-    this.isPinned = false,
-  });
-
-  final String title;
-  final String subtitle;
-  final String imageUrl;
-  final LibraryItemType type;
-  final bool isPinned;
-}
-

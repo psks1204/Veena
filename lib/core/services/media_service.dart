@@ -1,54 +1,197 @@
 import 'package:flutter/foundation.dart';
+import 'api_service.dart';
 import '../models/media_item.dart';
 
 /// Media Service
 /// 
-/// Provides media content - currently using mock data.
-/// Replace with real API calls when backend is ready.
+/// Handles media operations: search, like/unlike, playback tracking.
 class MediaService extends ChangeNotifier {
-  List<MediaItem> _latestReleases = [];
+  final ApiService _api;
+  
+  MediaService(this._api);
+  
+  List<MediaItem> _searchResults = [];
   List<MediaItem> _allMedia = [];
+  Set<String> _likedMediaIds = {};
   bool _isLoading = false;
+  bool _isSearching = false;
   String? _error;
-
-  List<MediaItem> get latestReleases => _latestReleases;
+  
+  List<MediaItem> get searchResults => _searchResults;
   List<MediaItem> get allMedia => _allMedia;
   bool get isLoading => _isLoading;
+  bool get isSearching => _isSearching;
   String? get error => _error;
-
-  /// Fetch all media content (using mock data)
+  
+  /// Check if a media item is liked
+  bool isLiked(String mediaId) => _likedMediaIds.contains(mediaId);
+  
+  // ==================== SEARCH ====================
+  
+  /// Search for tracks, artists, or albums
+  Future<List<MediaItem>> search(String query) async {
+    if (query.trim().isEmpty) {
+      _searchResults = [];
+      notifyListeners();
+      return [];
+    }
+    
+    _isSearching = true;
+    notifyListeners();
+    
+    try {
+      final data = await _api.get('/media/search', queryParams: {'query': query});
+      
+      if (data != null && data is List) {
+        _searchResults = data.map((item) => MediaItem.fromJson(item)).toList();
+      } else if (data != null && data['results'] != null) {
+        _searchResults = (data['results'] as List)
+            .map((item) => MediaItem.fromJson(item))
+            .toList();
+      } else {
+        _searchResults = [];
+      }
+      
+      _isSearching = false;
+      notifyListeners();
+      return _searchResults;
+    } catch (e) {
+      _isSearching = false;
+      _error = e.toString();
+      notifyListeners();
+      debugPrint('Search error: $e');
+      return [];
+    }
+  }
+  
+  /// Clear search results
+  void clearSearch() {
+    _searchResults = [];
+    notifyListeners();
+  }
+  
+  // ==================== LIKE / FAVORITE ====================
+  
+  /// Toggle like status for a media item
+  Future<bool> toggleLike(String mediaId) async {
+    try {
+      await _api.post('/media/$mediaId/like');
+      
+      if (_likedMediaIds.contains(mediaId)) {
+        _likedMediaIds.remove(mediaId);
+      } else {
+        _likedMediaIds.add(mediaId);
+      }
+      
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Toggle like error: $e');
+      return false;
+    }
+  }
+  
+  /// Check if a media item is liked (from API)
+  Future<bool> checkLikeStatus(String mediaId) async {
+    try {
+      final data = await _api.get('/media/$mediaId/like');
+      final isLiked = data?['liked'] ?? false;
+      
+      if (isLiked) {
+        _likedMediaIds.add(mediaId);
+      } else {
+        _likedMediaIds.remove(mediaId);
+      }
+      
+      return isLiked;
+    } catch (e) {
+      debugPrint('Check like status error: $e');
+      return false;
+    }
+  }
+  
+  /// Get all liked media
+  Future<List<MediaItem>> getLikedMedia() async {
+    try {
+      final data = await _api.get('/media/liked');
+      if (data != null && data is List) {
+        final liked = data.map((item) => MediaItem.fromJson(item)).toList();
+        _likedMediaIds = liked.map((m) => m.id).toSet();
+        notifyListeners();
+        return liked;
+      }
+    } catch (e) {
+      debugPrint('Get liked media error: $e');
+    }
+    return [];
+  }
+  
+  // ==================== PLAYBACK TRACKING ====================
+  
+  /// Record play event for analytics
+  Future<void> recordPlay(String mediaId, {Duration? position}) async {
+    try {
+      await _api.post('/media/$mediaId/play', body: {
+        if (position != null) 'position': position.inSeconds,
+      });
+    } catch (e) {
+      debugPrint('Record play error: $e');
+    }
+  }
+  
+  // ==================== LYRICS ====================
+  
+  /// Fetch lyrics from external URL
+  Future<String?> fetchLyrics(String lyricsUrl) async {
+    try {
+      final response = await Uri.parse(lyricsUrl).toString();
+      // Direct fetch from lyrics URL (not going through our API)
+      final result = await _api.get(lyricsUrl);
+      return result?.toString();
+    } catch (e) {
+      debugPrint('Fetch lyrics error: $e');
+      return null;
+    }
+  }
+  
+  // ==================== FETCH MEDIA ====================
+  
+  /// Fetch all media (paginated)
   Future<PagedResponse<MediaItem>> fetchMedia({
     int page = 0,
-    int size = 10,
+    int size = 20,
     String? mediaType,
   }) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
+    
     try {
-      // Mock data from API response
-      final mockItems = _getMockMediaItems();
+      final queryParams = {
+        'page': page.toString(),
+        'size': size.toString(),
+        if (mediaType != null) 'mediaType': mediaType,
+      };
       
-      // Filter by media type if specified
-      var filteredItems = mockItems;
-      if (mediaType != null) {
-        filteredItems = mockItems
-            .where((item) => item.mediaType.value == mediaType)
-            .toList();
+      final data = await _api.get('/media', queryParams: queryParams);
+      
+      if (data != null) {
+        final response = PagedResponse<MediaItem>.fromJson(
+          data,
+          (item) => MediaItem.fromJson(item),
+        );
+        _allMedia = response.content;
+        _isLoading = false;
+        notifyListeners();
+        return response;
       }
-
-      _allMedia = filteredItems;
+      
       _isLoading = false;
       notifyListeners();
-
       return PagedResponse<MediaItem>(
-        content: filteredItems,
-        totalPages: 1,
-        totalElements: filteredItems.length,
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
         pageNumber: page,
         pageSize: size,
         isFirst: true,
@@ -61,67 +204,4 @@ class MediaService extends ChangeNotifier {
       rethrow;
     }
   }
-
-  /// Fetch latest releases
-  Future<List<MediaItem>> fetchLatestReleases({int limit = 10}) async {
-    final response = await fetchMedia(page: 0, size: limit);
-    _latestReleases = response.content;
-    notifyListeners();
-    return _latestReleases;
-  }
-
-  /// Mock data from the user's provided API response
-  List<MediaItem> _getMockMediaItems() {
-    return [
-      MediaItem(
-        id: '9adf3515-a0e2-4806-acd3-af14cf42aad2',
-        title: 'Test Song',
-        description: 'Testing the songs',
-        mediaType: MediaType.video,
-        status: MediaStatus.ready,
-        hlsUrl: 'https://d72o0611r6ack.cloudfront.net/media/9adf3515-a0e2-4806-acd3-af14cf42aad2/74aed4cf-b750-4b8e-aa35-14924cde7827-DGFlyर्/74aed4cf-b750-4b8e-aa35-14924cde7827-DGFlyर्.m3u8',
-        thumbnailUrl: 'https://d7ouem6v1ji5j.cloudfront.net/media/9adf3515-a0e2-4806-acd3-af14cf42aad2/e2ab69d3-9d44-4bcd-b966-91cbd85ab930-6k logonew.png',
-        lyricsUrl: 'https://d1msstr5h8ki3v.cloudfront.net/media/9adf3515-a0e2-4806-acd3-af14cf42aad2/de828f60-213a-432f-803b-cbe4af2a2070-ghumar.txt',
-        createdAt: DateTime.parse('2026-01-23T14:43:37.522063Z'),
-        updatedAt: DateTime.parse('2026-01-23T14:43:40.177893Z'),
-      ),
-      MediaItem(
-        id: '98cb439b-a44c-4b87-8220-d3324f8fca12',
-        title: 'Big Size Video',
-        description: 'Big size video content',
-        mediaType: MediaType.video,
-        status: MediaStatus.ready,
-        hlsUrl: 'https://d72o0611r6ack.cloudfront.net/media/98cb439b-a44c-4b87-8220-d3324f8fca12/b44a5c06-c5a5-4c66-8427-3b106fc59100-video1/b44a5c06-c5a5-4c66-8427-3b106fc59100-video1.m3u8',
-        thumbnailUrl: 'https://d7ouem6v1ji5j.cloudfront.net/media/98cb439b-a44c-4b87-8220-d3324f8fca12/88bc3140-a024-45ef-985e-d48ff3c0f355-9e673d7a3353ac605fe3a9dd7e742168d36923e7.png',
-        lyricsUrl: 'https://d1msstr5h8ki3v.cloudfront.net/media/98cb439b-a44c-4b87-8220-d3324f8fca12/507818f9-fe38-4b76-912a-7a4ab3600c88-ghumar.txt',
-        createdAt: DateTime.parse('2026-01-23T14:45:14.733783Z'),
-        updatedAt: DateTime.parse('2026-01-23T14:45:16.499332Z'),
-      ),
-      MediaItem(
-        id: '103a8ab1-4df3-40da-9e95-460fac6bed42',
-        title: 'Sample Title',
-        description: 'Sample description',
-        mediaType: MediaType.video,
-        status: MediaStatus.ready,
-        hlsUrl: 'https://d72o0611r6ack.cloudfront.net/media/103a8ab1-4df3-40da-9e95-460fac6bed42/d597dd44-4d18-4c47-9d80-f8dce21260be-video1/d597dd44-4d18-4c47-9d80-f8dce21260be-video1.m3u8',
-        thumbnailUrl: 'https://d7ouem6v1ji5j.cloudfront.net/media/103a8ab1-4df3-40da-9e95-460fac6bed42/36c23228-a178-4b5f-b05e-bf1df90a229b-33cc70cdc0c619d51b9c332c80dc87bf03bb9db6.jpg',
-        lyricsUrl: 'https://d1msstr5h8ki3v.cloudfront.net/media/103a8ab1-4df3-40da-9e95-460fac6bed42/5414879a-9b51-4df0-aa00-51450abe0b3c-ghumar.txt',
-        createdAt: DateTime.parse('2026-01-23T14:58:02.174834Z'),
-        updatedAt: DateTime.parse('2026-01-23T14:59:03.026118Z'),
-      ),
-      MediaItem(
-        id: 'd6745d29-32e8-4fa3-885d-18815231c2d5',
-        title: 'New Video',
-        description: 'Description testing',
-        mediaType: MediaType.video,
-        status: MediaStatus.ready,
-        hlsUrl: 'https://d72o0611r6ack.cloudfront.net/media/d6745d29-32e8-4fa3-885d-18815231c2d5/61cd51c9-8778-49f8-9f6a-2bbbed96d638-20231216_123255/61cd51c9-8778-49f8-9f6a-2bbbed96d638-20231216_123255.m3u8',
-        thumbnailUrl: null,
-        lyricsUrl: null,
-        createdAt: DateTime.parse('2026-01-23T16:07:49.375950Z'),
-        updatedAt: DateTime.parse('2026-01-23T16:08:04.383015Z'),
-      ),
-    ];
-  }
 }
-

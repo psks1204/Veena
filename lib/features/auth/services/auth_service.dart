@@ -28,8 +28,60 @@ class AuthService extends ChangeNotifier {
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
-  String? get errorMessage => _errorMessage; // Added getter for Login Screen
+  String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _accessToken != null;
+
+  // User profile data (fetched from userinfo endpoint)
+  String? _userName;
+  String? _userEmail;
+  String? _userPicture;
+
+  String? get userName => _userName;
+  String? get userEmail => _userEmail;
+  String? get userPicture => _userPicture;
+  String get userInitials {
+    final name = _userName ?? _userEmail ?? 'U';
+    final parts = name.split(' ');
+    if (parts.length >= 2) {
+      return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    }
+    return name.isNotEmpty ? name[0].toUpperCase() : 'U';
+  }
+
+  /// Fetch user profile from Cognito userinfo endpoint
+  Future<void> _fetchUserProfile() async {
+    if (_accessToken == null) return;
+    try {
+      final response = await http.get(
+        Uri.parse('https://${AuthConfig.cognitoDomain}/oauth2/userInfo'),
+        headers: {'Authorization': 'Bearer $_accessToken'},
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        
+        // Try multiple possible claim names (Cognito returns given_name from Google)
+        _userName = data['name'] ?? 
+                    data['given_name'] ?? 
+                    data['preferred_username'];
+        _userEmail = data['email'];
+        _userPicture = data['picture'];
+        
+        // Fallback: use email username if no proper name
+        if (_userName == null || _userName!.startsWith('Google_')) {
+          if (_userEmail != null && _userEmail!.contains('@')) {
+            final emailName = _userEmail!.split('@')[0];
+            _userName = emailName.split('.').map((s) => 
+              s.isNotEmpty ? '${s[0].toUpperCase()}${s.substring(1)}' : s
+            ).join(' ');
+          }
+        }
+        
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('Error fetching user profile: $e');
+    }
+  }
 
   Future<void> initialize() async {
     _state = AuthState.loading;
@@ -62,6 +114,7 @@ class AuthService extends ChangeNotifier {
           }
         }
         _state = AuthState.authenticated;
+        await _fetchUserProfile(); // Fetch real Google profile data
       } else {
         _state = AuthState.unauthenticated;
       }
@@ -92,6 +145,7 @@ class AuthService extends ChangeNotifier {
         );
 
         _state = AuthState.authenticated;
+        await _fetchUserProfile(); // Fetch real Google profile data
         notifyListeners();
         return true;
       } else {

@@ -1,38 +1,186 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Veena - Premium Music Streaming">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="veena">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Veena">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>veena</title>
+  <title>Veena</title>
   <link rel="manifest" href="manifest.json">
+
+  <!-- Aura Splash Screen Styles -->
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #121214;
+    }
+
+    /* Splash container */
+    #splash {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      background-color: #121214;
+      z-index: 9999;
+      transition: opacity 0.3s ease-out;
+    }
+
+    #splash.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Logo container */
+    .logo-container {
+      width: 160px;
+      height: 160px;
+      border-radius: 50%;
+      background: #1a1a1c;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(0.95); }
+      50% { transform: scale(1.05); }
+    }
+
+    .inner-ring {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .core {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+    }
+
+    .accent-dot {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #E91E8C;
+      box-shadow: 0 0 8px #E91E8C, 0 0 16px #E91E8C;
+    }
+
+    /* Typography */
+    .brand-name {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 36px;
+      font-weight: bold;
+      letter-spacing: 12px;
+      color: white;
+      margin-top: 48px;
+    }
+
+    .tagline {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 4px;
+      color: rgba(255, 255, 255, 0.38);
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .tagline-line {
+      width: 24px;
+      height: 1px;
+      background: rgba(255, 255, 255, 0.24);
+    }
+
+    /* Breathing indicator */
+    .breathing-dot {
+      position: fixed;
+      bottom: 60px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #E91E8C;
+      box-shadow: 0 0 10px #E91E8C;
+      animation: breathe 2s ease-in-out infinite;
+    }
+
+    @keyframes breathe {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+  </style>
 </head>
 <body>
+  <!-- Aura Splash Screen -->
+  <div id="splash">
+    <div class="logo-container">
+      <div class="inner-ring">
+        <div class="core">
+          <div class="accent-dot"></div>
+        </div>
+      </div>
+    </div>
+    <div class="brand-name">AURA</div>
+    <div class="tagline">
+      <span class="tagline-line"></span>
+      SOUND STUDIO
+      <span class="tagline-line"></span>
+    </div>
+    <div class="breathing-dot"></div>
+  </div>
+
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Hide splash when Flutter is ready
+    window.addEventListener('flutter-first-frame', function() {
+      var splash = document.getElementById('splash');
+      if (splash) {
+        splash.classList.add('hidden');
+        setTimeout(function() {
+          splash.remove();
+        }, 300);
+      }
+    });
+  </script>
 </body>
 </html>

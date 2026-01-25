@@ -26,8 +26,10 @@ class SectionHeader extends StatelessWidget {
     final theme = Theme.of(context);
     
     return Padding(
-      padding: padding ?? const EdgeInsets.symmetric(
-        horizontal: AppSpacing.screenPadding,
+      padding: padding ?? const EdgeInsets.only(
+        left: AppSpacing.screenPadding,
+        right: AppSpacing.screenPadding,
+        bottom: AppSpacing.sm,
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -39,7 +41,10 @@ class SectionHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.headlineMedium,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.5,
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: AppSpacing.xs),

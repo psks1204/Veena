@@ -1,11 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 
-/// Full Screen Player Widget
-/// 
-/// Expandable full-screen player with artwork, controls, and lyrics area.
-/// Uses DraggableScrollableSheet for smooth expansion.
+/// Full Screen Player Widget - Redesigned for Spotify aesthetics
 class FullPlayer extends StatelessWidget {
   const FullPlayer({
     super.key,
@@ -55,292 +53,334 @@ class FullPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
     final screenSize = MediaQuery.of(context).size;
-    // Cap artwork size for web/desktop to prevent overflow
-    final artworkSize = screenSize.width > 500 
-        ? 400.0 
-        : screenSize.width - (AppSpacing.xl * 2);
+    final artworkSize = screenSize.width - (AppSpacing.xl * 2);
 
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: isDark
-              ? [
-                  const Color(0xFF2A2A2A),
-                  AppColors.darkBg,
-                ]
-              : [
-                  const Color(0xFFE8E8E8),
-                  AppColors.lightBg,
-                ],
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.sm,
-              ),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: onClose,
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 32),
-                  ),
-                  Expanded(
-                    child: Column(
-                      children: [
-                        Text(
-                          'PLAYING FROM PLAYLIST',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            letterSpacing: 1.2,
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          albumName,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.more_vert_rounded),
-                  ),
-                ],
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // 1. Blurred Background layer
+          if (artworkUrl != null && artworkUrl!.isNotEmpty)
+            Positioned.fill(
+              child: ImageFiltered(
+                imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
+                child: Image.network(
+                  artworkUrl!,
+                  fit: BoxFit.cover,
+                  color: Colors.black.withOpacity(0.5),
+                  colorBlendMode: BlendMode.darken,
+                ),
               ),
             ),
-
-            const Spacer(),
-
-            // Artwork
-            Container(
-              width: artworkSize,
-              height: artworkSize,
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.3),
-                    blurRadius: 32,
-                    offset: const Offset(0, 16),
-                  ),
-                ],
-              ),
-              clipBehavior: Clip.antiAlias,
-              child: artworkUrl != null && artworkUrl!.isNotEmpty
-                  ? Image.network(
-                      artworkUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => _buildPlaceholder(theme, artworkSize),
-                    )
-                  : _buildPlaceholder(theme, artworkSize),
-            ),
-
-            const Spacer(),
-
-            // Track info
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          trackTitle,
-                          style: theme.textTheme.headlineSmall,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: AppSpacing.xs),
-                        Text(
-                          artistName,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.favorite_border_rounded),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            // Progress bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          
+          // 2. Main Content layer
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 40),
               child: Column(
                 children: [
-                  SliderTheme(
-                    data: theme.sliderTheme.copyWith(
-                      trackHeight: 4,
-                      thumbShape: const RoundSliderThumbShape(
-                        enabledThumbRadius: 6,
-                      ),
-                    ),
-                    child: Slider(
-                      value: progress.clamp(0.0, 1.0),
-                      onChanged: onSeek,
-                    ),
-                  ),
+                  // Top navigation bar
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          _formatDuration(currentPosition),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                        IconButton(
+                          onPressed: onClose,
+                          icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
+                        ),
+                        Column(
+                          children: [
+                            Text(
+                              'PLAYING FROM PLAYLIST',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.white70,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 1.0,
+                                fontSize: 10,
+                              ),
+                            ),
+                            Text(
+                              albumName,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+
+                  // Artwork section
+                  Center(
+                    child: Hero(
+                      tag: 'player_artwork',
+                      child: Container(
+                        width: artworkSize,
+                        height: artworkSize,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.5),
+                              blurRadius: 40,
+                              offset: const Offset(0, 20),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: artworkUrl != null && artworkUrl!.isNotEmpty
+                            ? Image.network(artworkUrl!, fit: BoxFit.cover)
+                            : Container(
+                                color: Colors.grey[900],
+                                child: const Icon(Icons.music_note_rounded, size: 80, color: Colors.white24),
+                              ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+
+                  // Meta info and Add button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                trackTitle,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.5,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              Text(
+                                artistName,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
                           ),
                         ),
-                        Text(
-                          _formatDuration(duration),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Progress bar
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                    child: Column(
+                      children: [
+                        SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            activeTrackColor: Colors.white,
+                            inactiveTrackColor: Colors.white24,
+                            thumbColor: Colors.white,
+                            overlayShape: SliderComponentShape.noOverlay,
+                            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                            trackHeight: 4,
+                          ),
+                          child: Slider(
+                            value: progress.clamp(0.0, 1.0),
+                            onChanged: onSeek,
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(_formatDuration(currentPosition), style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                              Text(_formatDuration(duration), style: const TextStyle(color: Colors.white60, fontSize: 12)),
+                            ],
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
 
-            const SizedBox(height: AppSpacing.md),
+                  const SizedBox(height: 12),
 
-            // Controls
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Shuffle
-                  IconButton(
-                    onPressed: onShuffle,
-                    icon: Icon(
-                      Icons.shuffle_rounded,
-                      color: isShuffleOn 
-                          ? colorScheme.primary 
-                          : colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                  
-                  // Previous
-                  IconButton(
-                    onPressed: onPrevious,
-                    icon: const Icon(Icons.skip_previous_rounded, size: 40),
-                  ),
-                  
-                  // Play/Pause
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface,
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: onPlayPause,
-                      icon: AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                          isPlaying 
-                              ? Icons.pause_rounded 
-                              : Icons.play_arrow_rounded,
-                          key: ValueKey(isPlaying),
-                          size: 40,
-                          color: colorScheme.surface,
+                  // Controls
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        IconButton(
+                          onPressed: onShuffle,
+                          icon: Icon(
+                            Icons.shuffle_rounded,
+                            color: isShuffleOn ? AppColors.primary : Colors.white60,
+                            size: 26,
+                          ),
                         ),
+                        IconButton(
+                          onPressed: onPrevious,
+                          icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 44),
+                        ),
+                        GestureDetector(
+                          onTap: onPlayPause,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                              size: 44,
+                              color: Colors.black,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: onNext,
+                          icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 44),
+                        ),
+                        IconButton(
+                          onPressed: onRepeat,
+                          icon: Icon(
+                            repeatMode == RepeatMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
+                            color: repeatMode != RepeatMode.off ? AppColors.primary : Colors.white60,
+                            size: 26,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Bottom mini controls
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Icon(Icons.devices_rounded, color: Colors.white60, size: 24),
+                        const Spacer(),
+                        const Icon(Icons.share_outlined, color: Colors.white60, size: 22),
+                        const SizedBox(width: 24),
+                        const Icon(Icons.list_rounded, color: Colors.white60, size: 26),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 60),
+
+                  // "About the artist" section
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: Container(
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Stack(
+                            children: [
+                              if (artworkUrl != null)
+                                Image.network(
+                                  artworkUrl!,
+                                  height: 200,
+                                  width: double.infinity,
+                                  fit: BoxFit.cover,
+                                ),
+                              const Positioned(
+                                top: 16,
+                                left: 16,
+                                child: Text(
+                                  'About the artist',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  artistName,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Listening to $artistName is a soul-refreshing experience. More bio details would be fetched from API.',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 14,
+                                    height: 1.4,
+                                  ),
+                                  maxLines: 3,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 16),
+                                OutlinedButton(
+                                  onPressed: () {},
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.white,
+                                    side: const BorderSide(color: Colors.white30),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                  ),
+                                  child: const Text('Follow'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  
-                  // Next
-                  IconButton(
-                    onPressed: onNext,
-                    icon: const Icon(Icons.skip_next_rounded, size: 40),
-                  ),
-                  
-                  // Repeat
-                  IconButton(
-                    onPressed: onRepeat,
-                    icon: Icon(
-                      repeatMode == RepeatMode.one 
-                          ? Icons.repeat_one_rounded 
-                          : Icons.repeat_rounded,
-                      color: repeatMode != RepeatMode.off 
-                          ? colorScheme.primary 
-                          : colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
                 ],
               ),
             ),
-
-            const SizedBox(height: AppSpacing.lg),
-
-            // Bottom actions
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.devices_rounded,
-                      color: colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Icon(
-                      Icons.queue_music_rounded,
-                      color: colorScheme.onSurface.withOpacity(0.6),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: AppSpacing.lg),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPlaceholder(ThemeData theme, double size) {
-    return Center(
-      child: Icon(
-        Icons.music_note_rounded,
-        size: size * 0.3,
-        color: theme.colorScheme.onSurface.withOpacity(0.3),
+          ),
+        ],
       ),
     );
   }

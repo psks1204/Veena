@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/player_provider.dart';
+import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
+import 'core/services/dashboard_service.dart';
+import 'core/services/library_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -23,12 +26,21 @@ class VeenaApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Create ApiService first as other services depend on it
+    final apiService = ApiService();
+    
     return MultiProvider(
       providers: [
+        // Core providers
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
-        ChangeNotifierProvider(create: (_) => MediaService()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        
+        // API-based services (share the same ApiService instance)
+        Provider<ApiService>.value(value: apiService),
+        ChangeNotifierProvider(create: (_) => DashboardService(apiService)),
+        ChangeNotifierProvider(create: (_) => MediaService(apiService)),
+        ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -77,6 +89,10 @@ class _AppRouterState extends State<_AppRouter> {
           );
         }
 
+        // Inject access token into ApiService for authenticated API calls
+        final apiService = context.read<ApiService>();
+        apiService.setAccessToken(authService.accessToken);
+
         // Show main app
         return Stack(
           children: [
@@ -87,7 +103,7 @@ class _AppRouterState extends State<_AppRouter> {
                   _currentIndex = index;
                 });
               },
-              showMiniPlayer: player.hasMedia && !player.isVideo,
+              showMiniPlayer: player.hasMedia, // Show for both audio and video
               miniPlayerData: player.hasMedia
                   ? MiniPlayerData(
                       trackTitle: player.currentMedia!.title,
@@ -117,33 +133,33 @@ class _AppRouterState extends State<_AppRouter> {
               child: _buildCurrentScreen(),
             ),
             
-            // Full player overlay (for audio)
-            if (_showFullPlayer && player.hasMedia && player.isAudio)
-              Material(
-                child: FullPlayer(
-                  trackTitle: player.currentMedia!.title,
-                  artistName: player.currentMedia!.description ?? '',
-                  albumName: '',
-                  artworkUrl: player.currentMedia!.thumbnailUrl,
-                  isPlaying: player.isPlaying,
-                  progress: player.progress,
-                  currentPosition: player.position,
-                  duration: player.duration,
-                  onClose: () {
-                    setState(() {
-                      _showFullPlayer = false;
-                    });
-                  },
-                  onPlayPause: () {
-                    player.togglePlayPause();
-                  },
-                  onSeek: (value) {
-                    player.seekToProgress(value);
-                  },
-                  onPrevious: () {},
-                  onNext: () {},
-                ),
-              ),
+            // Full player overlay (for audio) with Slide-up Transition
+            AnimatedSlide(
+              offset: _showFullPlayer ? Offset.zero : const Offset(0, 1),
+              duration: const Duration(milliseconds: 400),
+              curve: Curves.easeInOutCubic,
+              child: player.hasMedia && player.isAudio
+                  ? FullPlayer(
+                      trackTitle: player.currentMedia!.title,
+                      artistName: player.currentMedia!.description ?? '',
+                      albumName: 'Playing from search', // Example source
+                      artworkUrl: player.currentMedia!.thumbnailUrl,
+                      isPlaying: player.isPlaying,
+                      progress: player.progress,
+                      currentPosition: player.position,
+                      duration: player.duration,
+                      onClose: () {
+                        setState(() {
+                          _showFullPlayer = false;
+                        });
+                      },
+                      onPlayPause: () => player.togglePlayPause(),
+                      onSeek: (v) => player.seekToProgress(v),
+                      onPrevious: () => player.previous(),
+                      onNext: () => player.next(),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         );
       },

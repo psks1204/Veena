@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../auth/services/auth_service.dart';
 
 /// Profile Screen
 /// 
@@ -133,7 +134,8 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           
-          const SizedBox(height: AppSpacing.xl),
+          // Extra padding to ensure content is visible above mini player + nav bar
+          const SizedBox(height: 140),
         ],
       ),
     );
@@ -145,6 +147,12 @@ class _ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final authService = context.watch<AuthService>();
+
+    final userName = authService.userName ?? 'User';
+    final userEmail = authService.userEmail ?? 'user@example.com';
+    final userPicture = authService.userPicture;
+    final userInitials = authService.userInitials;
 
     return Column(
       children: [
@@ -162,24 +170,32 @@ class _ProfileHeader extends StatelessWidget {
                 offset: const Offset(0, 8),
               ),
             ],
+            image: userPicture != null
+                ? DecorationImage(
+                    image: NetworkImage(userPicture),
+                    fit: BoxFit.cover,
+                  )
+                : null,
           ),
-          child: const Center(
-            child: Text(
-              'U',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 40,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
+          child: userPicture == null
+              ? Center(
+                  child: Text(
+                    userInitials,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 40,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                )
+              : null,
         ),
         
         const SizedBox(height: AppSpacing.md),
         
         // Name
         Text(
-          'User Name',
+          userName,
           style: theme.textTheme.headlineSmall?.copyWith(
             fontWeight: FontWeight.bold,
           ),
@@ -189,7 +205,7 @@ class _ProfileHeader extends StatelessWidget {
         
         // Email
         Text(
-          'user@example.com',
+          userEmail,
           style: theme.textTheme.bodyMedium?.copyWith(
             color: colorScheme.onSurface.withOpacity(0.6),
           ),

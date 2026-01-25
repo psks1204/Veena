@@ -11,7 +11,9 @@ class AuraAlbumCard extends StatelessWidget {
   final String subtitle;
   final String imageUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onLikeTap;
   final bool isNew;
+  final bool isLiked;
   final MediaType? mediaType;
 
   const AuraAlbumCard({
@@ -20,7 +22,9 @@ class AuraAlbumCard extends StatelessWidget {
     required this.subtitle,
     required this.imageUrl,
     this.onTap,
+    this.onLikeTap,
     this.isNew = false,
+    this.isLiked = false,
     this.mediaType,
   });
 
@@ -84,32 +88,28 @@ class AuraAlbumCard extends StatelessWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: mediaType == MediaType.video 
-                              ? Colors.red.withOpacity(0.9)
-                              : AppColors.primary.withOpacity(0.9),
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4),
-                          ],
+                          color: Colors.black.withOpacity(0.6),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: Colors.white10, width: 0.5),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
                               mediaType == MediaType.video 
-                                  ? Icons.videocam_rounded 
+                                  ? Icons.play_arrow_rounded 
                                   : Icons.music_note_rounded,
-                              size: 12,
-                              color: Colors.white,
+                              size: 10,
+                              color: Colors.white70,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               mediaType == MediaType.video ? 'VIDEO' : 'AUDIO',
                               style: theme.textTheme.labelSmall?.copyWith(
-                                color: Colors.white,
+                                color: Colors.white70,
                                 fontWeight: FontWeight.bold,
-                                fontSize: 9,
-                                letterSpacing: 0.5,
+                                fontSize: 8,
+                                letterSpacing: 0.8,
                               ),
                             ),
                           ],
@@ -140,6 +140,27 @@ class AuraAlbumCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                   // Like button
+                   if (onLikeTap != null)
+                    Positioned(
+                      bottom: 8,
+                      right: 8,
+                      child: GestureDetector(
+                        onTap: onLikeTap,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 18,
+                            color: isLiked ? Colors.red : Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -152,17 +173,19 @@ class AuraAlbumCard extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: theme.textTheme.titleMedium?.copyWith(
+                  style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 4),
                 Text(
                   subtitle,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark ? Colors.white60 : Colors.black54,
+                    fontWeight: FontWeight.w500,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -192,7 +215,9 @@ class AuraTrackTile extends StatelessWidget {
   final String subtitle;
   final String? duration;
   final VoidCallback? onTap;
+  final VoidCallback? onLikeTap;
   final bool isPlaying;
+  final bool isLiked;
   final String? imageUrl;
   final int? index;
 
@@ -202,7 +227,9 @@ class AuraTrackTile extends StatelessWidget {
     required this.subtitle,
     this.duration,
     this.onTap,
+    this.onLikeTap,
     this.isPlaying = false,
+    this.isLiked = false,
     this.imageUrl,
     this.index,
   });
@@ -302,6 +329,16 @@ class AuraTrackTile extends StatelessWidget {
                 style: theme.textTheme.bodySmall?.copyWith(
                    color: isPlaying ? AppColors.primary : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                    fontWeight: FontWeight.w500,
+                ),
+              ),
+              
+            // Like button
+            if (onLikeTap != null)
+              IconButton(
+                onPressed: onLikeTap,
+                icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: isLiked ? Colors.red : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                 ),
               ),
               

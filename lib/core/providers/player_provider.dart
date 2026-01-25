@@ -210,6 +210,18 @@ class PlayerProvider extends ChangeNotifier {
     await setVolume(_isMuted ? 0.0 : 1.0);
   }
 
+  /// Skip to next item (Stub)
+  Future<void> next() async {
+    // TODO: Implement queue system
+    notifyListeners();
+  }
+
+  /// Skip to previous item (Stub)
+  Future<void> previous() async {
+    // TODO: Implement queue system
+    notifyListeners();
+  }
+
   /// Format duration to string
   String formatDuration(Duration duration) {
     final minutes = duration.inMinutes;

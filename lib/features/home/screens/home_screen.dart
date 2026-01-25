@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/services/dashboard_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
 
-/// Home Screen - Studio One Layout
+/// Home Screen - Premium Studio Design
+/// 
+/// Dynamic home screen with personalized sections:
+/// - Recently Played (personalized)
+/// - Latest Releases
+/// - Popular/Trending
+/// - Videos & Audio sections
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -17,33 +25,28 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  List<MediaItem> _mediaItems = [];
   bool _isLoading = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
-    // Defer loading to avoid setState during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadMedia();
+      _loadData();
     });
   }
 
-  Future<void> _loadMedia() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+  Future<void> _loadData() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
-      final mediaService = context.read<MediaService>();
-      final response = await mediaService.fetchMedia(size: 20);
+    try {
+      final dashboard = context.read<DashboardService>();
+      await dashboard.fetchDashboard();
       
-      setState(() {
-        _mediaItems = response.content;
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -54,17 +57,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _playMedia(MediaItem item) {
     final player = context.read<PlayerProvider>();
+    final mediaService = context.read<MediaService>();
+    
     player.play(item);
+    mediaService.recordPlay(item.id); // Track analytics
 
-    // For VIDEO, navigate to full-screen player
     if (item.isVideo) {
       Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => const VideoPlayerScreen(),
-        ),
+        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }
-    // For AUDIO, just play (mini player will show)
+  }
+
+  void _toggleLike(MediaItem item) async {
+    final mediaService = context.read<MediaService>();
+    await mediaService.toggleLike(item.id);
+    setState(() {}); // Refresh UI
   }
 
   String _getGreeting() {
@@ -77,246 +85,392 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // Split media by type
-    final videos = _mediaItems.where((m) => m.isVideo).toList();
-    final audios = _mediaItems.where((m) => m.isAudio).toList();
+    final isDark = theme.brightness == Brightness.dark;
     
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _loadMedia,
-        child: CustomScrollView(
-          slivers: [
-            // Custom App Bar Area
-            SliverPadding(
-              padding: EdgeInsets.only(
-                top: MediaQuery.of(context).padding.top + AppSpacing.md,
-                left: AppSpacing.screenPadding,
-                right: AppSpacing.screenPadding,
-                bottom: AppSpacing.md,
-              ),
-              sliver: SliverToBoxAdapter(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                         Text(
-                           '${_getGreeting()},',
-                           style: theme.textTheme.bodyMedium?.copyWith(
-                             color: theme.colorScheme.onSurface.withOpacity(0.6),
-                           ),
-                         ),
-                         Text(
-                           'Welcome',
-                           style: theme.textTheme.headlineMedium?.copyWith(
-                             fontWeight: FontWeight.bold,
-                           ),
-                         ),
-                      ],
+      body: Consumer<DashboardService>(
+        builder: (context, dashboard, child) {
+          final latestReleases = dashboard.latestReleases;
+          final popularTracks = dashboard.popularTracks;
+          final recentlyPlayed = dashboard.recentlyPlayed;
+          
+          // Split by type
+          final videos = latestReleases.where((m) => m.isVideo).toList();
+          final audios = latestReleases.where((m) => m.isAudio).toList();
+          
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: _loadData,
+            child: CustomScrollView(
+              slivers: [
+                // Header
+                _buildHeader(theme),
+
+                // Loading State
+                if (_isLoading)
+                  const SliverFillRemaining(
+                    child: Center(
+                      child: CircularProgressIndicator(color: AppColors.primary),
                     ),
-                    CircleAvatar(
-                      backgroundColor: theme.colorScheme.surfaceContainerHighest,
-                      child: const Icon(Icons.person),
+                  )
+                else if (_error != null)
+                  _buildErrorState()
+                else ...[
+                  // Recently Played (if available)
+                  if (recentlyPlayed.isNotEmpty) ...[
+                    _buildSection(
+                      context,
+                      title: 'Continue Listening',
+                      icon: Icons.history_rounded,
+                      items: recentlyPlayed,
+                      isHorizontal: true,
                     ),
                   ],
+
+                  // Latest Releases
+                  if (latestReleases.isNotEmpty) ...[
+                    _buildSection(
+                      context,
+                      title: 'Latest Releases',
+                      icon: Icons.new_releases_rounded,
+                      items: latestReleases,
+                      isHorizontal: true,
+                      showBadge: true,
+                    ),
+                  ],
+
+                  // Popular/Trending
+                  if (popularTracks.isNotEmpty) ...[
+                    _buildSection(
+                      context,
+                      title: 'Trending Now',
+                      icon: Icons.trending_up_rounded,
+                      items: popularTracks,
+                      isHorizontal: true,
+                    ),
+                  ],
+
+                  // Videos Grid
+                  if (videos.isNotEmpty) ...[
+                    _buildGridSection(
+                      context,
+                      title: 'Videos',
+                      icon: Icons.play_circle_filled_rounded,
+                      items: videos,
+                    ),
+                  ],
+
+                  // Audio List
+                  if (audios.isNotEmpty) ...[
+                    _buildListSection(
+                      context,
+                      title: 'Audio',
+                      icon: Icons.music_note_rounded,
+                      items: audios,
+                    ),
+                  ],
+
+                  // Empty state
+                  if (latestReleases.isEmpty && 
+                      popularTracks.isEmpty && 
+                      recentlyPlayed.isEmpty)
+                    _buildEmptyState(),
+                ],
+
+                // Bottom padding
+                const SliverToBoxAdapter(child: SizedBox(height: 140)),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme) {
+    return SliverPadding(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + AppSpacing.md,
+        left: AppSpacing.screenPadding,
+        right: AppSpacing.screenPadding,
+        bottom: AppSpacing.lg,
+      ),
+      sliver: SliverToBoxAdapter(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _getGreeting(),
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.6),
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.1,
+                  ),
                 ),
+                const SizedBox(height: 8),
+                Text(
+                  'What do you want to play?',
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
+                onPressed: () {},
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Loading State
-            if (_isLoading)
-              const SliverFillRemaining(
-                child: Center(child: CircularProgressIndicator()),
-              )
-            else if (_error != null)
-              SliverFillRemaining(
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.error_outline, size: 48),
-                      const SizedBox(height: 16),
-                      Text('Failed to load content'),
-                      const SizedBox(height: 8),
-                      ElevatedButton(
-                        onPressed: _loadMedia,
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else ...[
-              // Latest Releases (All Media)
-              SliverToBoxAdapter(
-                child: SectionHeader(
-                  title: 'Latest Releases',
-                  actionLabel: 'See all',
-                  onActionTap: () {},
-                ),
+  Widget _buildSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<MediaItem> items,
+    bool isHorizontal = false,
+    bool showBadge = false,
+  }) {
+    final mediaService = context.watch<MediaService>();
+    
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            title: title,
+            actionLabel: 'See all',
+            onActionTap: () {},
+            padding: const EdgeInsets.only(
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              bottom: AppSpacing.sm,
+            ),
+          ),
+          SizedBox(
+            height: 200, // Reduced height for compact look
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
               ),
-              SliverToBoxAdapter(
-                 child: SizedBox(
-                   height: 220,
-                   child: _mediaItems.isEmpty
-                     ? const Center(child: Text('No content available'))
-                     : ListView.separated(
-                         padding: const EdgeInsets.symmetric(
-                           horizontal: AppSpacing.screenPadding,
-                           vertical: AppSpacing.md,
-                         ),
-                         scrollDirection: Axis.horizontal,
-                         itemCount: _mediaItems.length > 10 ? 10 : _mediaItems.length,
-                         separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-                         itemBuilder: (context, index) {
-                            final item = _mediaItems[index];
-                            return SizedBox(
-                              width: 160,
-                              child: AuraAlbumCard(
-                                title: item.title,
-                                subtitle: item.description ?? '',
-                                imageUrl: item.thumbnailUrl ?? '',
-                                mediaType: item.mediaType,
-                                isNew: index == 0,
-                                onTap: () => _playMedia(item),
-                              ),
-                            );
-                         },
-                       ),
-                 ),
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length > 10 ? 10 : items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final item = items[index];
+                return SizedBox(
+                  width: 140, // Smaller tiles for better rhythm
+                  child: AuraAlbumCard(
+                    title: item.title,
+                    subtitle: item.description ?? '',
+                    imageUrl: item.thumbnailUrl ?? '',
+                    mediaType: item.mediaType,
+                    isNew: showBadge && index < 3,
+                    isLiked: mediaService.isLiked(item.id),
+                    onTap: () => _playMedia(item),
+                    onLikeTap: () => _toggleLike(item),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg), // Space before next section
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGridSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<MediaItem> items,
+  }) {
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: SectionHeader(
+              title: title,
+              actionLabel: 'See all',
+              onActionTap: () {},
+            ),
+          ),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenPadding,
+              vertical: AppSpacing.sm,
+            ),
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 200,
+              mainAxisSpacing: AppSpacing.md,
+              crossAxisSpacing: AppSpacing.md,
+              childAspectRatio: 0.85,
+            ),
+            itemCount: items.length > 6 ? 6 : items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              return AuraAlbumCard(
+                title: item.title,
+                subtitle: item.description ?? '',
+                imageUrl: item.thumbnailUrl ?? '',
+                mediaType: item.mediaType,
+                onTap: () => _playMedia(item),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildListSection(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required List<MediaItem> items,
+  }) {
+    final player = context.watch<PlayerProvider>();
+    final mediaService = context.watch<MediaService>();
+    
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: SectionHeader(
+              title: title,
+              actionLabel: 'See all',
+              onActionTap: () {},
+            ),
+          ),
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.screenPadding,
+              vertical: AppSpacing.sm,
+            ),
+            itemCount: items.length > 5 ? 5 : items.length,
+            itemBuilder: (context, index) {
+              final item = items[index];
+              final isPlaying = player.currentMedia?.id == item.id;
+              
+              return Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                child: AuraTrackTile(
+                  title: item.title,
+                  subtitle: item.description ?? '',
+                  imageUrl: item.thumbnailUrl,
+                  isPlaying: isPlaying,
+                  isLiked: mediaService.isLiked(item.id),
+                  onTap: () => _playMedia(item),
+                  onLikeTap: () => _toggleLike(item),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
+              child: Icon(
+                Icons.wifi_off_rounded,
+                size: 48,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'Unable to load content',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check your connection and try again',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-              // Videos Section
-              if (videos.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xl),
-                    child: SectionHeader(
-                      title: 'Videos',
-                      actionLabel: 'See all',
-                      onActionTap: () {},
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.screenPadding,
-                    right: AppSpacing.screenPadding,
-                    top: AppSpacing.md,
-                  ),
-                  sliver: SliverGrid(
-                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                       maxCrossAxisExtent: 200,
-                       mainAxisSpacing: AppSpacing.md,
-                       crossAxisSpacing: AppSpacing.md,
-                       childAspectRatio: 0.8,
-                     ),
-                     delegate: SliverChildBuilderDelegate(
-                       (context, index) {
-                         final item = videos[index];
-                         return AuraAlbumCard(
-                            title: item.title,
-                            subtitle: item.description ?? '',
-                            imageUrl: item.thumbnailUrl ?? '',
-                            mediaType: item.mediaType,
-                            onTap: () => _playMedia(item),
-                         );
-                       },
-                       childCount: videos.length > 6 ? 6 : videos.length,
-                     ),
-                  ),
-                ),
-              ],
-
-              // Audio Section
-              if (audios.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xl),
-                    child: SectionHeader(
-                      title: 'Audio',
-                      actionLabel: 'See all',
-                      onActionTap: () {},
-                    ),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.screenPadding,
-                    right: AppSpacing.screenPadding,
-                    top: AppSpacing.md,
-                  ),
-                  sliver: SliverList(
-                     delegate: SliverChildBuilderDelegate(
-                       (context, index) {
-                         final item = audios[index];
-                         final player = context.watch<PlayerProvider>();
-                         final isPlaying = player.currentMedia?.id == item.id;
-                         
-                         return Padding(
-                           padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                           child: AuraTrackTile(
-                             title: item.title,
-                             subtitle: item.description ?? '',
-                             imageUrl: item.thumbnailUrl,
-                             isPlaying: isPlaying,
-                             onTap: () => _playMedia(item),
-                           ),
-                         );
-                       },
-                       childCount: audios.length > 6 ? 6 : audios.length,
-                     ),
-                  ),
-                ),
-              ],
-
-              // All Content Grid (if no specific sections)
-              if (videos.isEmpty && audios.isEmpty && _mediaItems.isNotEmpty) ...[
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xl),
-                    child: SectionHeader(title: 'All Content'),
-                  ),
-                ),
-                SliverPadding(
-                  padding: const EdgeInsets.only(
-                    left: AppSpacing.screenPadding,
-                    right: AppSpacing.screenPadding,
-                    top: AppSpacing.md,
-                  ),
-                  sliver: SliverGrid(
-                     gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                       maxCrossAxisExtent: 200,
-                       mainAxisSpacing: AppSpacing.md,
-                       crossAxisSpacing: AppSpacing.md,
-                       childAspectRatio: 0.8,
-                     ),
-                     delegate: SliverChildBuilderDelegate(
-                       (context, index) {
-                         final item = _mediaItems[index];
-                         return AuraAlbumCard(
-                            title: item.title,
-                            subtitle: item.description ?? '',
-                            imageUrl: item.thumbnailUrl ?? '',
-                            mediaType: item.mediaType,
-                            onTap: () => _playMedia(item),
-                         );
-                       },
-                       childCount: _mediaItems.length,
-                     ),
-                  ),
-                ),
-              ],
-            ],
-            
-            // Bottom padding for floating nav
-            const SliverToBoxAdapter(child: SizedBox(height: 140)),
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                Icons.library_music_rounded,
+                size: 48,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No content yet',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Discover new music in search',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
           ],
         ),
       ),
     );
   }
 }
-
