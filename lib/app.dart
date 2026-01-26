@@ -15,6 +15,7 @@ import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/player/screens/video_player_screen.dart';
+import 'features/player/screens/lyrics_fullscreen_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/widgets/full_player.dart';
 
@@ -148,6 +149,21 @@ class _AppRouterState extends State<_AppRouter> {
                       progress: player.progress,
                       currentPosition: player.position,
                       duration: player.duration,
+                      lyrics: player.currentLyrics,
+                      activeLyricIndex: player.activeLyricIndex,
+                      onFullscreenLyricsTap: () {
+                        if (player.currentLyrics != null) {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LyricsFullscreenScreen(
+                                lyrics: player.currentLyrics!,
+                                initialActiveIndex: player.activeLyricIndex,
+                                activeIndexStream: player.lyricIndexStream,
+                              ),
+                            ),
+                          );
+                        }
+                      },
                       onClose: () {
                         setState(() {
                           _showFullPlayer = false;

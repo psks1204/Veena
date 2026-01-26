@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:just_audio/just_audio.dart';
 import '../models/media_item.dart';
+import '../models/lyrics_model.dart';
+import '../services/lyrics_service.dart';
 
 /// Player Provider
 /// 
@@ -12,6 +14,11 @@ class PlayerProvider extends ChangeNotifier {
   MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   AudioPlayer? _audioPlayer;
+  
+  Lyrics? _currentLyrics;
+  final LyricsService _lyricsService = LyricsService();
+  final _lyricIndexController = StreamController<int>.broadcast();
+  int _lastLyricIndex = -1;
   
   bool _isPlaying = false;
   bool _isLoading = false;
@@ -29,6 +36,13 @@ class PlayerProvider extends ChangeNotifier {
   double get volume => _volume;
   bool get isMuted => _isMuted;
   bool get hasMedia => _currentMedia != null;
+  Lyrics? get currentLyrics => _currentLyrics;
+  Stream<int> get lyricIndexStream => _lyricIndexController.stream;
+
+  int get activeLyricIndex {
+    if (_currentLyrics == null) return -1;
+    return _currentLyrics!.getActiveLineIndex(_position);
+  }
   
   double get progress {
     if (_duration.inMilliseconds == 0) return 0.0;
@@ -48,6 +62,7 @@ class PlayerProvider extends ChangeNotifier {
   void _setupAudioListeners() {
     _audioPlayer?.positionStream.listen((pos) {
       _position = pos;
+      _updateLyricIndex();
       notifyListeners();
     });
 
@@ -62,6 +77,14 @@ class PlayerProvider extends ChangeNotifier {
       _isPlaying = state.playing;
       _isLoading = state.processingState == ProcessingState.loading ||
                    state.processingState == ProcessingState.buffering;
+      
+      if (_currentLyrics != null) {
+        final index = _currentLyrics!.getActiveLineIndex(_position);
+        if (index != _lastLyricIndex) {
+          _lastLyricIndex = index;
+          _lyricIndexController.add(index);
+        }
+      }
       notifyListeners();
     });
   }
@@ -78,7 +101,24 @@ class PlayerProvider extends ChangeNotifier {
 
     _currentMedia = media;
     _isLoading = true;
+    _currentLyrics = null; // Reset lyrics
     notifyListeners();
+
+    // Fetch lyrics if available
+    if (media.lyricsUrl != null && media.lyricsUrl!.isNotEmpty) {
+      debugPrint('Fetching lyrics from: ${media.lyricsUrl}');
+      _lyricsService.fetchLyrics(media.lyricsUrl!).then((lyrics) {
+        if (lyrics != null) {
+          debugPrint('Successfully fetched and parsed ${lyrics.lines.length} lyrics');
+        } else {
+          debugPrint('Failed to fetch or parse lyrics');
+        }
+        _currentLyrics = lyrics;
+        notifyListeners();
+      });
+    } else {
+      debugPrint('No lyricsUrl provided for this media item');
+    }
 
     try {
       if (media.isVideo) {
@@ -119,6 +159,7 @@ class PlayerProvider extends ChangeNotifier {
       _position = _videoController!.value.position;
       _isPlaying = _videoController!.value.isPlaying;
       _isLoading = _videoController!.value.isBuffering;
+      _updateLyricIndex();
       notifyListeners();
     }
   }
@@ -171,6 +212,7 @@ class PlayerProvider extends ChangeNotifier {
     
     _isPlaying = false;
     _position = Duration.zero;
+    _currentLyrics = null;
     notifyListeners();
   }
 
@@ -229,11 +271,22 @@ class PlayerProvider extends ChangeNotifier {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  void _updateLyricIndex() {
+    if (_currentLyrics != null) {
+      final index = _currentLyrics!.getActiveLineIndex(_position);
+      if (index != _lastLyricIndex) {
+        _lastLyricIndex = index;
+        _lyricIndexController.add(index);
+      }
+    }
+  }
+
   @override
   void dispose() {
     _videoController?.removeListener(_onVideoUpdate);
     _videoController?.dispose();
     _audioPlayer?.dispose();
+    _lyricIndexController.close();
     super.dispose();
   }
 }

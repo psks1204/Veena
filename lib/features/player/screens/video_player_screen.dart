@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -18,10 +19,13 @@ class VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showControls = true;
   bool _isLandscape = false;
+  late final FocusNode _focusNode;
+  Timer? _hideControlsTimer;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = FocusNode();
     _hideControlsAfterDelay();
     // Monitor orientation
     SystemChrome.setPreferredOrientations([
@@ -32,7 +36,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _hideControlsAfterDelay() {
-    Future.delayed(const Duration(seconds: 4), () {
+    // Cancel any existing timer
+    _hideControlsTimer?.cancel();
+    
+    // Start new timer - 3 seconds delay
+    _hideControlsTimer = Timer(const Duration(milliseconds: 3000), () {
       if (mounted && context.read<PlayerProvider>().isPlaying) {
         setState(() => _showControls = false);
       }
@@ -43,6 +51,55 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     setState(() => _showControls = !_showControls);
     if (_showControls) {
       _hideControlsAfterDelay();
+    }
+  }
+
+  void _showControlsOnHover() {
+    if (!_showControls) {
+      setState(() => _showControls = true);
+    }
+    _hideControlsAfterDelay();
+  }
+
+  void _handleKeyEvent(KeyEvent event, PlayerProvider player) {
+    if (event is KeyDownEvent) {
+      // Space bar - toggle play/pause
+      if (event.logicalKey == LogicalKeyboardKey.space) {
+        player.togglePlayPause();
+        _showControlsOnHover();
+      }
+      // M key - toggle mute
+      if (event.logicalKey == LogicalKeyboardKey.keyM) {
+        player.toggleMute();
+        _showControlsOnHover();
+      }
+      // Left/Right arrow - seek
+      if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        final newPos = player.position - const Duration(seconds: 10);
+        player.seek(newPos < Duration.zero ? Duration.zero : newPos);
+        _showControlsOnHover();
+      }
+      if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+        final newPos = player.position + const Duration(seconds: 10);
+        player.seek(newPos > player.duration ? player.duration : newPos);
+        _showControlsOnHover();
+      }
+      // F key - fullscreen
+      if (event.logicalKey == LogicalKeyboardKey.keyF) {
+        _toggleFullscreen();
+      }
+      // Escape key - go back
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
+        _goBack();
+      }
+    }
+  }
+
+  void _goBack() {
+    if (_isLandscape) {
+      _toggleFullscreen();
+    } else {
+      Navigator.of(context).pop();
     }
   }
 
@@ -64,6 +121,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   @override
   void dispose() {
+    _hideControlsTimer?.cancel();
+    _focusNode.dispose();
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -98,17 +157,24 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
         return Scaffold(
           backgroundColor: Colors.black,
-          body: WillPopScope(
-            onWillPop: () async {
-              if (_isLandscape) {
-                _toggleFullscreen();
-                return false;
-              }
-              return true;
-            },
-            child: GestureDetector(
-              onTap: _toggleControls,
-              child: Stack(
+          body: KeyboardListener(
+            focusNode: _focusNode,
+            autofocus: true,
+            onKeyEvent: (event) => _handleKeyEvent(event, player),
+            child: MouseRegion(
+              onHover: (_) => _showControlsOnHover(),
+              onEnter: (_) => _showControlsOnHover(),
+              child: WillPopScope(
+                onWillPop: () async {
+                  if (_isLandscape) {
+                    _toggleFullscreen();
+                    return false;
+                  }
+                  return true;
+                },
+                child: GestureDetector(
+                  onTap: _toggleControls,
+                  child: Stack(
                 children: [
                   // 1. Video Layer - Centered and respects aspect ratio
                   Center(
@@ -163,6 +229,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               ),
             ),
           ),
+          ),
+          ),
         );
       },
     );
@@ -175,13 +243,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           IconButton(
-            onPressed: () {
-              if (_isLandscape) {
-                _toggleFullscreen();
-              } else {
-                Navigator.pop(context);
-              }
-            },
+            onPressed: _goBack,
             icon: Icon(
               _isLandscape ? Icons.arrow_back_rounded : Icons.keyboard_arrow_down_rounded, 
               color: Colors.white, 
