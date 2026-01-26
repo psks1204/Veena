@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -7,6 +8,7 @@ import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../../core/utils/fullscreen_stub.dart' as fullscreen;
 
 /// Video Player Screen - Refined to fix layout and overlap issues
 class VideoPlayerScreen extends StatefulWidget {
@@ -19,6 +21,7 @@ class VideoPlayerScreen extends StatefulWidget {
 class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showControls = true;
   bool _isLandscape = false;
+  bool _isFullscreen = false;
   late final FocusNode _focusNode;
   Timer? _hideControlsTimer;
 
@@ -96,27 +99,50 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _goBack() {
-    if (_isLandscape) {
-      _toggleFullscreen();
-    } else {
+    if (kIsWeb) {
+      // On web, just close the video player
       Navigator.of(context).pop();
+    } else {
+      // On mobile, exit fullscreen first if in landscape
+      if (_isLandscape) {
+        _toggleFullscreen();
+      } else {
+        Navigator.of(context).pop();
+      }
     }
   }
 
   void _toggleFullscreen() {
-    if (_isLandscape) {
-      SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    if (kIsWeb) {
+      // Web: Use JavaScript fullscreen API
+      try {
+        if (_isFullscreen) {
+          fullscreen.exitFullscreen();
+        } else {
+          fullscreen.requestFullscreen();
+        }
+        setState(() {
+          _isFullscreen = !_isFullscreen;
+        });
+      } catch (e) {
+        debugPrint('Fullscreen error: $e');
+      }
     } else {
-      SystemChrome.setPreferredOrientations([
-        DeviceOrientation.landscapeLeft,
-        DeviceOrientation.landscapeRight,
-      ]);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      // Mobile: Use orientation-based fullscreen
+      if (_isLandscape) {
+        SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+      } else {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+        ]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+      }
+      setState(() {
+        _isLandscape = !_isLandscape;
+      });
     }
-    setState(() {
-      _isLandscape = !_isLandscape;
-    });
   }
 
   @override
@@ -429,7 +455,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           ],
         ),
         IconButton(
-          icon: Icon(_isLandscape ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded, color: Colors.white, size: 26), 
+          icon: Icon(
+            (kIsWeb ? _isFullscreen : _isLandscape) 
+              ? Icons.fullscreen_exit_rounded 
+              : Icons.fullscreen_rounded, 
+            color: Colors.white, 
+            size: 26
+          ), 
           onPressed: _toggleFullscreen
         ),
       ],

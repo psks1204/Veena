@@ -60,6 +60,9 @@ dependencies:
   # Media playback
   video_player: ^2.9.2
   just_audio: ^0.9.40
+  
+  # JavaScript interop for web
+  js: ^0.6.7
 
 dev_dependencies:
   flutter_test:

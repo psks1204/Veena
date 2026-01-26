@@ -106,18 +106,19 @@ class PlayerProvider extends ChangeNotifier {
 
     // Fetch lyrics if available
     if (media.lyricsUrl != null && media.lyricsUrl!.isNotEmpty) {
-      debugPrint('Fetching lyrics from: ${media.lyricsUrl}');
+      debugPrint('[PlayerProvider] Fetching lyrics from: ${media.lyricsUrl}');
       _lyricsService.fetchLyrics(media.lyricsUrl!).then((lyrics) {
         if (lyrics != null) {
-          debugPrint('Successfully fetched and parsed ${lyrics.lines.length} lyrics');
+          debugPrint('[PlayerProvider] ✅ Successfully fetched and parsed ${lyrics.lines.length} lyrics lines');
         } else {
-          debugPrint('Failed to fetch or parse lyrics');
+          debugPrint('[PlayerProvider] ❌ Failed to fetch or parse lyrics');
         }
         _currentLyrics = lyrics;
         notifyListeners();
       });
     } else {
-      debugPrint('No lyricsUrl provided for this media item');
+      debugPrint('[PlayerProvider] ⚠️  No lyricsUrl provided for media: ${media.title}');
+      debugPrint('[PlayerProvider] ⚠️  Make sure your API returns "lyricsUrl" field in the media response');
     }
 
     try {
@@ -185,8 +186,8 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       await _audioPlayer?.pause();
     }
-    _isPlaying = false;
-    notifyListeners();
+    // Don't set _isPlaying here - let the stream listener handle it
+    // This prevents the 3-click issue where state gets out of sync
   }
 
   /// Resume playback
@@ -196,8 +197,8 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       await _audioPlayer?.play();
     }
-    _isPlaying = true;
-    notifyListeners();
+    // Don't set _isPlaying here - let the stream listener handle it
+    // This prevents the 3-click issue where state gets out of sync
   }
 
   /// Stop playback
