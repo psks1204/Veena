@@ -44,9 +44,12 @@ class DashboardService extends ChangeNotifier {
               .toList();
         }
         if (data['recentlyPlayed'] != null) {
-          _recentlyPlayed = (data['recentlyPlayed'] as List)
+          final allHistory = (data['recentlyPlayed'] as List)
               .map((item) => MediaItem.fromJson(item))
               .toList();
+          
+          final seen = <String>{};
+          _recentlyPlayed = allHistory.where((item) => seen.add(item.id)).toList();
         }
       }
       
@@ -95,7 +98,10 @@ class DashboardService extends ChangeNotifier {
     try {
       final data = await _api.get('/user/dashboard/history');
       if (data != null && data is List) {
-        _recentlyPlayed = data.map((item) => MediaItem.fromJson(item)).toList();
+        final allItems = data.map((item) => MediaItem.fromJson(item)).toList();
+        // Deduplicate
+        final seen = <String>{};
+        _recentlyPlayed = allItems.where((item) => seen.add(item.id)).toList();
         notifyListeners();
       }
       return _recentlyPlayed;

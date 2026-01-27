@@ -9,6 +9,8 @@ import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
+import '../../library/widgets/add_to_playlist_sheet.dart';
+import 'section_view_screen.dart';
 
 /// Home Screen - Premium Studio Design
 /// 
@@ -188,52 +190,103 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    return SliverPadding(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + AppSpacing.md,
-        left: AppSpacing.screenPadding,
-        right: AppSpacing.screenPadding,
-        bottom: AppSpacing.lg,
-      ),
-      sliver: SliverToBoxAdapter(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _getGreeting(),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withOpacity(0.6),
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 0.1,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'What do you want to play?',
-                  style: theme.textTheme.headlineMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
-                  ),
-                ),
-              ],
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [AppColors.primary, AppColors.primary.withOpacity(0.8)],
-                ),
-                shape: BoxShape.circle,
-              ),
-              child: IconButton(
-                icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
-                onPressed: () {},
-              ),
-            ),
-          ],
-        ),
+    // Interactive Hero Section - Shows top item if available
+    return SliverToBoxAdapter(
+      child: Consumer<DashboardService>(
+        builder: (context, dashboard, _) {
+           final featuredItem = dashboard.popularTracks.isNotEmpty 
+               ? dashboard.popularTracks.first 
+               : (dashboard.latestReleases.isNotEmpty ? dashboard.latestReleases.first : null);
+               
+           if (featuredItem == null) return const SizedBox.shrink();
+
+           return Container(
+             height: 300,
+             margin: const EdgeInsets.all(AppSpacing.screenPadding),
+             child: MouseRegion(
+               cursor: SystemMouseCursors.click,
+               child: GestureDetector(
+                 onTap: () => _playMedia(featuredItem),
+                 child: Stack(
+                   fit: StackFit.expand,
+                   children: [
+                     // Hero Image
+                     ClipRRect(
+                       borderRadius: BorderRadius.circular(24),
+                       child: Image.network(
+                         featuredItem.thumbnailUrl ?? '', 
+                         fit: BoxFit.cover,
+                         errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
+                       ),
+                     ),
+                     // Gradient Overlay
+                     Container(
+                       decoration: BoxDecoration(
+                         borderRadius: BorderRadius.circular(24),
+                         gradient: LinearGradient(
+                           begin: Alignment.topCenter,
+                           end: Alignment.bottomCenter,
+                           colors: [
+                             Colors.transparent,
+                             Colors.black.withOpacity(0.8),
+                           ],
+                         ),
+                       ),
+                     ),
+                     // Content
+                     Padding(
+                       padding: const EdgeInsets.all(AppSpacing.xl),
+                       child: Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         mainAxisAlignment: MainAxisAlignment.end,
+                         children: [
+                           Container(
+                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                             decoration: BoxDecoration(
+                               color: AppColors.primary,
+                               borderRadius: BorderRadius.circular(20),
+                             ),
+                             child: const Text(
+                               'FEATURED',
+                               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                             ),
+                           ),
+                           const SizedBox(height: AppSpacing.md),
+                           Text(
+                             featuredItem.title,
+                             style: theme.textTheme.displaySmall?.copyWith(
+                               color: Colors.white,
+                               fontWeight: FontWeight.bold,
+                             ),
+                           ),
+                           const SizedBox(height: 8),
+                           Text(
+                             featuredItem.artistName,
+                             style: theme.textTheme.titleMedium?.copyWith(
+                               color: Colors.white70,
+                             ),
+                           ),
+                           const SizedBox(height: AppSpacing.lg),
+                           ElevatedButton.icon(
+                             onPressed: () => _playMedia(featuredItem),
+                             icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                             label: const Text('Play Now'),
+                             style: ElevatedButton.styleFrom(
+                               backgroundColor: AppColors.primary,
+                               foregroundColor: Colors.white,
+                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                             ),
+                           ),
+                         ],
+                       ),
+                     ),
+                   ],
+                 ),
+               ),
+             ),
+           );
+        },
       ),
     );
   }
@@ -255,7 +308,15 @@ class _HomeScreenState extends State<HomeScreen> {
           SectionHeader(
             title: title,
             actionLabel: 'See all',
-            onActionTap: () {},
+            onActionTap: () {
+               Navigator.push(
+                context, 
+                MaterialPageRoute(builder: (_) => SectionViewScreen(
+                  title: title,
+                  items: items,
+                )),
+              );
+            },
             padding: const EdgeInsets.only(
               left: AppSpacing.screenPadding,
               right: AppSpacing.screenPadding,
@@ -284,6 +345,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     isLiked: mediaService.isLiked(item.id),
                     onTap: () => _playMedia(item),
                     onLikeTap: () => _toggleLike(item),
+                    onMoreTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => AddToPlaylistSheet(mediaItem: item),
+                      );
+                    },
                   ),
                 );
               },
@@ -386,6 +455,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   isLiked: mediaService.isLiked(item.id),
                   onTap: () => _playMedia(item),
                   onLikeTap: () => _toggleLike(item),
+                  onMoreTap: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => AddToPlaylistSheet(mediaItem: item),
+                      );
+                  },
                 ),
               );
             },

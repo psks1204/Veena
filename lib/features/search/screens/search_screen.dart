@@ -8,6 +8,7 @@ import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
+import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Search Screen
 /// 
@@ -310,6 +311,14 @@ class _SearchScreenState extends State<SearchScreen> {
                   isLiked: mediaService.isLiked(item.id),
                   onTap: () => _playMedia(item),
                   onLikeTap: () => _toggleLike(item),
+                  onMoreTap: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => AddToPlaylistSheet(mediaItem: item),
+                    );
+                  },
                 ),
               );
             }),

@@ -316,7 +316,7 @@ class LibraryService extends ChangeNotifier {
   
   /// Get tracks by artist
   /// GET /api/user/library/artists/{id}/tracks
-  Future<List<MediaItem>> getArtistTracks(int artistId) async {
+  Future<List<MediaItem>> getArtistTracks(String artistId) async {
     try {
       final data = await _api.get('/user/library/artists/$artistId/tracks');
       if (data != null && data is List) {

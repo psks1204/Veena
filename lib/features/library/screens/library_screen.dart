@@ -9,6 +9,9 @@ import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
 import '../../auth/services/auth_service.dart';
+import 'playlist_detail_screen.dart';
+import 'artist_detail_screen.dart';
+import 'album_detail_screen.dart';
 
 /// Library Screen - Spotify-like Premium Design
 class LibraryScreen extends StatefulWidget {
@@ -116,7 +119,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Text(
-                    'Your Library',
+                    'Library',
                     style: theme.textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                       fontSize: 24,
@@ -248,7 +251,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 subtitle: 'Playlist • ${item.description ?? 'You'}',
                 imageUrl: item.coverUrl,
                 isCircle: false,
-                onTap: () {},
+                onTap: () async {
+                  await Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => PlaylistDetailScreen(playlist: item)),
+                  );
+                  _loadLibrary(); // Refresh on return
+                },
               );
             } else if (item is Artist) {
               return _buildLibraryTile(
@@ -256,7 +265,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 subtitle: 'Artist',
                 imageUrl: item.imageUrl,
                 isCircle: true,
-                onTap: () {},
+                onTap: () {
+                   Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: item)),
+                  );
+                },
               );
             } else if (item is Album) {
               return _buildLibraryTile(
@@ -264,7 +278,17 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 subtitle: 'Album • ${item.artistName}',
                 imageUrl: item.coverUrl,
                 isCircle: false,
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context, 
+                    MaterialPageRoute(builder: (_) => AlbumDetailScreen(
+                      albumId: item.id,
+                      title: item.title,
+                      artist: item.artistName,
+                      coverUrl: item.coverUrl,
+                    )),
+                  );
+                },
               );
             } else if (item is MediaItem) {
               return _buildLibraryTile(
@@ -355,12 +379,16 @@ class _LibraryScreenState extends State<LibraryScreen> {
                           padding: EdgeInsets.only(right: 4.0),
                           child: Icon(Icons.push_pin_rounded, color: AppColors.primary, size: 14),
                         ),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: isDark ? Colors.white60 : Colors.black54,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: TextStyle(
+                            color: isDark ? Colors.white60 : Colors.black54,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],

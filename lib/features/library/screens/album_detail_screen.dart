@@ -9,6 +9,7 @@ import '../../../core/services/album_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
+import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Album Detail Screen - Neon Horizon
 /// 
@@ -371,6 +372,14 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
                             imageUrl: track.thumbnailUrl,
                             isPlaying: isPlaying,
                             onTap: () => _playTrack(track),
+                            onMoreTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => AddToPlaylistSheet(mediaItem: track),
+                              );
+                            },
                           ),
                         );
                       },

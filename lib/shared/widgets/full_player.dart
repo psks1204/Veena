@@ -2,8 +2,12 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import 'package:provider/provider.dart';
+import '../../../core/models/media_item.dart';
+import '../../../core/providers/player_provider.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
+import '../../features/library/widgets/add_to_playlist_sheet.dart';
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
 /// Responsive: Mobile stays the same, Web/Tablet gets a constrained centered layout
@@ -540,7 +544,35 @@ class FullPlayer extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    // We need MediaItem. Since FullPlayer only receives basic strings, we construct a temp one
+                    // ideally FullPlayer should receive the full MediaItem
+                    final tempItem = MediaItem(
+                      id: 'current', // This will fail if ID is needed for API. 
+                      // FIX: FullPlayer needs the actual MediaItem or ID.
+                      // For now, assuming the context provides the current player state which has the item.
+                      title: trackTitle,
+                      description: artistName,
+                      thumbnailUrl: artworkUrl,
+                      mediaType: MediaType.audio,
+                      status: MediaStatus.published,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    );
+                    
+                    // Better approach: Get current item from PlayerProvider
+                    final player = context.read<PlayerProvider>();
+                    final currentMedia = player.currentMedia;
+                    
+                    if (currentMedia != null) {
+                       showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) => AddToPlaylistSheet(mediaItem: currentMedia),
+                      );
+                    }
+                  },
                   icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
                 ),
               ],
