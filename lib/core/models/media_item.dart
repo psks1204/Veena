@@ -1,17 +1,141 @@
 /// Media Item Model
 /// 
 /// Represents a media item from the API (video or audio content).
+/// Includes nested artist and album information.
+
+/// Artist information embedded in media response
+class ArtistInfo {
+  final int id;
+  final String name;
+  final String? genre;
+  final String? imageUrl;
+  final bool verified;
+
+  const ArtistInfo({
+    required this.id,
+    required this.name,
+    this.genre,
+    this.imageUrl,
+    this.verified = false,
+  });
+
+  factory ArtistInfo.fromJson(Map<String, dynamic> json) {
+    return ArtistInfo(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name'] as String? ?? 'Unknown Artist',
+      genre: json['genre'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      verified: json['verified'] as bool? ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'genre': genre,
+    'imageUrl': imageUrl,
+    'verified': verified,
+  };
+}
+
+/// Album information embedded in media response
+class AlbumInfo {
+  final int id;
+  final String name;
+  final String? description;
+  final String? coverImageUrl;
+
+  const AlbumInfo({
+    required this.id,
+    required this.name,
+    this.description,
+    this.coverImageUrl,
+  });
+
+  factory AlbumInfo.fromJson(Map<String, dynamic> json) {
+    return AlbumInfo(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name'] as String? ?? 'Unknown Album',
+      description: json['description'] as String?,
+      coverImageUrl: json['coverImageUrl'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'description': description,
+    'coverImageUrl': coverImageUrl,
+  };
+}
+
+/// Linked media (audio-video pair) information
+class LinkedMediaInfo {
+  final String id;
+  final String title;
+  final MediaType mediaType;
+  final String? thumbnailUrl;
+  final String? hlsUrl;
+  final ArtistInfo? artist;
+
+  const LinkedMediaInfo({
+    required this.id,
+    required this.title,
+    required this.mediaType,
+    this.thumbnailUrl,
+    this.hlsUrl,
+    this.artist,
+  });
+
+  factory LinkedMediaInfo.fromJson(Map<String, dynamic> json) {
+    return LinkedMediaInfo(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? 'Untitled',
+      mediaType: MediaType.fromString(json['mediaType'] as String? ?? 'AUDIO'),
+      thumbnailUrl: json['thumbnailUrl'] as String?,
+      hlsUrl: json['hlsUrl'] as String?,
+      artist: json['artist'] != null 
+          ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+/// Like response from the API
+class LikeResponse {
+  final bool liked;
+  final int likeCount;
+
+  const LikeResponse({
+    required this.liked,
+    required this.likeCount,
+  });
+
+  factory LikeResponse.fromJson(Map<String, dynamic> json) {
+    return LikeResponse(
+      liked: json['liked'] as bool? ?? false,
+      likeCount: json['likeCount'] as int? ?? 0,
+    );
+  }
+}
+
+/// Media Item - main content model
 class MediaItem {
   final String id;
   final String title;
   final String? description;
   final MediaType mediaType;
   final MediaStatus status;
+  final MediaVisibility visibility;
   final String? hlsUrl;
   final String? thumbnailUrl;
   final String? lyricsUrl;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final String? linkedMediaId;
+  final ArtistInfo? artist;
+  final AlbumInfo? album;
+  final LinkedMediaInfo? linkedMedia;
 
   const MediaItem({
     required this.id,
@@ -19,11 +143,16 @@ class MediaItem {
     this.description,
     required this.mediaType,
     required this.status,
+    this.visibility = MediaVisibility.public,
     this.hlsUrl,
     this.thumbnailUrl,
     this.lyricsUrl,
     required this.createdAt,
     required this.updatedAt,
+    this.linkedMediaId,
+    this.artist,
+    this.album,
+    this.linkedMedia,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {
@@ -31,13 +160,24 @@ class MediaItem {
       id: json['id'] as String,
       title: json['title'] as String,
       description: json['description'] as String?,
-      mediaType: MediaType.fromString(json['mediaType'] as String),
-      status: MediaStatus.fromString(json['status'] as String),
+      mediaType: MediaType.fromString(json['mediaType'] as String? ?? 'AUDIO'),
+      status: MediaStatus.fromString(json['status'] as String? ?? 'PUBLISHED'),
+      visibility: MediaVisibility.fromString(json['visibility'] as String? ?? 'PUBLIC'),
       hlsUrl: json['hlsUrl'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       lyricsUrl: json['lyricsUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
+      linkedMediaId: json['linkedMediaId'] as String?,
+      artist: json['artist'] != null 
+          ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
+          : null,
+      album: json['album'] != null 
+          ? AlbumInfo.fromJson(json['album'] as Map<String, dynamic>)
+          : null,
+      linkedMedia: json['linkedMedia'] != null 
+          ? LinkedMediaInfo.fromJson(json['linkedMedia'] as Map<String, dynamic>)
+          : null,
     );
   }
 
@@ -47,16 +187,30 @@ class MediaItem {
     'description': description,
     'mediaType': mediaType.value,
     'status': status.value,
+    'visibility': visibility.value,
     'hlsUrl': hlsUrl,
     'thumbnailUrl': thumbnailUrl,
     'lyricsUrl': lyricsUrl,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
+    'linkedMediaId': linkedMediaId,
+    'artist': artist?.toJson(),
+    'album': album?.toJson(),
   };
+
+  /// Helper to get artist name (falls back to description for backwards compat)
+  String get artistName => artist?.name ?? description ?? '';
+  
+  /// Helper to get album name
+  String? get albumName => album?.name;
+  
+  /// Helper to get album cover (falls back to thumbnail)
+  String? get albumCoverUrl => album?.coverImageUrl ?? thumbnailUrl;
 
   bool get isVideo => mediaType == MediaType.video;
   bool get isAudio => mediaType == MediaType.audio;
-  bool get isReady => status == MediaStatus.ready;
+  bool get isPublished => status == MediaStatus.published;
+  bool get hasLinkedMedia => linkedMediaId != null || linkedMedia != null;
 }
 
 /// Media type enum
@@ -70,25 +224,47 @@ enum MediaType {
   static MediaType fromString(String value) {
     return MediaType.values.firstWhere(
       (e) => e.value == value.toUpperCase(),
-      orElse: () => MediaType.video,
+      orElse: () => MediaType.audio,
     );
   }
 }
 
-/// Media status enum
+/// Media status enum - matches API values
 enum MediaStatus {
-  pending('PENDING'),
+  draft('DRAFT'),
   processing('PROCESSING'),
-  ready('READY'),
+  published('PUBLISHED'),
   failed('FAILED');
 
   final String value;
   const MediaStatus(this.value);
 
   static MediaStatus fromString(String value) {
+    // Handle legacy values
+    final normalized = value.toUpperCase();
+    if (normalized == 'READY') return MediaStatus.published;
+    if (normalized == 'PENDING') return MediaStatus.draft;
+    
     return MediaStatus.values.firstWhere(
+      (e) => e.value == normalized,
+      orElse: () => MediaStatus.draft,
+    );
+  }
+}
+
+/// Media visibility enum
+enum MediaVisibility {
+  public('PUBLIC'),
+  private_('PRIVATE'),
+  unlisted('UNLISTED');
+
+  final String value;
+  const MediaVisibility(this.value);
+
+  static MediaVisibility fromString(String value) {
+    return MediaVisibility.values.firstWhere(
       (e) => e.value == value.toUpperCase(),
-      orElse: () => MediaStatus.pending,
+      orElse: () => MediaVisibility.public,
     );
   }
 }
@@ -127,10 +303,13 @@ class PagedResponse<T> {
       content: contentList,
       totalPages: json['totalPages'] as int? ?? 1,
       totalElements: json['totalElements'] as int? ?? contentList.length,
-      pageNumber: pageable?['pageNumber'] as int? ?? 0,
-      pageSize: pageable?['pageSize'] as int? ?? 10,
+      pageNumber: pageable?['pageNumber'] as int? ?? json['number'] as int? ?? 0,
+      pageSize: pageable?['pageSize'] as int? ?? json['size'] as int? ?? 20,
       isFirst: json['first'] as bool? ?? true,
       isLast: json['last'] as bool? ?? true,
     );
   }
+  
+  /// Check if there are more pages
+  bool get hasMore => !isLast;
 }

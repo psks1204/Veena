@@ -277,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   width: 140, // Smaller tiles for better rhythm
                   child: AuraAlbumCard(
                     title: item.title,
-                    subtitle: item.description ?? '',
+                    subtitle: item.artistName,
                     imageUrl: item.thumbnailUrl ?? '',
                     mediaType: item.mediaType,
                     isNew: showBadge && index < 3,
@@ -331,7 +331,7 @@ class _HomeScreenState extends State<HomeScreen> {
               final item = items[index];
               return AuraAlbumCard(
                 title: item.title,
-                subtitle: item.description ?? '',
+                subtitle: item.artistName,
                 imageUrl: item.thumbnailUrl ?? '',
                 mediaType: item.mediaType,
                 onTap: () => _playMedia(item),
@@ -380,7 +380,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: AuraTrackTile(
                   title: item.title,
-                  subtitle: item.description ?? '',
+                  subtitle: item.artistName,
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
                   isLiked: mediaService.isLiked(item.id),

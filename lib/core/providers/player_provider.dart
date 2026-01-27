@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import '../models/media_item.dart';
 import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
+import '../services/media_service.dart';
 
 /// Player Provider
 /// 
@@ -14,6 +15,7 @@ class PlayerProvider extends ChangeNotifier {
   MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   AudioPlayer? _audioPlayer;
+  MediaService? _mediaService;
   
   Lyrics? _currentLyrics;
   final LyricsService _lyricsService = LyricsService();
@@ -57,6 +59,11 @@ class PlayerProvider extends ChangeNotifier {
   PlayerProvider() {
     _audioPlayer = AudioPlayer();
     _setupAudioListeners();
+  }
+  
+  /// Set the media service for auto play recording
+  void setMediaService(MediaService service) {
+    _mediaService = service;
   }
 
   void _setupAudioListeners() {
@@ -103,6 +110,9 @@ class PlayerProvider extends ChangeNotifier {
     _isLoading = true;
     _currentLyrics = null; // Reset lyrics
     notifyListeners();
+    
+    // Auto-record play event for analytics
+    _mediaService?.recordPlay(media.id);
 
     // Fetch lyrics if available
     if (media.lyricsUrl != null && media.lyricsUrl!.isNotEmpty) {

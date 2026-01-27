@@ -39,21 +39,24 @@ class Artist {
   final String id;
   final String name;
   final String? imageUrl;
-  final int followerCount;
+  final String? genre;
+  final bool verified;
   
   Artist({
     required this.id,
     required this.name,
     this.imageUrl,
-    this.followerCount = 0,
+    this.genre,
+    this.verified = false,
   });
   
   factory Artist.fromJson(Map<String, dynamic> json) {
     return Artist(
-      id: json['id'] ?? '',
+      id: (json['id'] ?? '').toString(),
       name: json['name'] ?? 'Unknown Artist',
       imageUrl: json['imageUrl'] ?? json['thumbnailUrl'],
-      followerCount: json['followerCount'] ?? 0,
+      genre: json['genre'] as String?,
+      verified: json['verified'] as bool? ?? false,
     );
   }
 }
@@ -65,7 +68,8 @@ class Album {
   final String artistName;
   final String? coverUrl;
   final int trackCount;
-  final int? releaseYear;
+  final String? description;
+  final DateTime? createdAt;
   
   Album({
     required this.id,
@@ -73,17 +77,21 @@ class Album {
     required this.artistName,
     this.coverUrl,
     this.trackCount = 0,
-    this.releaseYear,
+    this.description,
+    this.createdAt,
   });
   
   factory Album.fromJson(Map<String, dynamic> json) {
     return Album(
-      id: json['id'] ?? '',
+      id: (json['id'] ?? '').toString(),
       title: json['title'] ?? json['name'] ?? 'Untitled',
       artistName: json['artistName'] ?? json['artist'] ?? 'Unknown',
-      coverUrl: json['coverUrl'] ?? json['thumbnailUrl'],
+      coverUrl: json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? 0,
-      releaseYear: json['releaseYear'],
+      description: json['description'] as String?,
+      createdAt: json['createdAt'] != null 
+          ? DateTime.tryParse(json['createdAt']) 
+          : null,
     );
   }
 }
@@ -277,4 +285,48 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
+  
+  /// Remove track from playlist
+  /// DELETE /api/user/library/playlists/{id}/tracks/{mediaId}
+  Future<bool> removeFromPlaylist(String playlistId, String mediaId) async {
+    try {
+      await _api.delete('/user/library/playlists/$playlistId/tracks/$mediaId');
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Remove from playlist error: $e');
+      return false;
+    }
+  }
+  
+  /// Get all artists (not user-specific)
+  /// GET /api/user/library/artists/all
+  Future<List<Artist>> getAllArtists() async {
+    try {
+      final data = await _api.get('/user/library/artists/all');
+      if (data != null && data is List) {
+        return data.map((item) => Artist.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get all artists error: $e');
+      return [];
+    }
+  }
+  
+  /// Get tracks by artist
+  /// GET /api/user/library/artists/{id}/tracks
+  Future<List<MediaItem>> getArtistTracks(int artistId) async {
+    try {
+      final data = await _api.get('/user/library/artists/$artistId/tracks');
+      if (data != null && data is List) {
+        return data.map((item) => MediaItem.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Get artist tracks error: $e');
+      return [];
+    }
+  }
 }
+

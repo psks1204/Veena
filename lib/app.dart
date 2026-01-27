@@ -6,6 +6,7 @@ import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
 import 'core/services/dashboard_service.dart';
 import 'core/services/library_service.dart';
+import 'core/services/album_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -42,6 +43,7 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => DashboardService(apiService)),
         ChangeNotifierProvider(create: (_) => MediaService(apiService)),
         ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
+        ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -93,6 +95,17 @@ class _AppRouterState extends State<_AppRouter> {
         // Inject access token into ApiService for authenticated API calls
         final apiService = context.read<ApiService>();
         apiService.setAccessToken(authService.accessToken);
+        
+        // Handle 401 Unauthorized - Logout automatically
+        apiService.onUnauthorized = () {
+          debugPrint('⚠️ Unauthorized! Signing out...');
+          authService.signOut();
+        };
+        
+        // Connect player to media service for auto play tracking
+        final playerProvider = context.read<PlayerProvider>();
+        final mediaService = context.read<MediaService>();
+        playerProvider.setMediaService(mediaService);
 
         // Show main app
         return Stack(
@@ -108,7 +121,7 @@ class _AppRouterState extends State<_AppRouter> {
               miniPlayerData: player.hasMedia
                   ? MiniPlayerData(
                       trackTitle: player.currentMedia!.title,
-                      artistName: player.currentMedia!.description ?? '',
+                      artistName: player.currentMedia!.artistName,
                       artworkUrl: player.currentMedia!.thumbnailUrl,
                       isPlaying: player.isPlaying,
                       progress: player.progress,

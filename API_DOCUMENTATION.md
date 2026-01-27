@@ -46,22 +46,38 @@ Powered by `LibraryService`. Manages personal collections and playlists.
 | `/user/library/playlists/{id}`| DELETE | **Delete Playlist** | Removes a playlist from the user's library. |
 | `/user/library/playlists/{id}/tracks` | GET | **Playlist Content** | Fetches all songs within a specific playlist. |
 | `/user/library/playlists/{id}/tracks` | POST | **Add to Playlist** | Adds a specific media ID to a playlist. |
-| `/user/library/artists` | GET | **My Artists** | Lists artists the user follows. |
-| `/user/library/albums` | GET | **My Albums** | Lists albums saved to the user's library. |
+| `/user/library/playlists/{id}/tracks/{mediaId}` | DELETE | **Remove from Playlist** | Removes a specific track from a playlist. |
+| `/user/library/artists` | GET | **My Artists** | Artists from user's history. |
+| `/user/library/artists/all` | GET | **All Artists** | Global list of all active artists. |
+| `/user/library/artists/{id}/tracks` | GET | **Artist Tracks** | Fetches all tracks for a specific artist. |
+| `/user/library/albums` | GET | **My Albums** | Distinct albums from user's history. |
 | `/user/library/favorites` | GET | **Favorites** | Retrieves all liked/favorited tracks. |
+
+---
+
+## 💿 Album Operations
+
+Powered by `UserAlbumController`. Handles discovery and details of studio albums.
+
+| Endpoint | Method | Title | Description |
+| :--- | :--- | :--- | :--- |
+| `/albums` | GET | **All Albums** | Retrieves all active studio albums. |
+| `/albums/search` | GET | **Search Albums** | Find albums by name. |
+| `/albums/{id}` | GET | **Album Details** | Fetches album info and all tracks in it. |
 
 ---
 
 ## 🎵 Media & Playback Operations
 
-Powered by `MediaService` and `PlaybackService`. Handles interaction with tracks.
+Powered by `MediaService`. Handles interaction with tracks.
 
 | Endpoint | Method | Title | Description |
 | :--- | :--- | :--- | :--- |
-| `/media/search?query={q}` | GET | **Media Search** | Search for tracks, artists, or albums. |
+| `/media` | GET | **Browse Media** | Paginated list of all public media. |
+| `/media/search?query={q}` | GET | **Media Search** | Search for tracks by title or description. |
 | `/media/{id}/like` | POST | **Toggle Like** | Likes/Unlikes a song. |
 | `/media/{id}/like` | GET | **Check Like Status** | Verifies if the current user has liked this track. |
-| `/media/{id}/play` | POST | **Record Play** | Reports playback start/position to the backend for analytics. |
+| `/media/{id}/play` | POST | **Record Play** | Reports playback position to for analytics. |
 | `/media/liked` | GET | **All Liked Media** | Dedicated endpoint for retrieving liked music. |
 | `[External URL]` | GET | **Fetch Lyrics** | Retrieves raw text/LRC content from a provided URL. |
 

@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+/// Callback type for handling 401 Unauthorized responses
+typedef OnUnauthorizedCallback = void Function();
+
 /// API Service
 /// 
 /// Central HTTP client for all Veena API calls.
@@ -11,9 +14,18 @@ class ApiService {
   
   String? _accessToken;
   
+  /// Callback to be invoked when a 401 Unauthorized response is received
+  /// This should trigger logout and redirect to login
+  OnUnauthorizedCallback? onUnauthorized;
+  
   /// Set the access token for authenticated requests
   void setAccessToken(String? token) {
     _accessToken = token;
+  }
+  
+  /// Clear the access token (used during logout)
+  void clearAccessToken() {
+    _accessToken = null;
   }
   
   /// Get headers with authentication
@@ -59,6 +71,25 @@ class ApiService {
     }
   }
   
+  /// PUT request
+  Future<dynamic> put(String endpoint, {dynamic body}) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      
+      debugPrint('🌐 PUT: $uri');
+      
+      final response = await http.put(
+        uri,
+        headers: _headers,
+        body: body != null ? jsonEncode(body) : null,
+      );
+      return _handleResponse(response);
+    } catch (e) {
+      debugPrint('❌ PUT Error: $e');
+      rethrow;
+    }
+  }
+  
   /// DELETE request
   Future<dynamic> delete(String endpoint) async {
     try {
@@ -82,7 +113,10 @@ class ApiService {
       if (response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
-      throw ApiException('Unauthorized - Please login again', response.statusCode);
+      debugPrint('🔒 401 Unauthorized - Triggering logout');
+      // Notify that we received a 401 so the app can handle logout
+      onUnauthorized?.call();
+      throw ApiException('Unauthorized - Session expired', response.statusCode);
     } else if (response.statusCode == 404) {
       throw ApiException('Resource not found', response.statusCode);
     } else {
@@ -103,4 +137,7 @@ class ApiException implements Exception {
   
   @override
   String toString() => 'ApiException($statusCode): $message';
+  
+  /// Check if this is an unauthorized error
+  bool get isUnauthorized => statusCode == 401;
 }

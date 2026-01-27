@@ -138,7 +138,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       _isLiked 
                           ? Icons.favorite_rounded 
                           : Icons.favorite_border_rounded,
-                      color: _isLiked ? AppColors.accent : null,
+                      color: _isLiked ? AppColors.primary : null,
                     ),
                   ),
                   

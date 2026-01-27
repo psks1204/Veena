@@ -181,7 +181,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
                   // Typography
                   Text(
-                    'AURA',
+                    'VEENA',
                     style: theme.textTheme.displayMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       letterSpacing: 12.0,
