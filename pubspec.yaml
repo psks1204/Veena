@@ -60,6 +60,8 @@ dependencies:
   # Media playback
   video_player: ^2.9.2
   just_audio: ^0.9.40
+  audio_service: ^0.18.12
+  permission_handler: ^11.3.0
   
   # JavaScript interop for web
   js: ^0.6.7

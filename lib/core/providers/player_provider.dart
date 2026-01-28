@@ -1,20 +1,20 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
-import 'package:just_audio/just_audio.dart';
-import '../models/media_item.dart';
+import 'package:audio_service/audio_service.dart' as audio_service;
+import '../models/media_item.dart' as app_models;
 import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
+import '../../../main.dart' show audioHandler;
 
 /// Player Provider
 /// 
 /// Centralized state management for media playback.
 /// Supports both video and audio playback across all platforms.
 class PlayerProvider extends ChangeNotifier {
-  MediaItem? _currentMedia;
+  app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
-  AudioPlayer? _audioPlayer;
   MediaService? _mediaService;
   
   Lyrics? _currentLyrics;
@@ -30,7 +30,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _isMuted = false;
   
   // Getters
-  MediaItem? get currentMedia => _currentMedia;
+  app_models.MediaItem? get currentMedia => _currentMedia;
   bool get isPlaying => _isPlaying;
   bool get isLoading => _isLoading;
   Duration get position => _position;
@@ -57,7 +57,6 @@ class PlayerProvider extends ChangeNotifier {
   bool get isAudio => _currentMedia?.isAudio ?? false;
 
   PlayerProvider() {
-    _audioPlayer = AudioPlayer();
     _setupAudioListeners();
   }
   
@@ -67,48 +66,50 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   void _setupAudioListeners() {
-    _audioPlayer?.positionStream.listen((pos) {
-      _position = pos;
-      _updateLyricIndex();
+    // Listen to playback state from AudioService
+    audioHandler.playbackState.listen((state) {
+      _isPlaying = state.playing;
+      _isLoading = state.processingState == audio_service.AudioProcessingState.loading ||
+                   state.processingState == audio_service.AudioProcessingState.buffering;
       notifyListeners();
     });
 
-    _audioPlayer?.durationStream.listen((dur) {
-      if (dur != null) {
-        _duration = dur;
+    // Listen to position updates directly from handler's player
+    final handler = audioHandler as dynamic;
+    handler.positionStream.listen((Duration pos) {
+      if (_currentMedia?.isAudio ?? false) {
+        _position = pos;
+        _updateLyricIndex();
         notifyListeners();
       }
     });
 
-    _audioPlayer?.playerStateStream.listen((state) {
-      _isPlaying = state.playing;
-      _isLoading = state.processingState == ProcessingState.loading ||
-                   state.processingState == ProcessingState.buffering;
-      
-      if (_currentLyrics != null) {
-        final index = _currentLyrics!.getActiveLineIndex(_position);
-        if (index != _lastLyricIndex) {
-          _lastLyricIndex = index;
-          _lyricIndexController.add(index);
-        }
+    // Listen to media item (for duration)
+    audioHandler.mediaItem.listen((item) {
+      if (item?.duration != null) {
+        _duration = item!.duration!;
+        notifyListeners();
       }
-      notifyListeners();
     });
   }
 
   /// Play a media item
-  Future<void> play(MediaItem media) async {
+  Future<void> play(app_models.MediaItem media) async {
     if (media.hlsUrl == null || media.hlsUrl!.isEmpty) {
-      debugPrint('No HLS URL available for media: ${media.id}');
+      debugPrint('[PlayerProvider] No HLS URL available for media: ${media.id}');
       return;
     }
 
-    // Stop current playback
-    await stop();
+    // Clean up video controller if it exists
+    if (_videoController != null) {
+      _videoController!.removeListener(_onVideoUpdate);
+      await _videoController!.dispose();
+      _videoController = null;
+    }
 
     _currentMedia = media;
     _isLoading = true;
-    _currentLyrics = null; // Reset lyrics
+    _currentLyrics = null;
     notifyListeners();
     
     // Auto-record play event for analytics
@@ -116,35 +117,29 @@ class PlayerProvider extends ChangeNotifier {
 
     // Fetch lyrics if available
     if (media.lyricsUrl != null && media.lyricsUrl!.isNotEmpty) {
-      debugPrint('[PlayerProvider] Fetching lyrics from: ${media.lyricsUrl}');
       _lyricsService.fetchLyrics(media.lyricsUrl!).then((lyrics) {
-        if (lyrics != null) {
-          debugPrint('[PlayerProvider] ✅ Successfully fetched and parsed ${lyrics.lines.length} lyrics lines');
-        } else {
-          debugPrint('[PlayerProvider] ❌ Failed to fetch or parse lyrics');
-        }
         _currentLyrics = lyrics;
         notifyListeners();
       });
-    } else {
-      debugPrint('[PlayerProvider] ⚠️  No lyricsUrl provided for media: ${media.title}');
-      debugPrint('[PlayerProvider] ⚠️  Make sure your API returns "lyricsUrl" field in the media response');
     }
 
     try {
       if (media.isVideo) {
         await _playVideo(media.hlsUrl!);
       } else {
-        await _playAudio(media.hlsUrl!);
+        await _playAudio(media);
       }
     } catch (e) {
-      debugPrint('Error playing media: $e');
+      debugPrint('[PlayerProvider] Error playing media: $e');
       _isLoading = false;
       notifyListeners();
     }
   }
 
   Future<void> _playVideo(String url) async {
+    // Stop audio if playing
+    await audioHandler.stop();
+    
     // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
       Uri.parse(url),
@@ -175,9 +170,26 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _playAudio(String url) async {
-    await _audioPlayer?.setUrl(url);
-    await _audioPlayer?.play();
+  Future<void> _playAudio(app_models.MediaItem media) async {
+    // Create audio_service MediaItem for notification
+    final item = audio_service.MediaItem(
+      id: media.id,
+      album: media.artistName ?? 'Unknown Album',
+      title: media.title,
+      artist: media.artistName ?? 'Unknown Artist',
+      duration: null, // Will be updated when loaded
+      artUri: media.thumbnailUrl != null ? Uri.parse(media.thumbnailUrl!) : null,
+      extras: {'url': media.hlsUrl},
+    );
+    
+    // Set media item for notification (cast to our handler type)
+    (audioHandler as dynamic).setMediaItem(item);
+    
+    // Play from URI
+    await audioHandler.playFromUri(Uri.parse(media.hlsUrl!));
+    
+    _isLoading = false;
+    notifyListeners();
   }
 
   /// Toggle play/pause
@@ -194,10 +206,8 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.pause();
     } else {
-      await _audioPlayer?.pause();
+      await audioHandler.pause();
     }
-    // Don't set _isPlaying here - let the stream listener handle it
-    // This prevents the 3-click issue where state gets out of sync
   }
 
   /// Resume playback
@@ -205,10 +215,8 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.play();
     } else {
-      await _audioPlayer?.play();
+      await audioHandler.play();
     }
-    // Don't set _isPlaying here - let the stream listener handle it
-    // This prevents the 3-click issue where state gets out of sync
   }
 
   /// Stop playback
@@ -219,7 +227,7 @@ class PlayerProvider extends ChangeNotifier {
       _videoController = null;
     }
     
-    await _audioPlayer?.stop();
+    await audioHandler.stop();
     
     _isPlaying = false;
     _position = Duration.zero;
@@ -232,7 +240,7 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.seekTo(position);
     } else {
-      await _audioPlayer?.seek(position);
+      await audioHandler.seek(position);
     }
     _position = position;
     notifyListeners();
@@ -251,9 +259,8 @@ class PlayerProvider extends ChangeNotifier {
     _volume = volume.clamp(0.0, 1.0);
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.setVolume(_volume);
-    } else {
-      await _audioPlayer?.setVolume(_volume);
     }
+    // Note: AudioService volume is controlled by system
     notifyListeners();
   }
 
@@ -263,15 +270,15 @@ class PlayerProvider extends ChangeNotifier {
     await setVolume(_isMuted ? 0.0 : 1.0);
   }
 
-  /// Skip to next item (Stub)
+  /// Skip to next item
   Future<void> next() async {
-    // TODO: Implement queue system
+    await audioHandler.skipToNext();
     notifyListeners();
   }
 
-  /// Skip to previous item (Stub)
+  /// Skip to previous item
   Future<void> previous() async {
-    // TODO: Implement queue system
+    await audioHandler.skipToPrevious();
     notifyListeners();
   }
 
@@ -296,7 +303,6 @@ class PlayerProvider extends ChangeNotifier {
   void dispose() {
     _videoController?.removeListener(_onVideoUpdate);
     _videoController?.dispose();
-    _audioPlayer?.dispose();
     _lyricIndexController.close();
     super.dispose();
   }

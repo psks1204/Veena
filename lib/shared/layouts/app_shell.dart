@@ -107,7 +107,10 @@ class _AppShellState extends State<AppShell> {
       body: Stack(
         children: [
           // Main Content
-          widget.child,
+          SafeArea(
+            bottom: false,
+            child: widget.child,
+          ),
 
           // Floating Player & Nav
           Positioned(
@@ -189,21 +192,24 @@ class _AppShellState extends State<AppShell> {
           
           // Content
           Expanded(
-            child: Column(
-              children: [
-                Expanded(child: widget.child),
-                if (widget.showMiniPlayer && widget.miniPlayerData != null)
-                  MiniPlayer(
-                    trackTitle: widget.miniPlayerData!.trackTitle,
-                    artistName: widget.miniPlayerData!.artistName,
-                    artworkUrl: widget.miniPlayerData!.artworkUrl,
-                    isPlaying: widget.miniPlayerData!.isPlaying,
-                    progress: widget.miniPlayerData!.progress,
-                    onTap: widget.miniPlayerData!.onTap,
-                    onPlayPause: widget.miniPlayerData!.onPlayPause,
-                    onNext: widget.miniPlayerData!.onNext,
-                  ),
-              ],
+            child: SafeArea(
+              bottom: false,
+              child: Column(
+                children: [
+                  Expanded(child: widget.child),
+                  if (widget.showMiniPlayer && widget.miniPlayerData != null)
+                    MiniPlayer(
+                      trackTitle: widget.miniPlayerData!.trackTitle,
+                      artistName: widget.miniPlayerData!.artistName,
+                      artworkUrl: widget.miniPlayerData!.artworkUrl,
+                      isPlaying: widget.miniPlayerData!.isPlaying,
+                      progress: widget.miniPlayerData!.progress,
+                      onTap: widget.miniPlayerData!.onTap,
+                      onPlayPause: widget.miniPlayerData!.onPlayPause,
+                      onNext: widget.miniPlayerData!.onNext,
+                    ),
+                ],
+              ),
             ),
           ),
         ],
@@ -278,7 +284,10 @@ class _AppShellState extends State<AppShell> {
           
           // Content
           Expanded(
-            child: widget.child,
+            child: SafeArea(
+              bottom: false,
+              child: widget.child,
+            ),
           ),
         ],
       ),
