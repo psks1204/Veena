@@ -150,6 +150,35 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  /// Toggle shuffle mode on/off
+  void toggleShuffle() {
+    _shuffleEnabled = !_shuffleEnabled;
+    debugPrint('[PlayerProvider] Shuffle toggled: $_shuffleEnabled');
+    
+    if (_shuffleEnabled && _queue.isNotEmpty) {
+      // Generate new shuffled indices when enabling shuffle
+      _generateShuffledIndices();
+    }
+    notifyListeners();
+  }
+
+  /// Cycle through repeat modes: off -> all -> one -> off
+  void toggleRepeatMode() {
+    switch (_repeatMode) {
+      case RepeatMode.off:
+        _repeatMode = RepeatMode.all;
+        break;
+      case RepeatMode.all:
+        _repeatMode = RepeatMode.one;
+        break;
+      case RepeatMode.one:
+        _repeatMode = RepeatMode.off;
+        break;
+    }
+    debugPrint('[PlayerProvider] Repeat mode toggled: $_repeatMode');
+    notifyListeners();
+  }
+
   /// Play a single media item (clears queue)
   Future<void> play(app_models.MediaItem media) async {
     // When playing single item, set up a queue with just this item
@@ -428,32 +457,6 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> toggleMute() async {
     _isMuted = !_isMuted;
     await setVolume(_isMuted ? 0.0 : 1.0);
-  }
-
-  /// Toggle shuffle mode
-  void toggleShuffle() {
-    _shuffleEnabled = !_shuffleEnabled;
-    if (_shuffleEnabled) {
-      _generateShuffledIndices();
-    }
-    notifyListeners();
-  }
-
-  /// Toggle repeat mode (off -> all -> one -> off)
-  void toggleRepeatMode() {
-    switch (_repeatMode) {
-      case RepeatMode.off:
-        _repeatMode = RepeatMode.all;
-        break;
-      case RepeatMode.all:
-        _repeatMode = RepeatMode.one;
-        break;
-      case RepeatMode.one:
-        _repeatMode = RepeatMode.off;
-        break;
-    }
-    debugPrint('[PlayerProvider] Repeat mode: $_repeatMode');
-    notifyListeners();
   }
 
   /// Skip to next item in queue
