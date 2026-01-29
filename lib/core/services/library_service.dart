@@ -125,7 +125,14 @@ class LibraryService extends ChangeNotifier {
     notifyListeners();
     
     try {
-      final data = await _api.get('/user/library');
+      // Fetch user library data and all albums concurrently
+      final results = await Future.wait([
+        _api.get('/user/library'),
+        _api.get('/albums'),
+      ]);
+      
+      final data = results[0];
+      final albumsData = results[1];
       
       if (data != null) {
         if (data['playlists'] != null) {
@@ -143,11 +150,14 @@ class LibraryService extends ChangeNotifier {
               .map((item) => Artist.fromJson(item))
               .toList();
         }
-        if (data['albums'] != null) {
-          _albums = (data['albums'] as List)
-              .map((item) => Album.fromJson(item))
-              .toList();
-        }
+      }
+      
+      // Parse albums from /albums endpoint (GET all albums)
+      if (albumsData != null && albumsData is List) {
+        _albums = albumsData
+            .map((item) => Album.fromJson(item))
+            .toList();
+        debugPrint('[LibraryService] Loaded ${_albums.length} albums');
       }
       
       _isLoading = false;
@@ -156,6 +166,7 @@ class LibraryService extends ChangeNotifier {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
+      debugPrint('[LibraryService] fetchLibrary error: $e');
     }
   }
   
@@ -271,12 +282,14 @@ class LibraryService extends ChangeNotifier {
   
   // ==================== ALBUMS ====================
   
-  /// Get saved albums
+  /// Get all albums
+  /// GET /api/albums
   Future<List<Album>> getAlbums() async {
     try {
-      final data = await _api.get('/user/library/albums');
+      final data = await _api.get('/albums');
       if (data != null && data is List) {
         _albums = data.map((item) => Album.fromJson(item)).toList();
+        debugPrint('[LibraryService] getAlbums: ${_albums.length} albums');
         notifyListeners();
       }
       return _albums;

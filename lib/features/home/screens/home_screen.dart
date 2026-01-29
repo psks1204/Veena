@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/services/dashboard_service.dart';
 import '../../../core/services/media_service.dart';
+import '../../../core/services/album_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../library/screens/albums_browse_screen.dart';
+import '../../library/screens/album_detail_screen.dart';
 import 'section_view_screen.dart';
 
 /// Home Screen - Premium Studio Design
@@ -46,7 +50,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final dashboard = context.read<DashboardService>();
-      await dashboard.fetchDashboard();
+      final albumService = context.read<AlbumService>();
+      
+      // Load dashboard and albums concurrently
+      await Future.wait([
+        dashboard.fetchDashboard(),
+        albumService.getAllAlbums(),
+      ]);
       
       setState(() => _isLoading = false);
     } catch (e) {
@@ -151,6 +161,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       isHorizontal: true,
                     ),
                   ],
+
+                  // Albums Section
+                  _buildAlbumsSection(context),
 
                   // Videos Grid
                   if (videos.isNotEmpty) ...[
@@ -510,6 +523,193 @@ class _HomeScreenState extends State<HomeScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Consumer<AlbumService>(
+      builder: (context, albumService, _) {
+        final albums = albumService.albums;
+        
+        if (albums.isEmpty && !albumService.isLoading) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenPadding,
+                  AppSpacing.lg,
+                  AppSpacing.screenPadding,
+                  AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.album_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Albums',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AlbumsBrowseScreen()),
+                        );
+                      },
+                      child: Row(
+                        children: [
+                          Text(
+                            'See All',
+                            style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Album Cards Horizontal Scroll
+              SizedBox(
+                height: 200,
+                child: albumService.isLoading
+                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                        scrollDirection: Axis.horizontal,
+                        itemCount: albums.length > 10 ? 10 : albums.length, // Limit to 10 items
+                        itemBuilder: (context, index) {
+                          final album = albums[index];
+                          return _buildAlbumCard(context, album, isDark);
+                        },
+                      ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAlbumCard(BuildContext context, AlbumSummary album, bool isDark) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => AlbumDetailScreen(
+              albumId: album.id,
+              title: album.title,
+              artist: album.artistName,
+              coverUrl: album.coverUrl,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Album Cover
+            Container(
+              height: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: album.coverUrl != null && album.coverUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: album.coverUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Icon(
+                            Icons.album_rounded,
+                            color: isDark ? Colors.grey[600] : Colors.grey[400],
+                            size: 48,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Icon(
+                            Icons.album_rounded,
+                            color: isDark ? Colors.grey[600] : Colors.grey[400],
+                            size: 48,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        child: Icon(
+                          Icons.album_rounded,
+                          color: isDark ? Colors.grey[600] : Colors.grey[400],
+                          size: 48,
+                        ),
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: AppSpacing.sm),
+            
+            // Title
+            Text(
+              album.title,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            // Artist
+            Text(
+              album.artistName,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

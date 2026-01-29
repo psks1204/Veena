@@ -8,6 +8,8 @@ import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/track_tile.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../player/screens/video_player_screen.dart';
+import '../../../shared/layouts/player_overlay_shell.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final Playlist playlist;
@@ -41,6 +43,42 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       debugPrint('Error loading playlist tracks: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  /// Play a track from the playlist - sets up the queue for next/previous
+  void _playTrack(MediaItem track, int index) {
+    final player = context.read<PlayerProvider>();
+    
+    // Play the entire playlist as a queue, starting from this track
+    if (_tracks.isNotEmpty) {
+      debugPrint('[PlaylistDetail] Playing queue: ${_tracks.length} tracks, starting at $index');
+      player.playQueue(_tracks, startIndex: index);
+    } else {
+      player.play(track);
+    }
+    
+    // Open video player if it's a video
+    if (track.isVideo) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+      );
+    }
+  }
+
+  /// Play all tracks (or shuffle)
+  void _playAll({bool shuffle = false}) {
+    if (_tracks.isEmpty) return;
+    
+    final player = context.read<PlayerProvider>();
+    debugPrint('[PlaylistDetail] Play all: ${_tracks.length} tracks, shuffle: $shuffle');
+    player.playQueue(_tracks, shuffle: shuffle);
+    
+    // If first track is video, open video player
+    if (_tracks.first.isVideo) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+      );
     }
   }
 
@@ -226,6 +264,43 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ],
           ),
           
+          // Play All / Shuffle buttons
+          if (!_isLoading && _tracks.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _playAll(shuffle: false),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.play_arrow_rounded),
+                        label: const Text('Play All'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: () => _playAll(shuffle: true),
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: AppColors.primary),
+                          foregroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        icon: const Icon(Icons.shuffle_rounded),
+                        label: const Text('Shuffle'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          
           if (_isLoading)
             const SliverFillRemaining(
               child: Center(child: CircularProgressIndicator()),
@@ -272,12 +347,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           ),
                         ),
                         Expanded(
-                          child: TrackTile(
-                            mediaItem: track,
-                            onTap: () {
-                               context.read<PlayerProvider>().play(track);
-                            },
-                            onMoreTap: () => _showTrackOptions(track),
+                          child: Consumer<PlayerProvider>(
+                            builder: (context, player, _) => TrackTile(
+                              mediaItem: track,
+                              isPlaying: player.currentMedia?.id == track.id,
+                              onTap: () => _playTrack(track, index),
+                              onMoreTap: () => _showTrackOptions(track),
+                            ),
                           ),
                         ),
                       ],
@@ -296,3 +372,4 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
   }
 }
+

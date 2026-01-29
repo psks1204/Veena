@@ -162,6 +162,8 @@ class _AppRouterState extends State<_AppRouter> {
                       progress: player.progress,
                       currentPosition: player.position,
                       duration: player.duration,
+                      isShuffleOn: player.shuffleEnabled,
+                      repeatMode: player.repeatMode,
                       lyrics: player.currentLyrics,
                       activeLyricIndex: player.activeLyricIndex,
                       onFullscreenLyricsTap: () {
@@ -186,7 +188,10 @@ class _AppRouterState extends State<_AppRouter> {
                       onSeek: (v) => player.seekToProgress(v),
                       onPrevious: () => player.previous(),
                       onNext: () => player.next(),
+                      onShuffle: () => player.toggleShuffle(),
+                      onRepeat: () => player.toggleRepeatMode(),
                     )
+
                   : const SizedBox.shrink(),
             ),
           ],

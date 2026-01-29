@@ -10,6 +10,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../../shared/layouts/player_overlay_shell.dart';
 
 /// Album Detail Screen - Neon Horizon
 /// 
@@ -85,9 +86,15 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
     }
   }
 
-  void _playTrack(MediaItem track, {bool shuffled = false}) {
+  void _playTrack(MediaItem track, {int? trackIndex}) {
     final player = context.read<PlayerProvider>();
-    player.play(track);
+    
+    // If we have an album with tracks, play the queue starting from this track
+    if (_album != null && _album!.tracks.isNotEmpty && trackIndex != null) {
+      player.playQueue(_album!.tracks, startIndex: trackIndex);
+    } else {
+      player.play(track);
+    }
     
     if (track.isVideo) {
       Navigator.of(context).push(
@@ -98,11 +105,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
   
   void _playAllTracks({bool shuffle = false}) {
     if (_album != null && _album!.tracks.isNotEmpty) {
-      final tracks = shuffle 
-          ? (_album!.tracks.toList()..shuffle()) 
-          : _album!.tracks;
-      _playTrack(tracks.first, shuffled: shuffle);
-      // TODO: Queue remaining tracks
+      final player = context.read<PlayerProvider>();
+      player.playQueue(_album!.tracks, shuffle: shuffle);
     }
   }
 
@@ -371,7 +375,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
                             duration: '', // Duration could be added to MediaItem if API provides it
                             imageUrl: track.thumbnailUrl,
                             isPlaying: isPlaying,
-                            onTap: () => _playTrack(track),
+                            onTap: () => _playTrack(track, trackIndex: index),
                             onMoreTap: () {
                               showModalBottomSheet(
                                 context: context,

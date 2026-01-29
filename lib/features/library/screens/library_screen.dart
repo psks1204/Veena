@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
@@ -12,6 +13,7 @@ import '../../auth/services/auth_service.dart';
 import 'playlist_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
+import 'albums_browse_screen.dart';
 
 /// Library Screen - Spotify-like Premium Design
 class LibraryScreen extends StatefulWidget {
@@ -230,7 +232,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
         } else if (_selectedFilter == 'Albums') {
           items = library.albums;
         } else if (_selectedFilter == 'Favorites') {
-          items = library.favorites;
+          // Use special favorites view with Play All/Shuffle
+          return _buildFavoritesView(library.favorites);
         }
 
         return ListView.builder(
@@ -330,6 +333,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     required bool isCircle,
     required VoidCallback onTap,
     bool isLikedSongs = false,
+    bool isPlaying = false,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -366,7 +370,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                      color: isLikedSongs ? AppColors.primary : (isDark ? Colors.white : Colors.black),
+                      color: isPlaying ? AppColors.primary : (isLikedSongs ? AppColors.primary : (isDark ? Colors.white : Colors.black)),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -399,6 +403,77 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  /// Build favorites view with Play All/Shuffle buttons and queue support
+  Widget _buildFavoritesView(List<MediaItem> favorites) {
+    final player = context.read<PlayerProvider>();
+    
+    return Column(
+      children: [
+        // Play All / Shuffle buttons row
+        Padding(
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: favorites.isEmpty ? null : () {
+                    player.playQueue(favorites);
+                  },
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Play All'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: favorites.isEmpty ? null : () {
+                    player.playQueue(favorites, shuffle: true);
+                  },
+                  icon: const Icon(Icons.shuffle_rounded),
+                  label: const Text('Shuffle'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    side: const BorderSide(color: AppColors.primary),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Favorites list
+        Expanded(
+          child: Consumer<PlayerProvider>(
+            builder: (context, playerWatch, _) => ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              itemCount: favorites.length,
+              itemBuilder: (context, index) {
+                final item = favorites[index];
+                final isItemPlaying = playerWatch.currentMedia?.id == item.id;
+                return _buildLibraryTile(
+                  title: item.title,
+                  subtitle: 'Song • ${item.description ?? item.artistName ?? ''}',
+                  imageUrl: item.thumbnailUrl,
+                  isCircle: false,
+                  isPlaying: isItemPlaying,
+                  onTap: () {
+                    // Play this track as part of favorites queue
+                    player.playQueue(favorites, startIndex: index);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

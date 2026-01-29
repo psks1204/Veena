@@ -8,10 +8,14 @@ import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
 import '../../../main.dart' show audioHandler;
 
+/// Repeat mode for playback
+enum RepeatMode { off, all, one }
+
 /// Player Provider
 /// 
 /// Centralized state management for media playback.
 /// Supports both video and audio playback across all platforms.
+/// Includes queue management for album/playlist playback.
 class PlayerProvider extends ChangeNotifier {
   app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
@@ -29,6 +33,13 @@ class PlayerProvider extends ChangeNotifier {
   double _volume = 1.0;
   bool _isMuted = false;
   
+  // Queue management
+  List<app_models.MediaItem> _queue = [];
+  int _currentIndex = -1;
+  bool _shuffleEnabled = false;
+  List<int> _shuffledIndices = [];
+  RepeatMode _repeatMode = RepeatMode.off;
+  
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
   bool get isPlaying => _isPlaying;
@@ -40,6 +51,15 @@ class PlayerProvider extends ChangeNotifier {
   bool get hasMedia => _currentMedia != null;
   Lyrics? get currentLyrics => _currentLyrics;
   Stream<int> get lyricIndexStream => _lyricIndexController.stream;
+  
+  // Queue getters
+  List<app_models.MediaItem> get queue => _queue;
+  int get currentIndex => _currentIndex;
+  bool get hasQueue => _queue.isNotEmpty;
+  bool get hasNext => _currentIndex < _queue.length - 1;
+  bool get hasPrevious => _currentIndex > 0;
+  bool get shuffleEnabled => _shuffleEnabled;
+  RepeatMode get repeatMode => _repeatMode;
 
   int get activeLyricIndex {
     if (_currentLyrics == null) return -1;
@@ -71,6 +91,17 @@ class PlayerProvider extends ChangeNotifier {
       _isPlaying = state.playing;
       _isLoading = state.processingState == audio_service.AudioProcessingState.loading ||
                    state.processingState == audio_service.AudioProcessingState.buffering;
+      
+      // Auto-advance to next track when current track completes
+      // Guard: only advance if we actually played something (position > 5s and near end)
+      if (state.processingState == audio_service.AudioProcessingState.completed) {
+        final hasValidDuration = _duration.inSeconds > 5;
+        final isNearEnd = _position.inSeconds >= _duration.inSeconds - 2;
+        if (hasValidDuration && isNearEnd) {
+          _onTrackCompleted();
+        }
+      }
+      
       notifyListeners();
     });
 
@@ -93,10 +124,93 @@ class PlayerProvider extends ChangeNotifier {
     });
   }
 
-  /// Play a media item
+  /// Called when current track completes - auto-advance based on repeat mode
+  void _onTrackCompleted() {
+    switch (_repeatMode) {
+      case RepeatMode.one:
+        // Replay current track
+        seek(Duration.zero);
+        resume();
+        break;
+      case RepeatMode.all:
+        // If at end, loop back to start
+        if (hasNext) {
+          next();
+        } else if (_queue.isNotEmpty) {
+          _currentIndex = 0;
+          _playCurrentItem();
+        }
+        break;
+      case RepeatMode.off:
+        // Only advance if there's a next track
+        if (hasNext) {
+          next();
+        }
+        break;
+    }
+  }
+
+  /// Play a single media item (clears queue)
   Future<void> play(app_models.MediaItem media) async {
+    // When playing single item, set up a queue with just this item
+    _queue = [media];
+    _currentIndex = 0;
+    await _playCurrentItem();
+  }
+
+  /// Play a queue of media items starting from an index
+  Future<void> playQueue(List<app_models.MediaItem> items, {int startIndex = 0, bool shuffle = false}) async {
+    if (items.isEmpty) {
+      debugPrint('[PlayerProvider] playQueue called with empty items');
+      return;
+    }
+    
+    debugPrint('[PlayerProvider] playQueue: ${items.length} items, startIndex: $startIndex, shuffle: $shuffle');
+    
+    _queue = List.from(items);
+    _shuffleEnabled = shuffle;
+    
+    if (shuffle) {
+      _generateShuffledIndices();
+      _currentIndex = 0; // Start at first shuffled index
+    } else {
+      _currentIndex = startIndex.clamp(0, items.length - 1);
+    }
+    
+    debugPrint('[PlayerProvider] Queue set: ${_queue.length} items, currentIndex: $_currentIndex');
+    await _playCurrentItem();
+  }
+
+  /// Generate shuffled indices for shuffle mode
+  void _generateShuffledIndices() {
+    _shuffledIndices = List.generate(_queue.length, (i) => i);
+    _shuffledIndices.shuffle();
+  }
+
+  /// Get the actual queue index (handles shuffle)
+  int _getActualIndex(int index) {
+    if (_shuffleEnabled && _shuffledIndices.isNotEmpty) {
+      return _shuffledIndices[index];
+    }
+    return index;
+  }
+
+  /// Play the current item in the queue
+  Future<void> _playCurrentItem() async {
+    if (_queue.isEmpty || _currentIndex < 0 || _currentIndex >= _queue.length) {
+      return;
+    }
+    
+    final actualIndex = _getActualIndex(_currentIndex);
+    final media = _queue[actualIndex];
+    
     if (media.hlsUrl == null || media.hlsUrl!.isEmpty) {
       debugPrint('[PlayerProvider] No HLS URL available for media: ${media.id}');
+      // Try next track
+      if (hasNext) {
+        _currentIndex++;
+        await _playCurrentItem();
+      }
       return;
     }
 
@@ -137,8 +251,23 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _playVideo(String url) async {
-    // Stop audio if playing
+    // Stop audio playback but keep notification capability
     await audioHandler.stop();
+    
+    // Set up audio service notification for video (enables lock screen controls)
+    if (_currentMedia != null) {
+      final item = audio_service.MediaItem(
+        id: _currentMedia!.id,
+        album: _currentMedia!.artistName ?? 'Video',
+        title: _currentMedia!.title,
+        artist: _currentMedia!.artistName ?? 'Unknown Artist',
+        artUri: _currentMedia!.thumbnailUrl != null 
+            ? Uri.parse(_currentMedia!.thumbnailUrl!) 
+            : null,
+        duration: Duration.zero, // Will update after video initializes
+      );
+      await audioHandler.updateMediaItem(item);
+    }
     
     // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
@@ -150,6 +279,21 @@ class PlayerProvider extends ChangeNotifier {
 
     await _videoController!.initialize();
     _duration = _videoController!.value.duration;
+    
+    // Update notification with actual duration
+    if (_currentMedia != null) {
+      final itemWithDuration = audio_service.MediaItem(
+        id: _currentMedia!.id,
+        album: _currentMedia!.artistName ?? 'Video',
+        title: _currentMedia!.title,
+        artist: _currentMedia!.artistName ?? 'Unknown Artist',
+        artUri: _currentMedia!.thumbnailUrl != null 
+            ? Uri.parse(_currentMedia!.thumbnailUrl!) 
+            : null,
+        duration: _duration,
+      );
+      await audioHandler.updateMediaItem(itemWithDuration);
+    }
     
     // Listen to video position
     _videoController!.addListener(_onVideoUpdate);
@@ -165,6 +309,13 @@ class PlayerProvider extends ChangeNotifier {
       _position = _videoController!.value.position;
       _isPlaying = _videoController!.value.isPlaying;
       _isLoading = _videoController!.value.isBuffering;
+      
+      // Check for video completion
+      if (_videoController!.value.position >= _videoController!.value.duration &&
+          _videoController!.value.duration.inMilliseconds > 0) {
+        _onTrackCompleted();
+      }
+      
       _updateLyricIndex();
       notifyListeners();
     }
@@ -235,6 +386,15 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Clear queue and stop playback
+  Future<void> clearQueue() async {
+    await stop();
+    _queue = [];
+    _currentIndex = -1;
+    _currentMedia = null;
+    notifyListeners();
+  }
+
   /// Seek to position
   Future<void> seek(Duration position) async {
     if (_currentMedia?.isVideo ?? false) {
@@ -270,16 +430,66 @@ class PlayerProvider extends ChangeNotifier {
     await setVolume(_isMuted ? 0.0 : 1.0);
   }
 
-  /// Skip to next item
-  Future<void> next() async {
-    await audioHandler.skipToNext();
+  /// Toggle shuffle mode
+  void toggleShuffle() {
+    _shuffleEnabled = !_shuffleEnabled;
+    if (_shuffleEnabled) {
+      _generateShuffledIndices();
+    }
     notifyListeners();
   }
 
-  /// Skip to previous item
-  Future<void> previous() async {
-    await audioHandler.skipToPrevious();
+  /// Toggle repeat mode (off -> all -> one -> off)
+  void toggleRepeatMode() {
+    switch (_repeatMode) {
+      case RepeatMode.off:
+        _repeatMode = RepeatMode.all;
+        break;
+      case RepeatMode.all:
+        _repeatMode = RepeatMode.one;
+        break;
+      case RepeatMode.one:
+        _repeatMode = RepeatMode.off;
+        break;
+    }
+    debugPrint('[PlayerProvider] Repeat mode: $_repeatMode');
     notifyListeners();
+  }
+
+  /// Skip to next item in queue
+  Future<void> next() async {
+    debugPrint('[PlayerProvider] next() called - queue: ${_queue.length}, currentIndex: $_currentIndex, hasNext: $hasNext');
+    if (!hasNext) {
+      debugPrint('[PlayerProvider] No next track available');
+      return;
+    }
+    
+    _currentIndex++;
+    await _playCurrentItem();
+  }
+
+  /// Skip to previous item in queue
+  Future<void> previous() async {
+    // If more than 3 seconds in, restart current track
+    if (_position.inSeconds > 3) {
+      await seek(Duration.zero);
+      return;
+    }
+    
+    if (!hasPrevious) {
+      await seek(Duration.zero);
+      return;
+    }
+    
+    _currentIndex--;
+    await _playCurrentItem();
+  }
+
+  /// Play specific track from queue by index
+  Future<void> playQueueIndex(int index) async {
+    if (index < 0 || index >= _queue.length) return;
+    _currentIndex = index;
+    await _playCurrentItem();
   }
 
   /// Format duration to string

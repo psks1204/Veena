@@ -3,43 +3,50 @@ import 'api_service.dart';
 import '../models/media_item.dart';
 
 /// Album Summary - for list views
+/// Matches GET /api/albums response
 class AlbumSummary {
-  final int id;
-  final String name;
-  final String? description;
-  final String? coverImageUrl;
+  final String id;  // API returns string ID
+  final String title;
+  final String artistName;
+  final String? coverUrl;
   final int trackCount;
 
   const AlbumSummary({
     required this.id,
-    required this.name,
-    this.description,
-    this.coverImageUrl,
+    required this.title,
+    required this.artistName,
+    this.coverUrl,
     this.trackCount = 0,
   });
 
   factory AlbumSummary.fromJson(Map<String, dynamic> json) {
     return AlbumSummary(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
-      name: json['name'] as String? ?? 'Untitled Album',
-      description: json['description'] as String?,
-      coverImageUrl: json['coverImageUrl'] as String?,
+      id: json['id']?.toString() ?? '0',
+      title: json['title'] as String? ?? json['name'] as String? ?? 'Untitled Album',
+      artistName: json['artistName'] as String? ?? 'Unknown Artist',
+      coverUrl: json['coverUrl'] as String? ?? json['coverImageUrl'] as String?,
       trackCount: json['trackCount'] as int? ?? 0,
     );
   }
 }
 
 /// Album Detail - includes tracks
-class AlbumDetail extends AlbumSummary {
+/// Matches GET /api/albums/{id} response
+class AlbumDetail {
+  final int id;  // Detail endpoint returns int ID
+  final String name;
+  final String? description;
+  final String? coverImageUrl;
+  final int trackCount;
   final DateTime? createdAt;
   final List<MediaItem> tracks;
 
-  AlbumDetail({
-    required super.id,
-    required super.name,
-    super.description,
-    super.coverImageUrl,
-    super.trackCount,
+  const AlbumDetail({
+    required this.id,
+    required this.name,
+    this.description,
+    this.coverImageUrl,
+    this.trackCount = 0,
     this.createdAt,
     required this.tracks,
   });
@@ -48,9 +55,9 @@ class AlbumDetail extends AlbumSummary {
     final tracksList = json['tracks'] as List? ?? [];
     return AlbumDetail(
       id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
-      name: json['name'] as String? ?? 'Untitled Album',
+      name: json['name'] as String? ?? json['title'] as String? ?? 'Untitled Album',
       description: json['description'] as String?,
-      coverImageUrl: json['coverImageUrl'] as String?,
+      coverImageUrl: json['coverImageUrl'] as String? ?? json['coverUrl'] as String?,
       trackCount: json['trackCount'] as int? ?? tracksList.length,
       createdAt: json['createdAt'] != null 
           ? DateTime.tryParse(json['createdAt'] as String) 
@@ -90,6 +97,7 @@ class AlbumService extends ChangeNotifier {
       final data = await _api.get('/albums');
       if (data != null && data is List) {
         _albums = data.map((item) => AlbumSummary.fromJson(item)).toList();
+        debugPrint('[AlbumService] Loaded ${_albums.length} albums');
       }
       _isLoading = false;
       notifyListeners();
@@ -159,6 +167,7 @@ class AlbumService extends ChangeNotifier {
       
       if (data != null) {
         _currentAlbum = AlbumDetail.fromJson(data);
+        debugPrint('[AlbumService] Loaded album: ${_currentAlbum?.name} with ${_currentAlbum?.tracks.length} tracks');
         _isLoading = false;
         notifyListeners();
         return _currentAlbum;

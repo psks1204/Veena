@@ -8,6 +8,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
+import '../../features/player/screens/video_player_screen.dart';
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
 /// Responsive: Mobile stays the same, Web/Tablet gets a constrained centered layout
@@ -61,6 +62,112 @@ class FullPlayer extends StatelessWidget {
     final minutes = d.inMinutes;
     final seconds = d.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _showQueueSheet(BuildContext context) {
+    final player = context.read<PlayerProvider>();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.3,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              // Handle bar
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white38,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              // Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Queue',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${player.queue.length} tracks',
+                      style: const TextStyle(color: Colors.white54, fontSize: 14),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(color: Colors.white24, height: 1),
+              // Queue list
+              Expanded(
+                child: ListView.builder(
+                  controller: scrollController,
+                  itemCount: player.queue.length,
+                  itemBuilder: (context, index) {
+                    final track = player.queue[index];
+                    final isCurrent = index == player.currentIndex;
+                    return ListTile(
+                      onTap: () {
+                        player.playQueueIndex(index);
+                        Navigator.pop(context);
+                      },
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          color: Colors.grey[800],
+                          child: track.thumbnailUrl != null
+                              ? Image.network(track.thumbnailUrl!, fit: BoxFit.cover)
+                              : const Icon(Icons.music_note, color: Colors.white54),
+                        ),
+                      ),
+                      title: Text(
+                        track.title,
+                        style: TextStyle(
+                          color: isCurrent ? AppColors.primary : Colors.white,
+                          fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: Text(
+                        track.artistName ?? 'Unknown Artist',
+                        style: TextStyle(
+                          color: isCurrent ? AppColors.primary.withAlpha(179) : Colors.white54,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: isCurrent
+                          ? const Icon(Icons.equalizer_rounded, color: AppColors.primary)
+                          : null,
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -618,70 +725,149 @@ class FullPlayer extends StatelessWidget {
 
           // Controls
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 IconButton(
                   onPressed: onShuffle,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                   icon: Icon(
                     Icons.shuffle_rounded,
                     color: isShuffleOn ? AppColors.primary : Colors.white60,
-                    size: 26,
+                    size: 24,
                   ),
                 ),
                 IconButton(
                   onPressed: onPrevious,
-                  icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 44),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 40),
                 ),
                 GestureDetector(
                   onTap: onPlayPause,
                   child: Container(
-                    width: 72,
-                    height: 72,
+                    width: 64,
+                    height: 64,
                     decoration: const BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      size: 44,
+                      size: 40,
                       color: Colors.black,
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: onNext,
-                  icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 44),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                  icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 40),
                 ),
                 IconButton(
                   onPressed: onRepeat,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
                   icon: Icon(
                     repeatMode == RepeatMode.one ? Icons.repeat_one_rounded : Icons.repeat_rounded,
                     color: repeatMode != RepeatMode.off ? AppColors.primary : Colors.white60,
-                    size: 26,
+                    size: 24,
                   ),
                 ),
               ],
             ),
           ),
 
+
           const SizedBox(height: 32),
 
           // Bottom mini controls
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
-                Icon(Icons.devices_rounded, color: Colors.white60, size: 24),
-                Spacer(),
-                Icon(Icons.share_outlined, color: Colors.white60, size: 22),
-                SizedBox(width: 24),
-                Icon(Icons.list_rounded, color: Colors.white60, size: 26),
-              ],
+            child: Consumer<PlayerProvider>(
+              builder: (context, player, _) {
+                final linkedMedia = player.currentMedia?.linkedMedia;
+                final hasLinkedVideo = linkedMedia != null && linkedMedia.mediaType == MediaType.video;
+                
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Switch to Video button - Spotify style
+                    if (hasLinkedVideo)
+                      GestureDetector(
+                        onTap: () {
+                          // Create MediaItem from LinkedMediaInfo and play it
+                          final videoItem = MediaItem(
+                            id: linkedMedia.id,
+                            title: linkedMedia.title,
+                            mediaType: linkedMedia.mediaType,
+                            thumbnailUrl: linkedMedia.thumbnailUrl,
+                            hlsUrl: linkedMedia.hlsUrl,
+                            status: MediaStatus.published,
+                            createdAt: DateTime.now(),
+                            updatedAt: DateTime.now(),
+                            artist: linkedMedia.artist,
+                          );
+                          player.play(videoItem);
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+                          );
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(24),
+                            border: Border.all(
+                              color: Colors.white.withOpacity(0.2),
+                              width: 1,
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withOpacity(0.9),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.videocam_rounded, size: 14, color: Colors.white),
+                              ),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Watch Video',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.2,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      )
+                    else
+                      const Icon(Icons.devices_rounded, color: Colors.white60, size: 24),
+                    const Spacer(),
+                    const Icon(Icons.share_outlined, color: Colors.white60, size: 22),
+                    const SizedBox(width: 24),
+                    IconButton(
+                      onPressed: () => _showQueueSheet(context),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                      icon: const Icon(Icons.queue_music_rounded, color: Colors.white60, size: 26),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
+
 
           const SizedBox(height: 32),
 
@@ -858,5 +1044,3 @@ class _WebLyricsViewState extends State<_WebLyricsView> {
     super.dispose();
   }
 }
-
-enum RepeatMode { off, all, one }

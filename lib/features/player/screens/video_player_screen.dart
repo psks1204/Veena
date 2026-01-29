@@ -8,6 +8,8 @@ import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/models/media_item.dart';
+import '../../../shared/widgets/full_player.dart';
 import '../../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../../core/utils/fullscreen_stub.dart' as fullscreen;
 
 /// Video Player Screen - Refined to fix layout and overlap issues
@@ -22,6 +24,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   bool _showControls = true;
   bool _isLandscape = false;
   bool _isFullscreen = false;
+  bool _isClosing = false; // Prevent multiple pop attempts
   late final FocusNode _focusNode;
   Timer? _hideControlsTimer;
 
@@ -29,18 +32,92 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
     _focusNode = FocusNode();
-    _hideControlsAfterDelay();
+    
+    // On web, start with controls hidden (will auto-hide)
+    // On mobile, start with controls visible
+    if (kIsWeb) {
+      _hideControlsAfterDelay();
+    }
+    
     // Monitor orientation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    
+    // Listen for media changes to detect video -> audio transition
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final player = context.read<PlayerProvider>();
+      player.addListener(_onPlayerChanged);
+    });
   }
+  
+  /// Called when player state changes - check if we need to switch to audio player
+  void _onPlayerChanged() {
+    if (!mounted || _isClosing) return;
+    
+    final player = context.read<PlayerProvider>();
+    final currentMedia = player.currentMedia;
+    
+    // If current media is audio (not video), switch to full audio player
+    if (currentMedia != null && currentMedia.isAudio) {
+      _isClosing = true; // Prevent multiple navigation attempts
+      debugPrint('[VideoPlayerScreen] Detected audio track, switching to FullPlayer');
+      // Use post frame callback to avoid Navigator lock issues
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && Navigator.of(context).canPop()) {
+          // Navigate to FullPlayer, replacing current video screen
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _buildFullPlayer(player, currentMedia),
+            ),
+          );
+        }
+      });
+    }
+  }
+
+  /// Build FullPlayer widget with current player state
+  Widget _buildFullPlayer(PlayerProvider player, dynamic media) {
+    return Consumer<PlayerProvider>(
+      builder: (context, p, _) {
+        final m = p.currentMedia;
+        return FullPlayer(
+          trackTitle: m?.title ?? 'Unknown',
+          artistName: m?.artistName ?? 'Unknown Artist',
+          albumName: m?.artistName ?? '',
+          artworkUrl: m?.thumbnailUrl,
+          isPlaying: p.isPlaying,
+          progress: p.progress,
+          duration: p.duration,
+          currentPosition: p.position,
+          isShuffleOn: p.shuffleEnabled,
+          repeatMode: p.repeatMode,
+          lyrics: p.currentLyrics,
+          activeLyricIndex: p.activeLyricIndex,
+          onPlayPause: p.togglePlayPause,
+          onPrevious: p.previous,
+          onNext: p.next,
+          onShuffle: p.toggleShuffle,
+          onRepeat: p.toggleRepeatMode,
+          onSeek: p.seekToProgress,
+          onClose: () => Navigator.of(context).pop(),
+        );
+      },
+    );
+  }
+
+
 
   void _hideControlsAfterDelay() {
     // Cancel any existing timer
     _hideControlsTimer?.cancel();
+    
+    // On mobile (non-fullscreen), always show controls - don't hide
+    if (!kIsWeb && !_isLandscape && !_isFullscreen) {
+      return; // Don't hide on mobile unless in fullscreen
+    }
     
     // Start new timer - 3 seconds delay
     _hideControlsTimer = Timer(const Duration(milliseconds: 3000), () {
@@ -51,6 +128,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   void _toggleControls() {
+    // On mobile (non-fullscreen), controls are always visible
+    if (!kIsWeb && !_isLandscape && !_isFullscreen) {
+      return; // Controls always visible on mobile
+    }
+    
     setState(() => _showControls = !_showControls);
     if (_showControls) {
       _hideControlsAfterDelay();
@@ -63,6 +145,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
     _hideControlsAfterDelay();
   }
+
 
   void _handleKeyEvent(KeyEvent event, PlayerProvider player) {
     if (event is KeyDownEvent) {
@@ -130,25 +213,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     } else {
       // Mobile: Use orientation-based fullscreen
       if (_isLandscape) {
+        // Exiting fullscreen - show controls and restore portrait
         SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+        setState(() {
+          _isLandscape = false;
+          _showControls = true; // Always show controls when exiting fullscreen
+        });
       } else {
+        // Entering fullscreen - hide controls after entering
         SystemChrome.setPreferredOrientations([
           DeviceOrientation.landscapeLeft,
           DeviceOrientation.landscapeRight,
         ]);
         SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+        setState(() {
+          _isLandscape = true;
+          _showControls = true; // Show controls briefly, then start hide timer
+        });
+        _hideControlsAfterDelay(); // Start hide timer in fullscreen
       }
-      setState(() {
-        _isLandscape = !_isLandscape;
-      });
     }
   }
+
 
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
     _focusNode.dispose();
+    
+    // Remove player listener
+    try {
+      context.read<PlayerProvider>().removeListener(_onPlayerChanged);
+    } catch (_) {}
+    
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -334,22 +432,64 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildSwitchToAudioButton(PlayerProvider player) {
+    final linkedMedia = player.currentMedia?.linkedMedia;
+    final hasLinkedAudio = linkedMedia != null && linkedMedia.mediaType == MediaType.audio;
+    
+    // Only show button if linked audio exists
+    if (!hasLinkedAudio) {
+      return const SizedBox.shrink();
+    }
+    
     return Center(
       child: GestureDetector(
-        onTap: () => Navigator.pop(context),
+        onTap: () {
+          // Create MediaItem from LinkedMediaInfo and play it
+          final audioItem = MediaItem(
+            id: linkedMedia.id,
+            title: linkedMedia.title,
+            mediaType: linkedMedia.mediaType,
+            thumbnailUrl: linkedMedia.thumbnailUrl,
+            hlsUrl: linkedMedia.hlsUrl,
+            status: MediaStatus.published,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            artist: linkedMedia.artist,
+          );
+          player.play(audioItem);
+          // Pop video player - the app.dart will show FullPlayer for audio
+          Navigator.pop(context);
+        },
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white24),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: Colors.white.withOpacity(0.25),
+              width: 1,
+            ),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
-            children: const [
-              Icon(Icons.music_note_rounded, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Switch to audio', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.9),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.music_note_rounded, size: 14, color: Colors.white),
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Listen to Audio',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                ),
+              ),
             ],
           ),
         ),
