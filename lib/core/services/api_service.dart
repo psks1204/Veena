@@ -10,8 +10,8 @@ typedef OnUnauthorizedCallback = void Function();
 /// Central HTTP client for all Veena API calls.
 /// Handles authentication, base URL, and error handling.
 class ApiService {
-  static const String baseUrl = 'https://d17362b1w27h09.cloudfront.net/api';
-  
+  static const String baseUrl = 'https://veena.dgfly.in/api';
+
   String? _accessToken;
   
   /// Callback to be invoked when a 401 Unauthorized response is received
