@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/services/album_service.dart';
+import '../../../core/navigation/app_navigation.dart';
 import 'album_detail_screen.dart';
 
 /// Albums Browse Screen
@@ -204,7 +205,8 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
   }
 
   void _navigateToAlbum(AlbumSummary album) {
-    Navigator.of(context).push(
+    AppNavigation.push(
+      context,
       MaterialPageRoute(
         builder: (_) => AlbumDetailScreen(
           albumId: album.id,

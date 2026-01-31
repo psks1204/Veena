@@ -7,6 +7,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/navigation/app_navigation.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
 import '../../auth/services/auth_service.dart';
@@ -255,7 +256,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 imageUrl: item.coverUrl,
                 isCircle: false,
                 onTap: () async {
-                  await Navigator.push(
+                  await AppNavigation.push(
                     context, 
                     MaterialPageRoute(builder: (_) => PlaylistDetailScreen(playlist: item)),
                   );
@@ -269,7 +270,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 imageUrl: item.imageUrl,
                 isCircle: true,
                 onTap: () {
-                   Navigator.push(
+                   AppNavigation.push(
                     context, 
                     MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: item)),
                   );
@@ -282,7 +283,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 imageUrl: item.coverUrl,
                 isCircle: false,
                 onTap: () {
-                  Navigator.push(
+                  AppNavigation.push(
                     context, 
                     MaterialPageRoute(builder: (_) => AlbumDetailScreen(
                       albumId: item.id,

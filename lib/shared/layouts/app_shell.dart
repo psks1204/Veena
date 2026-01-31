@@ -1,26 +1,25 @@
 import 'package:flutter/material.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/navigation/app_navigation.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/floating_nav_bar.dart';
 
-/// Responsive App Shell
+/// Responsive App Shell with Nested Navigation
 /// 
-/// Provides navigation structure that adapts across devices:
-/// - Mobile: Bottom navigation bar
-/// - Tablet: Two-column with persistent mini-player
-/// - Desktop: Side navigation rail
+/// Uses nested navigators per tab so navigation (nav bar + mini player)
+/// stays visible on ALL screens - just like Spotify.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    required this.child,
+    required this.screens,
     required this.currentIndex,
     required this.onDestinationSelected,
     this.showMiniPlayer = false,
     this.miniPlayerData,
   });
 
-  final Widget child;
+  /// The root screens for each tab (Home, Search, Library, Profile)
+  final List<Widget> screens;
   final int currentIndex;
   final ValueChanged<int> onDestinationSelected;
   final bool showMiniPlayer;
@@ -78,38 +77,91 @@ class _AppShellState extends State<AppShell> {
   ];
 
   @override
+  void didUpdateWidget(AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Update AppNavigation when tab changes
+    if (oldWidget.currentIndex != widget.currentIndex) {
+      AppNavigation.setCurrentTab(widget.currentIndex);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    AppNavigation.setCurrentTab(widget.currentIndex);
+  }
+
+  /// Build a nested navigator for a tab
+  Widget _buildTabNavigator(int tabIndex, Widget rootScreen) {
+    return Navigator(
+      key: AppNavigation.getNavigatorKey(tabIndex),
+      onGenerateRoute: (settings) {
+        return MaterialPageRoute(
+          settings: settings,
+          builder: (_) => rootScreen,
+        );
+      },
+    );
+  }
+
+  /// Handle back button - pop within tab first
+  Future<bool> _handleBackPress() async {
+    if (AppNavigation.canPop()) {
+      AppNavigation.maybePop();
+      return false; // Don't exit app
+    }
+    return true; // Allow app exit
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Desktop: width >= 1200
-        // Tablet: width >= 600
-        // Mobile: width < 600
-        final isDesktop = constraints.maxWidth >= 1200;
-        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
-
-        if (isDesktop) {
-          return _buildDesktopLayout(isDark);
-        } else if (isTablet) {
-          return _buildTabletLayout(isDark);
-        } else {
-          return _buildMobileLayout(isDark);
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        if (AppNavigation.canPop()) {
+          AppNavigation.maybePop();
         }
       },
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isDesktop = constraints.maxWidth >= 1200;
+          final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
+
+          if (isDesktop) {
+            return _buildDesktopLayout(isDark);
+          } else if (isTablet) {
+            return _buildTabletLayout(isDark);
+          } else {
+            return _buildMobileLayout(isDark);
+          }
+        },
+      ),
+    );
+  }
+
+  /// Content area with IndexedStack of nested navigators
+  Widget _buildContent() {
+    return IndexedStack(
+      index: widget.currentIndex,
+      children: List.generate(widget.screens.length, (index) {
+        return _buildTabNavigator(index, widget.screens[index]);
+      }),
     );
   }
 
   Widget _buildMobileLayout(bool isDark) {
     return Scaffold(
-      extendBody: true, // Allow body to go behind the floating nav
+      extendBody: true,
       body: Stack(
         children: [
-          // Main Content
+          // Main Content with nested navigators
           SafeArea(
             bottom: false,
-            child: widget.child,
+            child: _buildContent(),
           ),
 
           // Floating Player & Nav
@@ -190,13 +242,13 @@ class _AppShellState extends State<AppShell> {
                 : Colors.black.withOpacity(0.05),
           ),
           
-          // Content
+          // Content with nested navigators
           Expanded(
             child: SafeArea(
               bottom: false,
               child: Column(
                 children: [
-                  Expanded(child: widget.child),
+                  Expanded(child: _buildContent()),
                   if (widget.showMiniPlayer && widget.miniPlayerData != null)
                     MiniPlayer(
                       trackTitle: widget.miniPlayerData!.trackTitle,
@@ -223,54 +275,14 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Row(
         children: [
-          // Extended navigation rail with logo
-          Container(
-            width: 240,
-            color: surfaceColor,
-            child: Column(
-              children: [
-                // Logo area
-                Padding(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: AppColors.primary,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                        ),
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Veena',
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Navigation items
-                Expanded(
-                  child: NavigationRail(
-                    selectedIndex: widget.currentIndex,
-                    onDestinationSelected: widget.onDestinationSelected,
-                    destinations: _railDestinations,
-                    backgroundColor: Colors.transparent,
-                    labelType: NavigationRailLabelType.none,
-                    extended: true,
-                  ),
-                ),
-              ],
-            ),
+          // Navigation rail
+          NavigationRail(
+            selectedIndex: widget.currentIndex,
+            onDestinationSelected: widget.onDestinationSelected,
+            destinations: _railDestinations,
+            backgroundColor: surfaceColor,
+            extended: true,
+            minExtendedWidth: 200,
           ),
           
           // Divider
@@ -282,11 +294,11 @@ class _AppShellState extends State<AppShell> {
                 : Colors.black.withOpacity(0.05),
           ),
           
-          // Content
+          // Content with nested navigators
           Expanded(
             child: SafeArea(
               bottom: false,
-              child: widget.child,
+              child: _buildContent(),
             ),
           ),
         ],

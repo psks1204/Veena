@@ -20,6 +20,7 @@ import 'features/player/screens/lyrics_fullscreen_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/widgets/full_player.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/navigation/app_navigation.dart';
 
 /// Veena Music Streaming App
 /// 
@@ -117,11 +118,16 @@ class _AppRouterState extends State<_AppRouter> {
             AppShell(
               currentIndex: _currentIndex,
               onDestinationSelected: (index) {
-                setState(() {
-                  _currentIndex = index;
-                });
+                // If tapping the same tab, pop to root of that tab
+                if (_currentIndex == index) {
+                  AppNavigation.popToFirst();
+                } else {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                }
               },
-              showMiniPlayer: player.hasMedia, // Show for both audio and video
+              showMiniPlayer: player.hasMedia,
               miniPlayerData: player.hasMedia
                   ? MiniPlayerData(
                       trackTitle: player.currentMedia!.title,
@@ -131,6 +137,7 @@ class _AppRouterState extends State<_AppRouter> {
                       progress: player.progress,
                       onTap: () {
                         if (player.isVideo) {
+                          // Video player opens fullscreen (over everything)
                           Navigator.of(context).push(
                             MaterialPageRoute(
                               builder: (_) => const VideoPlayerScreen(),
@@ -148,7 +155,7 @@ class _AppRouterState extends State<_AppRouter> {
                       onNext: () {},
                     )
                   : null,
-              child: _buildCurrentScreen(),
+              screens: _buildScreens(context),
             ),
             
             // Full player overlay (for audio) with Slide-up Transition
@@ -204,25 +211,20 @@ class _AppRouterState extends State<_AppRouter> {
     );
   }
 
-  Widget _buildCurrentScreen() {
+  /// Build all tab screens (for nested navigation)
+  List<Widget> _buildScreens(BuildContext context) {
     final authService = context.read<AuthService>();
     
-    switch (_currentIndex) {
-      case 0:
-        return const HomeScreen();
-      case 1:
-        return const SearchScreen();
-      case 2:
-        return const LibraryScreen();
-      case 3:
-        return ProfileScreen(
-          onSignOut: () async {
-            await authService.signOut();
-          },
-        );
-      default:
-        return const HomeScreen();
-    }
+    return [
+      const HomeScreen(),
+      const SearchScreen(),
+      const LibraryScreen(),
+      ProfileScreen(
+        onSignOut: () async {
+          await authService.signOut();
+        },
+      ),
+    ];
   }
 }
 

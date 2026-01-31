@@ -10,6 +10,7 @@ import '../../../core/services/album_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../core/navigation/app_navigation.dart';
 import '../../player/screens/video_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
@@ -322,7 +323,7 @@ class _HomeScreenState extends State<HomeScreen> {
             title: title,
             actionLabel: 'See all',
             onActionTap: () {
-               Navigator.push(
+               AppNavigation.push(
                 context, 
                 MaterialPageRoute(builder: (_) => SectionViewScreen(
                   title: title,
@@ -577,7 +578,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        Navigator.of(context).push(
+                        AppNavigation.push(
+                          context,
                           MaterialPageRoute(builder: (_) => const AlbumsBrowseScreen()),
                         );
                       },
@@ -626,7 +628,8 @@ class _HomeScreenState extends State<HomeScreen> {
     
     return GestureDetector(
       onTap: () {
-        Navigator.of(context).push(
+        AppNavigation.push(
+          context,
           MaterialPageRoute(
             builder: (_) => AlbumDetailScreen(
               albumId: album.id,
