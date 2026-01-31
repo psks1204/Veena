@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
+import '../../../core/services/push_notification_service.dart';
 // Conditional import based on platform
 import 'auth_service_mobile.dart' if (dart.library.html) 'auth_service_web.dart' as platform;
 
@@ -115,6 +116,11 @@ class AuthService extends ChangeNotifier {
         }
         _state = AuthState.authenticated;
         await _fetchUserProfile(); // Fetch real Google profile data
+        
+        // Register FCM token after successful auth restore
+        if (!kIsWeb) {
+          PushNotificationService().registerFcmToken();
+        }
       } else {
         _state = AuthState.unauthenticated;
       }
@@ -146,6 +152,12 @@ class AuthService extends ChangeNotifier {
 
         _state = AuthState.authenticated;
         await _fetchUserProfile(); // Fetch real Google profile data
+        
+        // Register FCM token after successful login
+        if (!kIsWeb) {
+          PushNotificationService().registerFcmToken();
+        }
+        
         notifyListeners();
         return true;
       } else {
@@ -166,10 +178,18 @@ class AuthService extends ChangeNotifier {
     _state = AuthState.loading;
     notifyListeners();
     try {
+      // Unregister FCM token before logout
+      if (!kIsWeb) {
+        await PushNotificationService().unregisterFcmToken();
+      }
+      
       await platform.clearTokens();
       _accessToken = null;
       _refreshToken = null;
       _idToken = null;
+      _userName = null;
+      _userEmail = null;
+      _userPicture = null;
       _state = AuthState.unauthenticated;
     } catch (e) {
       _state = AuthState.unauthenticated;

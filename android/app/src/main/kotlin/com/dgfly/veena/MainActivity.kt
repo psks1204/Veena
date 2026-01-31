@@ -1,4 +1,4 @@
-package com.veena.veena
+package com.dgfly.veena
 
 import com.ryanheise.audioservice.AudioServiceActivity
 

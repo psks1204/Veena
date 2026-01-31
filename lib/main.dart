@@ -1,14 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'app.dart';
 import 'core/services/audio_handler.dart';
+import 'core/services/push_notification_service.dart';
 
 /// Global audio handler - initialized once at app startup
 late AudioHandler audioHandler;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  
+  // Set up background message handler
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  
+  // Initialize Push Notification Service
+  if (!kIsWeb) {
+    await PushNotificationService().initialize();
+  }
   
   // Initialize AudioService BEFORE runApp
   audioHandler = await AudioService.init(

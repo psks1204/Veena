@@ -19,6 +19,7 @@ import 'features/player/screens/video_player_screen.dart';
 import 'features/player/screens/lyrics_fullscreen_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/widgets/full_player.dart';
+import 'core/services/push_notification_service.dart';
 
 /// Veena Music Streaming App
 /// 
@@ -30,6 +31,9 @@ class VeenaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Create ApiService first as other services depend on it
     final apiService = ApiService();
+    
+    // Set ApiService on PushNotificationService for FCM token registration
+    PushNotificationService().setApiService(apiService);
     
     return MultiProvider(
       providers: [
