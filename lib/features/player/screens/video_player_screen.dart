@@ -443,6 +443,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Center(
       child: GestureDetector(
         onTap: () {
+          // Capture current position before switching
+          final currentPosition = player.position;
+          
           // Create MediaItem from LinkedMediaInfo and play it
           final audioItem = MediaItem(
             id: linkedMedia.id,
@@ -455,7 +458,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             updatedAt: DateTime.now(),
             artist: linkedMedia.artist,
           );
-          player.play(audioItem);
+          player.play(audioItem, startPosition: currentPosition);
           // Pop video player - the app.dart will show FullPlayer for audio
           Navigator.pop(context);
         },

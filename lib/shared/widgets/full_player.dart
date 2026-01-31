@@ -799,6 +799,9 @@ class FullPlayer extends StatelessWidget {
                     if (hasLinkedVideo)
                       GestureDetector(
                         onTap: () {
+                          // Capture current position before switching
+                          final currentPosition = player.position;
+                          
                           // Create MediaItem from LinkedMediaInfo and play it
                           final videoItem = MediaItem(
                             id: linkedMedia.id,
@@ -811,7 +814,7 @@ class FullPlayer extends StatelessWidget {
                             updatedAt: DateTime.now(),
                             artist: linkedMedia.artist,
                           );
-                          player.play(videoItem);
+                          player.play(videoItem, startPosition: currentPosition);
                           Navigator.of(context).push(
                             MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
                           );

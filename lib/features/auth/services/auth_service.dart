@@ -178,9 +178,12 @@ class AuthService extends ChangeNotifier {
     _state = AuthState.loading;
     notifyListeners();
     try {
-      // Unregister FCM token before logout
+      // Unregister FCM token (fire and forget - don't await to prevent 401 loop)
+      // The token will become invalid on the server anyway when session expires
       if (!kIsWeb) {
-        await PushNotificationService().unregisterFcmToken();
+        PushNotificationService().unregisterFcmToken().catchError((e) {
+          debugPrint('[AuthService] FCM unregister failed (expected during forced logout): $e');
+        });
       }
       
       await platform.clearTokens();
@@ -192,6 +195,7 @@ class AuthService extends ChangeNotifier {
       _userPicture = null;
       _state = AuthState.unauthenticated;
     } catch (e) {
+      debugPrint('[AuthService] Sign out error: $e');
       _state = AuthState.unauthenticated;
     }
     notifyListeners();

@@ -180,11 +180,12 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Play a single media item (clears queue)
-  Future<void> play(app_models.MediaItem media) async {
+  /// [startPosition] - Optional position to start playback from (for audio/video switching)
+  Future<void> play(app_models.MediaItem media, {Duration? startPosition}) async {
     // When playing single item, set up a queue with just this item
     _queue = [media];
     _currentIndex = 0;
-    await _playCurrentItem();
+    await _playCurrentItem(startPosition: startPosition);
   }
 
   /// Play a queue of media items starting from an index
@@ -225,7 +226,8 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Play the current item in the queue
-  Future<void> _playCurrentItem() async {
+  /// [startPosition] - Optional position to start playback from
+  Future<void> _playCurrentItem({Duration? startPosition}) async {
     if (_queue.isEmpty || _currentIndex < 0 || _currentIndex >= _queue.length) {
       return;
     }
@@ -268,9 +270,9 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       if (media.isVideo) {
-        await _playVideo(media.hlsUrl!);
+        await _playVideo(media.hlsUrl!, startPosition: startPosition);
       } else {
-        await _playAudio(media);
+        await _playAudio(media, startPosition: startPosition);
       }
     } catch (e) {
       debugPrint('[PlayerProvider] Error playing media: $e');
@@ -279,7 +281,7 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _playVideo(String url) async {
+  Future<void> _playVideo(String url, {Duration? startPosition}) async {
     // Stop audio playback but keep notification capability
     await audioHandler.stop();
     
@@ -308,6 +310,12 @@ class PlayerProvider extends ChangeNotifier {
 
     await _videoController!.initialize();
     _duration = _videoController!.value.duration;
+    
+    // Seek to start position if provided (for audio/video switching)
+    if (startPosition != null && startPosition > Duration.zero) {
+      await _videoController!.seekTo(startPosition);
+      debugPrint('[PlayerProvider] Seeking video to: ${startPosition.inSeconds}s');
+    }
     
     // Update notification with actual duration
     if (_currentMedia != null) {
@@ -350,7 +358,7 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _playAudio(app_models.MediaItem media) async {
+  Future<void> _playAudio(app_models.MediaItem media, {Duration? startPosition}) async {
     // Create audio_service MediaItem for notification
     final item = audio_service.MediaItem(
       id: media.id,
@@ -367,6 +375,14 @@ class PlayerProvider extends ChangeNotifier {
     
     // Play from URI
     await audioHandler.playFromUri(Uri.parse(media.hlsUrl!));
+    
+    // Seek to start position if provided (for audio/video switching)
+    if (startPosition != null && startPosition > Duration.zero) {
+      // Small delay to allow audio to initialize before seeking
+      await Future.delayed(const Duration(milliseconds: 300));
+      await audioHandler.seek(startPosition);
+      debugPrint('[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s');
+    }
     
     _isLoading = false;
     notifyListeners();
