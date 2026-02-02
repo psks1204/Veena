@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/player_provider.dart';
@@ -33,8 +34,10 @@ class VeenaApp extends StatelessWidget {
     // Create ApiService first as other services depend on it
     final apiService = ApiService();
     
-    // Set ApiService on PushNotificationService for FCM token registration
-    PushNotificationService().setApiService(apiService);
+    // Set ApiService on PushNotificationService for FCM token registration (mobile only)
+    if (!kIsWeb) {
+      PushNotificationService().setApiService(apiService);
+    }
     
     return MultiProvider(
       providers: [

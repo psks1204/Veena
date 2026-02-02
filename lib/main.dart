@@ -14,14 +14,14 @@ late AudioHandler audioHandler;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Initialize Firebase
-  await Firebase.initializeApp();
-  
-  // Set up background message handler
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  
-  // Initialize Push Notification Service
+  // Initialize Firebase (only on mobile - web requires separate config)
   if (!kIsWeb) {
+    await Firebase.initializeApp();
+    
+    // Set up background message handler
+    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    
+    // Initialize Push Notification Service
     await PushNotificationService().initialize();
   }
   
