@@ -32,7 +32,7 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         
-        // Required for flutter_appauth OAuth redirect
+        // Required by flutter_appauth library - cannot be removed
         manifestPlaceholders["appAuthRedirectScheme"] = "veena"
         
         // Enable multidex for desugaring

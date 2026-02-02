@@ -21,6 +21,9 @@ class ApiService {
   
   /// Set the access token for authenticated requests
   void setAccessToken(String? token) {
+    // Only update if token actually changed
+    if (_accessToken == token) return;
+    
     _accessToken = token;
     if (token != null) {
       _tokenSetTime = DateTime.now();
