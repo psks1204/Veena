@@ -86,7 +86,7 @@ class _SearchScreenState extends State<SearchScreen> {
     mediaService.recordPlay(item.id);
 
     if (item.isVideo) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }

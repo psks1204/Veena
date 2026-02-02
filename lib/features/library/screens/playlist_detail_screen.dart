@@ -60,7 +60,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     
     // Open video player if it's a video
     if (track.isVideo) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }
@@ -76,7 +76,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     
     // If first track is video, open video player
     if (_tracks.first.isVideo) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }
@@ -192,6 +192,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final player = context.watch<PlayerProvider>();
     
     return Scaffold(
       body: CustomScrollView(
@@ -363,9 +364,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               },
             ),
             
-             // Add padding at bottom for player
-             const SliverToBoxAdapter(
-                child: SizedBox(height: 100),
+             // Add padding at bottom for mini player + nav bar
+             SliverToBoxAdapter(
+                child: SizedBox(height: player.hasMedia ? 180 : 100),
              ),
         ],
       ),

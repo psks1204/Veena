@@ -59,12 +59,14 @@ class _HomeScreenState extends State<HomeScreen> {
         albumService.getAllAlbums(),
       ]);
       
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -76,7 +78,8 @@ class _HomeScreenState extends State<HomeScreen> {
     mediaService.recordPlay(item.id); // Track analytics
 
     if (item.isVideo) {
-      Navigator.of(context).push(
+      // Use rootNavigator to open fullscreen on top of everything
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }

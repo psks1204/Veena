@@ -38,13 +38,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   Future<void> _loadLibrary() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       await context.read<LibraryService>().fetchLibrary();
     } catch (e) {
       debugPrint('Error loading library: $e');
     }
-    setState(() => _isLoading = false);
+    if (mounted) setState(() => _isLoading = false);
   }
 
   void _showCreatePlaylistDialog() {

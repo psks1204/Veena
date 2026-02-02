@@ -97,7 +97,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
     }
     
     if (track.isVideo) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }
@@ -392,8 +392,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
                   ),
                 ),
               
-               const SliverToBoxAdapter(
-                  child: SizedBox(height: 120),
+               // Bottom padding for mini player + nav bar
+               SliverToBoxAdapter(
+                  child: SizedBox(height: player.hasMedia ? 180 : 100),
                ),
             ],
           ),

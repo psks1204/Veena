@@ -85,10 +85,18 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
+  // Cached navigator widgets - created once and reused
+  late final List<Widget> _navigatorWidgets;
+
   @override
   void initState() {
     super.initState();
     AppNavigation.setCurrentTab(widget.currentIndex);
+    // Build navigators once and cache them
+    _navigatorWidgets = List.generate(
+      widget.screens.length,
+      (index) => _buildTabNavigator(index, widget.screens[index]),
+    );
   }
 
   /// Build a nested navigator for a tab
@@ -147,9 +155,7 @@ class _AppShellState extends State<AppShell> {
   Widget _buildContent() {
     return IndexedStack(
       index: widget.currentIndex,
-      children: List.generate(widget.screens.length, (index) {
-        return _buildTabNavigator(index, widget.screens[index]);
-      }),
+      children: _navigatorWidgets,
     );
   }
 

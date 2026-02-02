@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
 import '../../../core/services/push_notification_service.dart';
@@ -25,12 +26,15 @@ class AuthService extends ChangeNotifier {
   String? _refreshToken;
   String? _idToken;
   String? _errorMessage;
+  bool _isAuthInProgress = false; // Flag to prevent re-initialization during OAuth
+  bool _isSigningOut = false; // Flag to prevent re-entrant signOut calls
 
   AuthState get state => _state;
   String? get accessToken => _accessToken;
   String? get idToken => _idToken;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _accessToken != null;
+  bool get isSigningOut => _isSigningOut; // Expose for ApiService to check
 
   // User profile data (fetched from userinfo endpoint)
   String? _userName;
@@ -85,6 +89,12 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    // Don't reset state if OAuth is in progress (app may restart during Chrome Custom Tab)
+    if (_isAuthInProgress) {
+      debugPrint('[AuthService] Auth in progress, skipping re-initialization');
+      return;
+    }
+    
     _state = AuthState.loading;
     notifyListeners();
 
@@ -133,10 +143,12 @@ class AuthService extends ChangeNotifier {
   Future<bool> signInWithGoogle() async {
     _state = AuthState.loading;
     _errorMessage = null;
+    _isAuthInProgress = true; // Mark auth as in progress
     notifyListeners();
 
     try {
       final result = await platform.signIn();
+      _isAuthInProgress = false; // Auth completed
       if (kIsWeb) return result.success; 
 
       if (result.success) {
@@ -153,20 +165,26 @@ class AuthService extends ChangeNotifier {
         _state = AuthState.authenticated;
         await _fetchUserProfile(); // Fetch real Google profile data
         
-        // Register FCM token after successful login
+        notifyListeners();
+        
+        // Register FCM token AFTER state change (ensures ApiService has token set)
         if (!kIsWeb) {
-          PushNotificationService().registerFcmToken();
+          // Use post-frame callback to ensure UI has rebuilt and ApiService has token
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            PushNotificationService().registerFcmToken();
+          });
         }
         
-        notifyListeners();
         return true;
       } else {
+        _isAuthInProgress = false;
         _state = AuthState.error;
         _errorMessage = result.error ?? 'Authentication failed.';
         notifyListeners();
         return false;
       }
     } catch (e) {
+      _isAuthInProgress = false;
       _state = AuthState.error;
       _errorMessage = e.toString();
       notifyListeners();
@@ -175,17 +193,17 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
+    // Prevent re-entrant signOut calls (breaks infinite 401 loop)
+    if (_isSigningOut) {
+      debugPrint('[AuthService] SignOut already in progress, skipping');
+      return;
+    }
+    _isSigningOut = true;
+    
     _state = AuthState.loading;
     notifyListeners();
     try {
-      // Unregister FCM token (fire and forget - don't await to prevent 401 loop)
-      // The token will become invalid on the server anyway when session expires
-      if (!kIsWeb) {
-        PushNotificationService().unregisterFcmToken().catchError((e) {
-          debugPrint('[AuthService] FCM unregister failed (expected during forced logout): $e');
-        });
-      }
-      
+      // Clear tokens FIRST before any API calls
       await platform.clearTokens();
       _accessToken = null;
       _refreshToken = null;
@@ -194,10 +212,18 @@ class AuthService extends ChangeNotifier {
       _userEmail = null;
       _userPicture = null;
       _state = AuthState.unauthenticated;
+      
+      // Try to unregister FCM token (fire and forget - ignore errors)
+      if (!kIsWeb) {
+        PushNotificationService().unregisterFcmToken().catchError((e) {
+          debugPrint('[AuthService] FCM unregister failed (expected): $e');
+        });
+      }
     } catch (e) {
       debugPrint('[AuthService] Sign out error: $e');
       _state = AuthState.unauthenticated;
     }
+    _isSigningOut = false;
     notifyListeners();
   }
 

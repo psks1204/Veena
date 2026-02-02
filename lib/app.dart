@@ -17,9 +17,8 @@ import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/player/screens/video_player_screen.dart';
-import 'features/player/screens/lyrics_fullscreen_screen.dart';
+import 'features/player/screens/audio_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
-import 'shared/widgets/full_player.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/navigation/app_navigation.dart';
 
@@ -79,7 +78,6 @@ class _AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
-  bool _showFullPlayer = false;
 
   @override
   Widget build(BuildContext context) {
@@ -106,8 +104,13 @@ class _AppRouterState extends State<_AppRouter> {
         
         // Handle 401 Unauthorized - Logout automatically
         apiService.onUnauthorized = () {
-          debugPrint('⚠️ Unauthorized! Signing out...');
-          authService.signOut();
+          // Prevent infinite loop: don't call signOut if already signing out
+          if (!authService.isSigningOut) {
+            debugPrint('⚠️ Unauthorized! Signing out...');
+            authService.signOut();
+          } else {
+            debugPrint('⚠️ 401 received but signOut already in progress, skipping');
+          }
         };
         
         // Connect player to media service for auto play tracking
@@ -140,16 +143,19 @@ class _AppRouterState extends State<_AppRouter> {
                       progress: player.progress,
                       onTap: () {
                         if (player.isVideo) {
-                          // Video player opens fullscreen (over everything)
-                          Navigator.of(context).push(
+                          // Video player fullscreen (over everything)
+                          Navigator.of(context, rootNavigator: true).push(
                             MaterialPageRoute(
                               builder: (_) => const VideoPlayerScreen(),
                             ),
                           );
                         } else {
-                          setState(() {
-                            _showFullPlayer = true;
-                          });
+                          // Audio player fullscreen (over everything)
+                          Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const AudioPlayerScreen(),
+                            ),
+                          );
                         }
                       },
                       onPlayPause: () {
@@ -159,54 +165,6 @@ class _AppRouterState extends State<_AppRouter> {
                     )
                   : null,
               screens: _buildScreens(context),
-            ),
-            
-            // Full player overlay (for audio) with Slide-up Transition
-            AnimatedSlide(
-              offset: _showFullPlayer ? Offset.zero : const Offset(0, 1),
-              duration: const Duration(milliseconds: 400),
-              curve: Curves.easeInOutCubic,
-              child: player.hasMedia && player.isAudio
-                  ? FullPlayer(
-                      trackTitle: player.currentMedia!.title,
-                      artistName: player.currentMedia!.description ?? '',
-                      albumName: 'Playing from search', // Example source
-                      artworkUrl: player.currentMedia!.thumbnailUrl,
-                      isPlaying: player.isPlaying,
-                      progress: player.progress,
-                      currentPosition: player.position,
-                      duration: player.duration,
-                      isShuffleOn: player.shuffleEnabled,
-                      repeatMode: player.repeatMode,
-                      lyrics: player.currentLyrics,
-                      activeLyricIndex: player.activeLyricIndex,
-                      onFullscreenLyricsTap: () {
-                        if (player.currentLyrics != null) {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => LyricsFullscreenScreen(
-                                lyrics: player.currentLyrics!,
-                                initialActiveIndex: player.activeLyricIndex,
-                                activeIndexStream: player.lyricIndexStream,
-                              ),
-                            ),
-                          );
-                        }
-                      },
-                      onClose: () {
-                        setState(() {
-                          _showFullPlayer = false;
-                        });
-                      },
-                      onPlayPause: () => player.togglePlayPause(),
-                      onSeek: (v) => player.seekToProgress(v),
-                      onPrevious: () => player.previous(),
-                      onNext: () => player.next(),
-                      onShuffle: () => player.toggleShuffle(),
-                      onRepeat: () => player.toggleRepeatMode(),
-                    )
-
-                  : const SizedBox.shrink(),
             ),
           ],
         );

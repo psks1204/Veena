@@ -53,7 +53,7 @@ class _PlayerOverlayShellState extends State<PlayerOverlayShell> {
                   progress: player.progress,
                   onTap: () {
                     if (player.isVideo) {
-                      Navigator.of(context).push(
+                      Navigator.of(context, rootNavigator: true).push(
                         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
                       );
                     } else {

@@ -190,7 +190,7 @@ class SectionViewScreen extends StatelessWidget {
     player.playQueue(items, startIndex: index);
 
     if (item.isVideo) {
-      Navigator.of(context).push(
+      Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
       );
     }

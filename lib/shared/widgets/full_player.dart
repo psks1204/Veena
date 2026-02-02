@@ -815,7 +815,7 @@ class FullPlayer extends StatelessWidget {
                             artist: linkedMedia.artist,
                           );
                           player.play(videoItem, startPosition: currentPosition);
-                          Navigator.of(context).push(
+                          Navigator.of(context, rootNavigator: true).push(
                             MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
                           );
                         },

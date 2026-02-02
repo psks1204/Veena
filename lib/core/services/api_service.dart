@@ -13,6 +13,7 @@ class ApiService {
   static const String baseUrl = 'https://veena.dgfly.in/api';
 
   String? _accessToken;
+  DateTime? _tokenSetTime; // Track when token was set for grace period
   
   /// Callback to be invoked when a 401 Unauthorized response is received
   /// This should trigger logout and redirect to login
@@ -21,11 +22,16 @@ class ApiService {
   /// Set the access token for authenticated requests
   void setAccessToken(String? token) {
     _accessToken = token;
+    if (token != null) {
+      _tokenSetTime = DateTime.now();
+      debugPrint('[ApiService] Token set at $_tokenSetTime');
+    }
   }
   
   /// Clear the access token (used during logout)
   void clearAccessToken() {
     _accessToken = null;
+    _tokenSetTime = null;
   }
   
   /// Get headers with authentication
@@ -113,9 +119,20 @@ class ApiService {
       if (response.body.isEmpty) return null;
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
-      debugPrint('🔒 401 Unauthorized - Triggering logout');
-      // Notify that we received a 401 so the app can handle logout
-      onUnauthorized?.call();
+      debugPrint('🔒 401 Unauthorized received');
+      // Only trigger logout if:
+      // 1. We have a token set
+      // 2. Token was set more than 3 seconds ago (grace period for stale requests)
+      final shouldLogout = _accessToken != null && 
+          (_tokenSetTime == null || 
+           DateTime.now().difference(_tokenSetTime!).inSeconds > 3);
+      
+      if (shouldLogout) {
+        debugPrint('🔒 Triggering logout (token expired)');
+        onUnauthorized?.call();
+      } else {
+        debugPrint('🔒 Ignoring 401 - within grace period after login');
+      }
       throw ApiException('Unauthorized - Session expired', response.statusCode);
     } else if (response.statusCode == 404) {
       throw ApiException('Resource not found', response.statusCode);
