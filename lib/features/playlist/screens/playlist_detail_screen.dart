@@ -7,7 +7,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/services/library_service.dart';
 import '../../../shared/widgets/aura_cards.dart';
-import '../../player/screens/video_player_screen.dart';
+import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Playlist Detail Screen
@@ -89,7 +89,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
     
     if (track.isVideo) {
       Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
       );
     }
   }

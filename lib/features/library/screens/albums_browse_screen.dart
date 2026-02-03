@@ -25,7 +25,10 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
   @override
   void initState() {
     super.initState();
-    _loadAlbums();
+    // Defer to post-frame to avoid notifyListeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadAlbums();
+    });
   }
 
   @override

@@ -16,8 +16,7 @@ import 'features/home/screens/home_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
-import 'features/player/screens/video_player_screen.dart';
-import 'features/player/screens/audio_player_screen.dart';
+import 'features/player/screens/unified_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/navigation/app_navigation.dart';
@@ -142,21 +141,12 @@ class _AppRouterState extends State<_AppRouter> {
                       isPlaying: player.isPlaying,
                       progress: player.progress,
                       onTap: () {
-                        if (player.isVideo) {
-                          // Video player fullscreen (over everything)
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                              builder: (_) => const VideoPlayerScreen(),
-                            ),
-                          );
-                        } else {
-                          // Audio player fullscreen (over everything)
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(
-                              builder: (_) => const AudioPlayerScreen(),
-                            ),
-                          );
-                        }
+                        // Unified player handles both audio and video
+                        Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => const UnifiedPlayerScreen(),
+                          ),
+                        );
                       },
                       onPlayPause: () {
                         player.togglePlayPause();

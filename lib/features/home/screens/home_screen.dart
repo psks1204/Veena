@@ -11,7 +11,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../../core/navigation/app_navigation.dart';
-import '../../player/screens/video_player_screen.dart';
+import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
@@ -80,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (item.isVideo) {
       // Use rootNavigator to open fullscreen on top of everything
       Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
       );
     }
   }

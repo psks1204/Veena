@@ -5,7 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
-import '../../player/screens/video_player_screen.dart';
+import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Section View Screen
@@ -191,7 +191,7 @@ class SectionViewScreen extends StatelessWidget {
 
     if (item.isVideo) {
       Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
       );
     }
   }

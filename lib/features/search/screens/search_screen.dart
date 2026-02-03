@@ -7,7 +7,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
-import '../../player/screens/video_player_screen.dart';
+import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Search Screen
@@ -87,7 +87,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
     if (item.isVideo) {
       Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
       );
     }
   }

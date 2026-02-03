@@ -62,7 +62,8 @@ class ApiService {
   }
   
   /// POST request
-  Future<dynamic> post(String endpoint, {dynamic body}) async {
+  /// [skipUnauthorizedCallback] - If true, a 401 response won't trigger the onUnauthorized callback
+  Future<dynamic> post(String endpoint, {dynamic body, bool skipUnauthorizedCallback = false}) async {
     try {
       final uri = Uri.parse('$baseUrl$endpoint');
       
@@ -73,7 +74,7 @@ class ApiService {
         headers: _headers,
         body: body != null ? jsonEncode(body) : null,
       );
-      return _handleResponse(response);
+      return _handleResponse(response, skipUnauthorizedCallback: skipUnauthorizedCallback);
     } catch (e) {
       debugPrint('❌ POST Error: $e');
       rethrow;
@@ -115,7 +116,8 @@ class ApiService {
   }
   
   /// Handle HTTP response
-  dynamic _handleResponse(http.Response response) {
+  /// [skipUnauthorizedCallback] - If true, a 401 won't trigger logout callback
+  dynamic _handleResponse(http.Response response, {bool skipUnauthorizedCallback = false}) {
     debugPrint('📥 Status: ${response.statusCode}');
     
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -123,6 +125,13 @@ class ApiService {
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
       debugPrint('🔒 401 Unauthorized received');
+      
+      // Skip logout callback if requested (used during logout to prevent loops)
+      if (skipUnauthorizedCallback) {
+        debugPrint('🔒 Skipping logout callback (skipUnauthorizedCallback=true)');
+        throw ApiException('Unauthorized - Session expired', response.statusCode);
+      }
+      
       // Only trigger logout if:
       // 1. We have a token set
       // 2. Token was set more than 3 seconds ago (grace period for stale requests)

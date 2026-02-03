@@ -63,7 +63,7 @@ class _LyricsCardState extends State<LyricsCard> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+      margin: EdgeInsets.symmetric(horizontal: AppSpacing.md),
       padding: EdgeInsets.all(AppSpacing.xl),
       decoration: BoxDecoration(
         color: const Color(0xFF1a1a1c).withOpacity(0.8),

@@ -186,6 +186,8 @@ class PushNotificationService {
   }
 
   /// Unregister FCM token from backend on logout
+  /// This uses skipUnauthorizedCallback to prevent 401 errors from triggering
+  /// another logout, which would cause an infinite loop
   Future<bool> unregisterFcmToken() async {
     if (_apiService == null) {
       debugPrint('[PushNotification] ApiService not set - cannot unregister FCM token');
@@ -201,9 +203,11 @@ class PushNotificationService {
     try {
       debugPrint('[PushNotification] Unregistering FCM token from backend...');
       
-      await _apiService!.post('/user/devices/unregister', body: {
-        'fcmToken': fcmToken,
-      });
+      // Use skipUnauthorizedCallback to prevent 401 from triggering logout loop
+      await _apiService!.post('/user/devices/unregister', 
+        body: {'fcmToken': fcmToken},
+        skipUnauthorizedCallback: true,
+      );
       
       debugPrint('[PushNotification] ✅ FCM token unregistered successfully');
       return true;

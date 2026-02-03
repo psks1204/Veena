@@ -8,7 +8,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
-import '../../features/player/screens/video_player_screen.dart';
+
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
 /// Responsive: Mobile stays the same, Web/Tablet gets a constrained centered layout
@@ -799,10 +799,10 @@ class FullPlayer extends StatelessWidget {
                     if (hasLinkedVideo)
                       GestureDetector(
                         onTap: () {
-                          // Capture current position before switching
+                          // Switch to linked video - unified player will adapt
                           final currentPosition = player.position;
                           
-                          // Create MediaItem from LinkedMediaInfo and play it
+                          // Create MediaItem from LinkedMediaInfo
                           final videoItem = MediaItem(
                             id: linkedMedia.id,
                             title: linkedMedia.title,
@@ -814,10 +814,9 @@ class FullPlayer extends StatelessWidget {
                             updatedAt: DateTime.now(),
                             artist: linkedMedia.artist,
                           );
+                          
+                          // Just play the media - the unified player screen will adapt
                           player.play(videoItem, startPosition: currentPosition);
-                          Navigator.of(context, rootNavigator: true).push(
-                            MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
-                          );
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

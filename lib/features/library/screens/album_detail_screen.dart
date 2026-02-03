@@ -8,7 +8,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/album_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
-import '../../player/screens/video_player_screen.dart';
+import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/layouts/player_overlay_shell.dart';
 
@@ -98,7 +98,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
     
     if (track.isVideo) {
       Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const VideoPlayerScreen()),
+        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
       );
     }
   }
