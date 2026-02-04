@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <base href="$FLUTTER_BASE_HREF">
 
@@ -15,7 +16,7 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+  <link rel="icon" type="image/png" href="favicon.png" />
 
   <title>Veena</title>
   <link rel="manifest" href="manifest.json">
@@ -27,8 +28,9 @@
       padding: 0;
       box-sizing: border-box;
     }
-    
-    html, body {
+
+    html,
+    body {
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -71,8 +73,15 @@
     }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(0.95); }
-      50% { transform: scale(1.05); }
+
+      0%,
+      100% {
+        transform: scale(0.95);
+      }
+
+      50% {
+        transform: scale(1.05);
+      }
     }
 
     .inner-ring {
@@ -145,11 +154,19 @@
     }
 
     @keyframes breathe {
-      0%, 100% { opacity: 0; }
-      50% { opacity: 1; }
+
+      0%,
+      100% {
+        opacity: 0;
+      }
+
+      50% {
+        opacity: 1;
+      }
     }
   </style>
 </head>
+
 <body>
   <!-- Aura Splash Screen -->
   <div id="splash">
@@ -160,7 +177,7 @@
         </div>
       </div>
     </div>
-    <div class="brand-name">AURA</div>
+    <div class="brand-name">VEENA</div>
     <div class="tagline">
       <span class="tagline-line"></span>
       SOUND STUDIO
@@ -172,15 +189,16 @@
   <script src="flutter_bootstrap.js" async></script>
   <script>
     // Hide splash when Flutter is ready
-    window.addEventListener('flutter-first-frame', function() {
+    window.addEventListener('flutter-first-frame', function () {
       var splash = document.getElementById('splash');
       if (splash) {
         splash.classList.add('hidden');
-        setTimeout(function() {
+        setTimeout(function () {
           splash.remove();
         }, 300);
       }
     });
   </script>
 </body>
+
 </html>

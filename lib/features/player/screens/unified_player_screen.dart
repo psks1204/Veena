@@ -140,6 +140,114 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
   }
 
+  void _showQueueSheet(PlayerProvider player) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.white30,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Queue',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                  ),
+                ],
+              ),
+            ),
+            // Queue content
+            Expanded(
+              child: player.queue.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Queue is empty',
+                        style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: player.queue.length,
+                      itemBuilder: (context, index) {
+                        final item = player.queue[index];
+                        final isPlaying = player.currentMedia?.id == item.id;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: item.thumbnailUrl != null
+                                ? Image.network(
+                                    item.thumbnailUrl!,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: Colors.grey[800],
+                                    child: const Icon(Icons.music_note, color: Colors.white54),
+                                  ),
+                          ),
+                          title: Text(
+                            item.title,
+                            style: TextStyle(
+                              color: isPlaying ? AppColors.primary : Colors.white,
+                              fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          subtitle: Text(
+                            item.artistName ?? 'Unknown Artist',
+                            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                            maxLines: 1,
+                          ),
+                          trailing: isPlaying
+                              ? Icon(Icons.equalizer_rounded, color: AppColors.primary)
+                              : null,
+                          onTap: () {
+                            player.playQueueIndex(index);
+                            Navigator.pop(context);
+                          },
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<PlayerProvider>(
@@ -1157,314 +1265,324 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     );
   }
 
-  /// Queue bottom sheet
-  void _showQueueSheet(PlayerProvider player) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.3,
-        maxChildSize: 0.9,
-        builder: (context, scrollController) => Container(
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 5,
-                margin: const EdgeInsets.only(top: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[700],
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'Queue',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Expanded(
-                child: ListView.builder(
-                  controller: scrollController,
-                  itemCount: player.queue.length,
-                  itemBuilder: (context, index) {
-                    final track = player.queue[index];
-                    final isCurrent = index == player.currentIndex;
-                    return ListTile(
-                      onTap: () {
-                        player.playQueueIndex(index);
-                        Navigator.pop(context);
-                      },
-                      leading: ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: track.thumbnailUrl != null
-                            ? Image.network(track.thumbnailUrl!, width: 48, height: 48, fit: BoxFit.cover)
-                            : Container(
-                                width: 48,
-                                height: 48,
-                                color: Colors.grey[800],
-                                child: const Icon(Icons.music_note, color: Colors.white54),
-                              ),
-                      ),
-                      title: Text(
-                        track.title,
-                        style: TextStyle(
-                          color: isCurrent ? AppColors.primary : Colors.white,
-                          fontWeight: isCurrent ? FontWeight.w600 : FontWeight.normal,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      subtitle: Text(
-                        track.artistName ?? 'Unknown Artist',
-                        style: TextStyle(
-                          color: isCurrent ? AppColors.primary.withOpacity(0.7) : Colors.white54,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      trailing: isCurrent
-                          ? const Icon(Icons.equalizer_rounded, color: AppColors.primary)
-                          : null,
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   /// Web/Tablet layout
+  /// Web layout - Spotify-style centered design
   Widget _buildWebLayout(PlayerProvider player, ThemeData theme, double artworkSize) {
     final media = player.currentMedia!;
     final isVideo = player.isVideo;
-    final hasLyrics = !isVideo && player.currentLyrics != null && player.currentLyrics!.lines.isNotEmpty;
+    final linkedMedia = media.linkedMedia;
+    final hasLinkedMedia = linkedMedia != null;
 
-    return Container(
-      width: double.infinity,
-      height: double.infinity,
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Left side - Media content and controls
-              Expanded(
-                flex: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 40),
-                  child: Column(
-                    children: [
-                      _buildWebTopBar(theme),
-                      Expanded(
-                        child: Center(
-                          child: SingleChildScrollView(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Media content (video or artwork)
-                                Container(
-                                  width: isVideo ? artworkSize * 1.5 : artworkSize,
-                                  height: isVideo ? artworkSize * 1.5 * 9 / 16 : artworkSize,
-                                  decoration: BoxDecoration(
-                                    borderRadius: BorderRadius.circular(16),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.6),
-                                        blurRadius: 40,
-                                        offset: const Offset(0, 20),
-                                      ),
-                                    ],
-                                  ),
-                                  clipBehavior: Clip.antiAlias,
-                                  child: isVideo 
-                                      ? _buildVideoContent(player, artworkSize * 1.5)
-                                      : _buildArtworkContent(media),
+    // Calculate sizes for web
+    final screenSize = MediaQuery.of(context).size;
+    final maxContentWidth = 500.0;
+    final mediaWidth = isVideo ? maxContentWidth : 280.0;
+    final mediaHeight = isVideo ? mediaWidth * 9 / 16 : 280.0;
+
+    return Stack(
+      children: [
+        // Main content - centered scrollable column
+        Positioned.fill(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(vertical: 40),
+              child: Container(
+                constraints: BoxConstraints(maxWidth: maxContentWidth),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Top bar with close button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          IconButton(
+                            onPressed: _handleClose,
+                            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                            tooltip: 'Close',
+                          ),
+                          IconButton(
+                            onPressed: () {},
+                            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70, size: 24),
+                            tooltip: 'More options',
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // Artwork/Video - large and centered
+                    Container(
+                      width: mediaWidth,
+                      height: mediaHeight,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(isVideo ? 12 : 8),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.5),
+                            blurRadius: 60,
+                            offset: const Offset(0, 30),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: isVideo 
+                          ? _buildVideoContent(player, mediaWidth)
+                          : _buildArtworkContent(media),
+                    ),
+
+                    // Fullscreen button for video
+                    if (isVideo)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: GestureDetector(
+                          onTap: _toggleFullscreen,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 16),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Fullscreen',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                
-                                if (isVideo)
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 12),
-                                    child: TextButton.icon(
-                                      onPressed: _toggleFullscreen,
-                                      icon: const Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 20),
-                                      label: const Text('Fullscreen', style: TextStyle(color: Colors.white70)),
-                                    ),
-                                  ),
-                                
-                                const SizedBox(height: 24),
-                                
-                                // Track info
-                                Column(
-                                  children: [
-                                    Text(
-                                      media.title,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 28,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: -1.0,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      media.artistName ?? 'Unknown Artist',
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.7),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                
-                                const SizedBox(height: 32),
-                                
-                                // Controls
-                                Container(
-                                  width: artworkSize * 1.5,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.03),
-                                    borderRadius: BorderRadius.circular(30),
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      _buildProgressBar(player),
-                                      const SizedBox(height: 16),
-                                      _buildMainControls(player),
-                                    ],
-                                  ),
-                                ),
-                                
-                                const SizedBox(height: 20),
-                                
-                                // Switch media + queue
-                                _buildBottomActions(player),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
+
+                    const SizedBox(height: 32),
+
+                    // Track Title - centered with ellipsis for long names
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        media.title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Artist name
+                    Text(
+                      media.artistName ?? 'Unknown Artist',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.6),
+                        fontSize: 16,
+                      ),
+                    ),
+
+                    const SizedBox(height: 40),
+
+                    // Controls container (rounded card with progress + controls)
+                    Container(
+                      width: maxContentWidth - 32,
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.04),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          // Progress bar with times
+                          _buildWebProgressBar(player),
+
+                          const SizedBox(height: 24),
+
+                          // Main controls
+                          _buildWebMainControls(player),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              
-              // Right side - Lyrics panel (only for audio)
-              if (!isVideo)
-                Expanded(
-                  flex: 1,
-                  child: Container(
-                    margin: const EdgeInsets.fromLTRB(0, 40, 40, 40),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    ),
-                    child: _buildWebLyricsPanel(player, hasLyrics),
-                  ),
-                ),
-            ],
+            ),
           ),
         ),
-      ),
+
+        // Bottom left - Switch media button
+        if (hasLinkedMedia)
+          Positioned(
+            left: 24,
+            bottom: 24,
+            child: GestureDetector(
+              onTap: () => _switchToLinkedMedia(player, media, linkedMedia),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isVideo ? AppColors.primary : Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        color: isVideo ? Colors.white : AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isVideo ? Icons.music_note_rounded : Icons.play_arrow_rounded,
+                        color: isVideo ? AppColors.primary : Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      isVideo ? 'Listen to Audio' : 'Watch Video',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+        // Bottom right - Queue button
+        Positioned(
+          right: 24,
+          bottom: 24,
+          child: IconButton(
+            onPressed: () => _showQueueSheet(player),
+            icon: const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 28),
+            tooltip: 'Queue',
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _buildWebTopBar(ThemeData theme) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: _handleClose,
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWebLyricsPanel(PlayerProvider player, bool hasLyrics) {
+  /// Web progress bar with styled slider
+  Widget _buildWebProgressBar(PlayerProvider player) {
     return Column(
       children: [
-        // Header with LYRICS label (no duplicate button needed, LyricsCard has one)
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            activeTrackColor: Colors.white,
+            inactiveTrackColor: Colors.white.withOpacity(0.2),
+            thumbColor: Colors.white,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+            trackHeight: 4,
+          ),
+          child: Slider(
+            value: player.progress.clamp(0.0, 1.0),
+            onChanged: (v) => player.seekToProgress(v),
+          ),
+        ),
+        const SizedBox(height: 4),
         Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'LYRICS',
+              Text(
+                _formatDuration(player.position),
                 style: TextStyle(
-                  color: Colors.white,
+                  color: Colors.white.withOpacity(0.5),
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                _formatDuration(player.duration),
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.5),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: hasLyrics
-              ? Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: LyricsCard(
-                    lyrics: player.currentLyrics!,
-                    activeIndex: player.activeLyricIndex,
-                    onFullscreenTap: () {
-                      // Use rootNavigator to push on top of the player screen
-                      Navigator.of(context, rootNavigator: true).push(
-                        MaterialPageRoute(
-                          builder: (_) => LyricsFullscreenScreen(
-                            lyrics: player.currentLyrics!,
-                            initialActiveIndex: player.activeLyricIndex,
-                            activeIndexStream: player.lyricIndexStream,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                )
-              : Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.lyrics_outlined, color: Colors.white.withOpacity(0.2), size: 64),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No lyrics available',
-                        style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
+      ],
+    );
+  }
+
+  /// Web main controls - centered with proper sizing
+  Widget _buildWebMainControls(PlayerProvider player) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Shuffle
+        IconButton(
+          onPressed: () => player.toggleShuffle(),
+          icon: Icon(
+            Icons.shuffle_rounded,
+            color: player.shuffleEnabled ? AppColors.primary : Colors.white70,
+            size: 22,
+          ),
+          tooltip: 'Shuffle',
+        ),
+        const SizedBox(width: 16),
+
+        // Previous
+        IconButton(
+          onPressed: () => player.previous(),
+          icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 36),
+          tooltip: 'Previous',
+        ),
+        const SizedBox(width: 8),
+
+        // Play/Pause - large circular button
+        GestureDetector(
+          onTap: () => player.togglePlayPause(),
+          child: Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+              color: Colors.black,
+              size: 32,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+
+        // Next
+        IconButton(
+          onPressed: () => player.next(),
+          icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 36),
+          tooltip: 'Next',
+        ),
+        const SizedBox(width: 16),
+
+        // Repeat
+        IconButton(
+          onPressed: () => player.toggleRepeatMode(),
+          icon: Icon(
+            player.repeatMode == RepeatMode.one 
+                ? Icons.repeat_one_rounded 
+                : Icons.repeat_rounded,
+            color: player.repeatMode != RepeatMode.off ? AppColors.primary : Colors.white70,
+            size: 22,
+          ),
+          tooltip: 'Repeat',
         ),
       ],
     );

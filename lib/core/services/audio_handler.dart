@@ -122,6 +122,17 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
   }
 
   @override
+  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+    if (name == 'setVolume') {
+      final volume = extras?['volume'] as double?;
+      if (volume != null) {
+        await _player.setVolume(volume);
+      }
+    }
+    return super.customAction(name, extras);
+  }
+
+  @override
   Future<void> onTaskRemoved() async {
     await stop();
     await super.onTaskRemoved();

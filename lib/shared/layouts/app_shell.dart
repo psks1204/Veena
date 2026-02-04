@@ -1,8 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/navigation/app_navigation.dart';
+import '../../core/providers/player_provider.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/floating_nav_bar.dart';
+import '../widgets/desktop_player_bar.dart';
+import '../widgets/web_sidebar.dart';
+import '../widgets/now_playing_panel.dart';
+import '../widgets/web_header.dart';
+import '../../features/playlist/screens/playlist_detail_screen.dart';
 
 /// Responsive App Shell with Nested Navigation
 /// 
@@ -87,6 +94,29 @@ class _AppShellState extends State<AppShell> {
 
   // Cached navigator widgets - created once and reused
   late final List<Widget> _navigatorWidgets;
+  
+  // Keys for nested navigators to allow accessing them from outside (e.g. sidebar)
+  final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+
+  // Web-specific state
+  bool _isSidebarCollapsed = false;
+  bool _isNowPlayingOpen = false;
+  String _searchQuery = '';
+
+
+
+  // Track previous playing state to detect starts
+  bool _wasPlaying = false;
+
+  void _onPlayerChanged() {
+    final player = context.read<PlayerProvider>();
+    if (player.isPlaying && !_wasPlaying) {
+      setState(() {
+        _isNowPlayingOpen = true;
+      });
+    }
+    _wasPlaying = player.isPlaying;
+  }
 
   @override
   void initState() {
@@ -97,7 +127,22 @@ class _AppShellState extends State<AppShell> {
       widget.screens.length,
       (index) => _buildTabNavigator(index, widget.screens[index]),
     );
+
+    // Listen for playback start to auto-open panel
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<PlayerProvider>().addListener(_onPlayerChanged);
+    });
   }
+
+  @override
+  void dispose() {
+    try {
+      context.read<PlayerProvider>().removeListener(_onPlayerChanged);
+    } catch (_) {}
+    super.dispose();
+  }
+
+  /// Build a nested navigator for a tab
 
   /// Build a nested navigator for a tab
   Widget _buildTabNavigator(int tabIndex, Widget rootScreen) {
@@ -276,52 +321,105 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildDesktopLayout(bool isDark) {
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    
-    return Scaffold(
-      body: Row(
-        children: [
-          // Navigation rail
-          NavigationRail(
-            selectedIndex: widget.currentIndex,
-            onDestinationSelected: widget.onDestinationSelected,
-            destinations: _railDestinations,
-            backgroundColor: surfaceColor,
-            extended: true,
-            minExtendedWidth: 200,
+    return Consumer<PlayerProvider>(
+      builder: (context, player, _) {
+        final hasMedia = player.hasMedia;
+        
+        return Scaffold(
+          backgroundColor: const Color(0xFF000000),
+          body: Column(
+            children: [
+              // Main content area
+              Expanded(
+                child: Row(
+                  children: [
+                      // Left Sidebar
+                    WebSidebar(
+                      currentTabIndex: widget.currentIndex,
+                      onTabSelected: widget.onDestinationSelected,
+                      isCollapsed: _isSidebarCollapsed,
+                      onToggleCollapse: () {
+                        setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
+                      },
+                      onPlaylistSelected: (id, title) {
+                        widget.onDestinationSelected(0); // Switch to Home
+                        // Push to Home navigator
+                        _navigatorKeys[0].currentState?.push(
+                          MaterialPageRoute(
+                            builder: (_) => PlaylistDetailScreen(
+                              playlistId: id, 
+                              playlistTitle: title
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    
+                    // Main content + header
+                    Expanded(
+                      child: Container(
+                        margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF121212),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            // Header
+                            WebHeader(
+                              onSearch: (query) {
+                                setState(() => _searchQuery = query);
+                                // Navigate to search tab if typing
+                                if (query.isNotEmpty && widget.currentIndex != 1) {
+                                  widget.onDestinationSelected(1);
+                                }
+                              },
+                              onNavigateTo: widget.onDestinationSelected,
+                            ),
+                            
+                            // Content with nested navigators
+                            Expanded(
+                              child: ClipRRect(
+                                borderRadius: const BorderRadius.vertical(
+                                  bottom: Radius.circular(8),
+                                ),
+                                child: _buildContent(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    
+                    // Right Now Playing Panel (only when open and has media)
+                    if (_isNowPlayingOpen && hasMedia)
+                      Container(
+                        margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF121212),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: NowPlayingPanel(
+                          onClose: () {
+                            setState(() => _isNowPlayingOpen = false);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              
+              // Bottom Player Bar
+              DesktopPlayerBar(
+                isNowPlayingOpen: _isNowPlayingOpen,
+                onNowPlayingToggle: () {
+                  setState(() => _isNowPlayingOpen = !_isNowPlayingOpen);
+                },
+              ),
+            ],
           ),
-          
-          // Divider
-          VerticalDivider(
-            thickness: 1,
-            width: 1,
-            color: isDark 
-                ? Colors.white.withOpacity(0.05) 
-                : Colors.black.withOpacity(0.05),
-          ),
-          
-          // Content with nested navigators
-          Expanded(
-            child: SafeArea(
-              bottom: false,
-              child: _buildContent(),
-            ),
-          ),
-        ],
-      ),
-      // Docked player at bottom for desktop
-      bottomNavigationBar: widget.showMiniPlayer && widget.miniPlayerData != null
-          ? MiniPlayer(
-              trackTitle: widget.miniPlayerData!.trackTitle,
-              artistName: widget.miniPlayerData!.artistName,
-              artworkUrl: widget.miniPlayerData!.artworkUrl,
-              isPlaying: widget.miniPlayerData!.isPlaying,
-              progress: widget.miniPlayerData!.progress,
-              onTap: widget.miniPlayerData!.onTap,
-              onPlayPause: widget.miniPlayerData!.onPlayPause,
-              onNext: widget.miniPlayerData!.onNext,
-            )
-          : null,
+        );
+      },
     );
   }
 }

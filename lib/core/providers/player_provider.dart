@@ -464,8 +464,14 @@ class PlayerProvider extends ChangeNotifier {
     _volume = volume.clamp(0.0, 1.0);
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.setVolume(_volume);
+    } else {
+      // Send volume to audio handler for web support
+      try {
+        await audioHandler.customAction('setVolume', {'volume': _volume});
+      } catch (e) {
+        debugPrint('[PlayerProvider] Error setting volume: $e');
+      }
     }
-    // Note: AudioService volume is controlled by system
     notifyListeners();
   }
 

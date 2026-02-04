@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
@@ -77,7 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     player.play(item);
     mediaService.recordPlay(item.id); // Track analytics
 
-    if (item.isVideo) {
+    if (item.isVideo && !kIsWeb) {
       // Use rootNavigator to open fullscreen on top of everything
       Navigator.of(context, rootNavigator: true).push(
         MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
