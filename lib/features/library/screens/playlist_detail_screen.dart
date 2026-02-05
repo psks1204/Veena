@@ -153,7 +153,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: track.thumbnailUrl != null
+                child: (track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty)
                     ? Image.network(track.thumbnailUrl!, width: 48, height: 48, fit: BoxFit.cover)
                     : Container(width: 48, height: 48, color: Colors.grey[800], child: const Icon(Icons.music_note)),
               ),
@@ -213,46 +213,52 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                   ),
                 ),
                 child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 60),
-                      Container(
-                        width: 160,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black45, offset: Offset(0, 10))],
-                          image: widget.playlist.coverUrl != null
-                              ? DecorationImage(
-                                  image: NetworkImage(widget.playlist.coverUrl!),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
-                          color: widget.playlist.coverUrl == null ? Colors.grey[800] : null,
-                        ),
-                        child: widget.playlist.coverUrl == null
-                            ? const Icon(Icons.music_note, size: 60, color: Colors.white54)
-                            : null,
-                      ),
-                      const SizedBox(height: 24),
-                      Text(
-                        widget.playlist.name,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      if (widget.playlist.description != null)
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text(
-                            widget.playlist.description!,
-                            style: const TextStyle(color: Colors.white70),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(height: 40),
+                        Container(
+                          width: 160,
+                          height: 160,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black45, offset: Offset(0, 10))],
+                            image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
+                                ? DecorationImage(
+                                    image: NetworkImage(widget.playlist.coverUrl!),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null,
+                            color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
+                                ? Colors.grey[800] 
+                                : null,
                           ),
+                          child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
+                              ? const Icon(Icons.music_note, size: 60, color: Colors.white54)
+                              : null,
                         ),
-                    ],
+                        const SizedBox(height: 24),
+                        Text(
+                          widget.playlist.name,
+                          style: const TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        if (widget.playlist.description != null)
+                          Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Text(
+                              widget.playlist.description!,
+                              style: const TextStyle(color: Colors.white70),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),

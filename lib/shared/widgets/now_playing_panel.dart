@@ -307,7 +307,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: Colors.black54,
-            image: media.thumbnailUrl != null
+            image: (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
                 ? DecorationImage(
                     image: NetworkImage(media.thumbnailUrl!),
                     fit: BoxFit.cover,
@@ -332,7 +332,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: Colors.black,
-            image: media.thumbnailUrl != null
+            image: (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
                 ? DecorationImage(
                     image: NetworkImage(media.thumbnailUrl!),
                     fit: BoxFit.cover,
@@ -355,7 +355,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
           color: Colors.grey[900],
-          image: media.thumbnailUrl != null
+          image: (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
               ? DecorationImage(
                   image: NetworkImage(media.thumbnailUrl!),
                   fit: BoxFit.cover,
@@ -402,7 +402,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
-              image: item.thumbnailUrl != null
+              image: (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty)
                   ? DecorationImage(image: NetworkImage(item.thumbnailUrl!), fit: BoxFit.cover)
                   : null,
               color: Colors.grey[800],

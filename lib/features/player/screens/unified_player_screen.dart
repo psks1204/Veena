@@ -640,6 +640,14 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
       artist: linkedMedia.artist,
+      linkedMedia: LinkedMediaInfo(
+        id: current.id,
+        title: current.title,
+        mediaType: current.mediaType,
+        thumbnailUrl: current.thumbnailUrl,
+        hlsUrl: current.hlsUrl,
+        artist: current.artist,
+      ),
     );
     player.play(newItem, startPosition: currentPosition);
   }
@@ -1024,22 +1032,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           // Switch to linked media button
           if (hasLinkedMedia)
             GestureDetector(
-              onTap: () {
-                final currentPosition = player.position;
-                final newItem = MediaItem(
-                  id: linkedMedia.id,
-                  title: linkedMedia.title,
-                  mediaType: linkedMedia.mediaType,
-                  thumbnailUrl: linkedMedia.thumbnailUrl,
-                  hlsUrl: linkedMedia.hlsUrl,
-                  status: MediaStatus.published,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                  artist: linkedMedia.artist,
-                );
-                // Just play the new media - screen adapts automatically
-                player.play(newItem, startPosition: currentPosition);
-              },
+              onTap: () => _switchToLinkedMedia(player, player.currentMedia!, linkedMedia),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
