@@ -6,6 +6,7 @@ import '../../core/providers/player_provider.dart';
 import '../../core/models/media_item.dart';
 import '../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../core/utils/fullscreen_stub.dart' as fullscreen;
 import 'web_video_fullscreen.dart';
+import 'lyrics_card.dart';
 
 /// Spotify-style Now Playing Panel
 /// 
@@ -14,9 +15,11 @@ class NowPlayingPanel extends StatefulWidget {
   const NowPlayingPanel({
     super.key,
     this.onClose,
+    this.onTabChanged,
   });
 
   final VoidCallback? onClose;
+  final ValueChanged<bool>? onTabChanged;  // Called with true when Queue tab opens
 
   @override
   State<NowPlayingPanel> createState() => _NowPlayingPanelState();
@@ -141,7 +144,23 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         children: [
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _tabIndex = 0),
+              onTap: () {
+                final player = context.read<PlayerProvider>();
+                final wasPlaying = player.isPlaying;
+                
+                setState(() => _tabIndex = 0);
+                widget.onTabChanged?.call(false);  // Notify parent: Details opened
+                
+                // Auto-resume video after tab switch (Flutter Web workaround)
+                // Brief delay allows VideoPlayer to mount in NowPlayingPanel
+                if (wasPlaying && player.videoController != null) {
+                  Future.delayed(const Duration(milliseconds: 150), () {
+                    if (mounted && !player.videoController!.value.isPlaying) {
+                      player.videoController!.play();
+                    }
+                  });
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
@@ -159,7 +178,23 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           ),
           Expanded(
             child: GestureDetector(
-              onTap: () => setState(() => _tabIndex = 1),
+              onTap: () {
+                final player = context.read<PlayerProvider>();
+                final wasPlaying = player.isPlaying;
+                
+                setState(() => _tabIndex = 1);
+                widget.onTabChanged?.call(true);  // Notify parent: Queue opened
+                
+                // Auto-resume video after tab switch (Flutter Web workaround)
+                // Brief delay allows VideoPlayer to mount in DesktopPlayerBar
+                if (wasPlaying && player.videoController != null) {
+                  Future.delayed(const Duration(milliseconds: 150), () {
+                    if (mounted && !player.videoController!.value.isPlaying) {
+                      player.videoController!.play();
+                    }
+                  });
+                }
+              },
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
@@ -195,7 +230,18 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           if (media.linkedMedia != null)
             _buildSwitchButton(player, media),
 
-          const SizedBox(height: 20),
+          if (media.linkedMedia != null)
+            const SizedBox(height: 16),
+          
+          // Lyrics Card (before track info)
+          if (player.currentLyrics != null)
+            LyricsCard(
+              lyrics: player.currentLyrics!,
+              activeIndex: player.activeLyricIndex,
+            ),
+          
+          if (player.currentLyrics != null)
+            const SizedBox(height: 20),
 
           // Track Info
           Text(
@@ -219,11 +265,15 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   }
 
   Widget _buildMediaContent(PlayerProvider player, MediaItem media) {
-    // IMPORTANT: Only render VideoPlayer when NOT in fullscreen mode
-    // On web, having two VideoPlayer widgets with same controller causes DOM conflicts
+    // IMPORTANT: Only ONE VideoPlayer should exist in the entire widget tree at any time
+    // On Flutter Web, multiple VideoPlayers with same controller cause DOM conflicts
     final isFullscreen = WebVideoFullscreen.isFullscreenActive;
+    final hasVideoController = media.isVideo && player.videoController != null;
+    final isVideoInitialized = hasVideoController && player.videoController!.value.isInitialized;
+    final isQueueSelected = _tabIndex == 1;
     
-    if (media.isVideo && player.videoController != null && player.videoController!.value.isInitialized && !isFullscreen) {
+    // Show video player ONLY when: video initialized + Details tab + not fullscreen
+    if (isVideoInitialized && !isFullscreen && !isQueueSelected) {
       return AspectRatio(
         aspectRatio: player.videoController!.value.aspectRatio,
         child: Stack(
@@ -249,7 +299,56 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
       );
     }
     
-    // Artwork (shown when audio, when video not initialized, OR when fullscreen is active)
+    // Show placeholder when Queue tab is open (video is in player bar)
+    if (isVideoInitialized && isQueueSelected && !isFullscreen) {
+      return AspectRatio(
+        aspectRatio: player.videoController!.value.aspectRatio,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.black54,
+            image: media.thumbnailUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(media.thumbnailUrl!),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: const Center(
+            child: Text(
+              'Video playing below',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Show loading indicator when video is being initialized
+    if (hasVideoController && !isVideoInitialized && !isFullscreen) {
+      return AspectRatio(
+        aspectRatio: 16 / 9,  // Default aspect ratio while loading
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            color: Colors.black,
+            image: media.thumbnailUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(media.thumbnailUrl!),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: const Center(
+            child: CircularProgressIndicator(
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Artwork (shown when audio or when fullscreen is active)
     return AspectRatio(
       aspectRatio: 1,
       child: Container(
@@ -366,8 +465,13 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           ),
         );
 
+        // Capture current position and log it
+        final currentPosition = player.position;
+        debugPrint('[SwitchButton] Current position: ${currentPosition.inSeconds}s');
+        debugPrint('[SwitchButton] Switching from ${media.isVideo ? "video" : "audio"} to ${linked.mediaType}');
+        
         // Switch media while preserving position
-        player.play(newItem, startPosition: player.position);
+        player.play(newItem, startPosition: currentPosition);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),

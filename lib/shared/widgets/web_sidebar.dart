@@ -152,60 +152,12 @@ class _WebSidebarState extends State<WebSidebar> {
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
                       children: [
-                        _buildFilterPill('Playlists'),
-                        const SizedBox(width: 8),
-                        _buildFilterPill('Artists'),
+                        _buildFilterPill('Playlists')
                       ],
                     ),
                   ),
                   
                   const SizedBox(height: 16),
-                  
-                  // Search within library
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setState(() => _isSearching = !_isSearching);
-                            if (!_isSearching) _searchController.clear();
-                          },
-                          child: Icon(
-                            _isSearching ? Icons.search : Icons.search_rounded,
-                            color: Colors.white54,
-                            size: 20,
-                          ),
-                        ),
-                        if (_isSearching) ...[
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchController,
-                              style: const TextStyle(color: Colors.white, fontSize: 13),
-                              decoration: const InputDecoration(
-                                hintText: 'Search Library',
-                                hintStyle: TextStyle(color: Colors.white38),
-                                border: InputBorder.none,
-                                isDense: true,
-                              ),
-                              onChanged: (val) => setState(() {}),
-                            ),
-                          ),
-                        ] else ...[
-                          const Spacer(),
-                          const Text(
-                            'Recents',
-                            style: TextStyle(color: Colors.white54, fontSize: 13),
-                          ),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.sort_rounded, color: Colors.white54, size: 16),
-                        ],
-                      ],
-                    ),
-                  ),
-                  
-                  const SizedBox(height: 12),
                   
                   // Library content (Scrollable)
                   Expanded(
@@ -292,11 +244,11 @@ class _WebSidebarState extends State<WebSidebar> {
   }
 
   Widget _buildLibraryContent(LibraryService library) {
-    if (_activeFilter == 'Playlists') {
+    // if (_activeFilter == 'Playlists') {
       return _buildPlaylistsList(library);
-    } else {
-      return _buildArtistsList(library);
-    }
+    // } else {
+    //   return _buildArtistsList(library);
+    // }
   }
 
   Widget _buildPlaylistsList(LibraryService library) {
@@ -322,7 +274,7 @@ class _WebSidebarState extends State<WebSidebar> {
             icon: Icons.favorite_rounded,
             iconColor: Colors.purpleAccent,
             onTap: () {
-              // Navigate to Liked Songs
+              // Switch to Library tab to show Liked Songs
               widget.onTabSelected(2);
             },
           ),
@@ -333,8 +285,8 @@ class _WebSidebarState extends State<WebSidebar> {
           title: playlist.name,
           subtitle: 'Playlist • ${playlist.trackCount} songs',
           onTap: () {
-            // Use the callback to navigate in AppShell
-            widget.onPlaylistSelected?.call(playlist.id, playlist.name);
+            // Switch to Library tab (same as Liked Songs)
+            widget.onTabSelected(2);
           },
         )),
 

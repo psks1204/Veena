@@ -101,6 +101,7 @@ class _AppShellState extends State<AppShell> {
   // Web-specific state
   bool _isSidebarCollapsed = false;
   bool _isNowPlayingOpen = false;
+  bool _isQueueTabOpen = false;  // Track if Queue tab is selected in NowPlayingPanel
   String _searchQuery = '';
 
 
@@ -403,6 +404,9 @@ class _AppShellState extends State<AppShell> {
                           onClose: () {
                             setState(() => _isNowPlayingOpen = false);
                           },
+                          onTabChanged: (isQueueOpen) {
+                            setState(() => _isQueueTabOpen = isQueueOpen);
+                          },
                         ),
                       ),
                   ],
@@ -412,6 +416,7 @@ class _AppShellState extends State<AppShell> {
               // Bottom Player Bar
               DesktopPlayerBar(
                 isNowPlayingOpen: _isNowPlayingOpen,
+                isQueueTabOpen: _isQueueTabOpen,
                 onNowPlayingToggle: () {
                   setState(() => _isNowPlayingOpen = !_isNowPlayingOpen);
                 },

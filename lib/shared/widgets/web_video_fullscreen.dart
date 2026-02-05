@@ -35,9 +35,8 @@ class WebVideoFullscreen {
       debugPrint('Fullscreen error: $e');
     }
 
-    // Small delay to allow NowPlayingPanel to rebuild and remove its VideoPlayer
-    // before we create ours
-    Future.delayed(const Duration(milliseconds: 50), () {
+    // Delay to allow panel's VideoPlayer to be removed from DOM first
+    Future.delayed(const Duration(milliseconds: 100), () {
       _overlayEntry = OverlayEntry(
         builder: (context) => _FullscreenOverlay(
           controller: controller,
@@ -48,10 +47,12 @@ class WebVideoFullscreen {
 
       Overlay.of(context).insert(_overlayEntry!);
       
-      // Resume playback after overlay is inserted
-      if (wasPlaying && !controller.value.isPlaying) {
-        controller.play();
-      }
+      // Auto-resume after DOM settles (Flutter Web workaround)
+      Future.delayed(const Duration(milliseconds: 150), () {
+        if (wasPlaying && !controller.value.isPlaying) {
+          controller.play();
+        }
+      });
     });
   }
 
@@ -78,9 +79,10 @@ class WebVideoFullscreen {
     isFullscreenActive = false;
     onStateChanged?.call();
     
-    // Restore playback after a small delay to allow NowPlayingPanel to rebuild
+    // Auto-resume after DOM settles (Flutter Web workaround)
+    // Longer delay to allow panel's VideoPlayer to mount fully
     if (isCurrentlyPlaying) {
-      Future.delayed(const Duration(milliseconds: 50), () {
+      Future.delayed(const Duration(milliseconds: 150), () {
         if (!controller.value.isPlaying) {
           controller.play();
         }

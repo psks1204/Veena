@@ -73,9 +73,8 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
   Future<void> playFromUri(Uri uri, [Map<String, dynamic>? extras]) async {
     debugPrint('VeenaAudioHandler: playFromUri called with $uri');
     await _player.setUrl(uri.toString());
-    debugPrint('VeenaAudioHandler: setUrl done, calling play');
-    await _player.play();
-    debugPrint('VeenaAudioHandler: play started successfully');
+    debugPrint('VeenaAudioHandler: setUrl done (not auto-playing)');
+    // NOTE: We don't call play() here anymore - caller will seek then play
   }
 
   @override

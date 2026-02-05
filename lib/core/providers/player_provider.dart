@@ -373,16 +373,19 @@ class PlayerProvider extends ChangeNotifier {
     // Set media item for notification (cast to our handler type)
     (audioHandler as dynamic).setMediaItem(item);
     
-    // Play from URI
+    // Load audio URL (does NOT auto-play anymore)
     await audioHandler.playFromUri(Uri.parse(media.hlsUrl!));
     
-    // Seek to start position if provided (for audio/video switching)
+    // Seek to position BEFORE playing (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
-      // Small delay to allow audio to initialize before seeking
-      await Future.delayed(const Duration(milliseconds: 300));
+      debugPrint('[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s BEFORE play');
       await audioHandler.seek(startPosition);
-      debugPrint('[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s');
+      debugPrint('[PlayerProvider] Audio seeked, now starting playback');
     }
+    
+    // NOW start playback from the seeked position
+    await audioHandler.play();
+    debugPrint('[PlayerProvider] Audio playback started');
     
     _isLoading = false;
     notifyListeners();

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/models/media_item.dart';
@@ -15,10 +16,12 @@ class DesktopPlayerBar extends StatefulWidget {
     super.key,
     this.onNowPlayingToggle,
     this.isNowPlayingOpen = false,
+    this.isQueueTabOpen = false,
   });
 
   final VoidCallback? onNowPlayingToggle;
   final bool isNowPlayingOpen;
+  final bool isQueueTabOpen;  // True when Queue tab is selected in NowPlayingPanel
 
   @override
   State<DesktopPlayerBar> createState() => _DesktopPlayerBarState();
@@ -157,11 +160,20 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
     );
   }
 
-  /// Left section: Track artwork, title, artist, like button
+  /// Left section: Track artwork (or mini video when queue is open), title, artist, like button
   Widget _buildTrackInfo(MediaItem media, PlayerProvider player) {
+    // Check if video is playing
+    final isVideoPlaying = media.isVideo && 
+        player.videoController != null && 
+        player.videoController!.value.isInitialized;
+    
+    // CRITICAL: Only render VideoPlayer when Queue tab is open
+    // This ensures only ONE VideoPlayer exists in the widget tree at any time
+    final showVideoHere = widget.isQueueTabOpen && isVideoPlaying;
+
     return Row(
       children: [
-        // Artwork
+        // Container that holds artwork OR video player (never both)
         GestureDetector(
           onTap: widget.onNowPlayingToggle,
           child: MouseRegion(
@@ -171,17 +183,19 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
               height: 56,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
-                image: media.thumbnailUrl != null
-                    ? DecorationImage(
-                        image: NetworkImage(media.thumbnailUrl!),
-                        fit: BoxFit.cover,
-                      )
-                    : null,
                 color: Colors.grey[800],
               ),
-              child: media.thumbnailUrl == null
-                  ? const Icon(Icons.music_note_rounded, color: Colors.white54)
-                  : null,
+              clipBehavior: Clip.antiAlias,
+              child: showVideoHere
+                  // Show VideoPlayer ONLY when Queue tab is open
+                  ? AspectRatio(
+                      aspectRatio: player.videoController!.value.aspectRatio,
+                      child: VideoPlayer(player.videoController!),
+                    )
+                  // Show artwork when Details tab or when audio
+                  : media.thumbnailUrl != null
+                      ? Image.network(media.thumbnailUrl!, fit: BoxFit.cover)
+                      : const Icon(Icons.music_note_rounded, color: Colors.white54),
             ),
           ),
         ),
