@@ -8,6 +8,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
+import 'seekbar_control.dart';
 
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
@@ -436,33 +437,12 @@ class FullPlayer extends StatelessWidget {
       child: Column(
         children: [
           // Progress
-          Column(
-            children: [
-              SliderTheme(
-                data: SliderTheme.of(context).copyWith(
-                  activeTrackColor: AppColors.primary,
-                  inactiveTrackColor: Colors.white12,
-                  thumbColor: Colors.white,
-                  overlayColor: AppColors.primary.withOpacity(0.2),
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7, pressedElevation: 10),
-                  trackHeight: 4,
-                ),
-                child: Slider(
-                  value: progress.clamp(0.0, 1.0),
-                  onChanged: onSeek,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(_formatDuration(currentPosition), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600)),
-                    Text(_formatDuration(duration), style: const TextStyle(color: Colors.white54, fontSize: 12, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ],
+          SeekbarControl(
+            progress: progress,
+            duration: duration,
+            currentPosition: currentPosition,
+            onSeek: onSeek ?? (_) {},
+            isWeb: true,
           ),
           const SizedBox(height: 32),
           // Buttons
@@ -691,33 +671,12 @@ class FullPlayer extends StatelessWidget {
           // Progress bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-            child: Column(
-              children: [
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    activeTrackColor: Colors.white,
-                    inactiveTrackColor: Colors.white24,
-                    thumbColor: Colors.white,
-                    overlayShape: SliderComponentShape.noOverlay,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
-                    trackHeight: 4,
-                  ),
-                  child: Slider(
-                    value: progress.clamp(0.0, 1.0),
-                    onChanged: onSeek,
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_formatDuration(currentPosition), style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                      Text(_formatDuration(duration), style: const TextStyle(color: Colors.white60, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              ],
+            child: SeekbarControl(
+              progress: progress,
+              duration: duration,
+              currentPosition: currentPosition,
+              onSeek: onSeek ?? (_) {},
+              isWeb: false,
             ),
           ),
 

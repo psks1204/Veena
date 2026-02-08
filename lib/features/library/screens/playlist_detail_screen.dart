@@ -192,7 +192,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final player = context.watch<PlayerProvider>();
+    // Note: Don't use context.watch here - it causes rebuilds on every position update
     
     return Scaffold(
       body: CustomScrollView(
@@ -354,10 +354,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                           ),
                         ),
                         Expanded(
-                          child: Consumer<PlayerProvider>(
-                            builder: (context, player, _) => TrackTile(
+                          child: Selector<PlayerProvider, String?>(
+                            selector: (_, player) => player.currentMedia?.id,
+                            builder: (context, currentPlayingId, _) => TrackTile(
                               mediaItem: track,
-                              isPlaying: player.currentMedia?.id == track.id,
+                              isPlaying: currentPlayingId == track.id,
                               onTap: () => _playTrack(track, index),
                               onMoreTap: () => _showTrackOptions(track),
                             ),
@@ -371,8 +372,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ),
             
              // Add padding at bottom for mini player + nav bar
-             SliverToBoxAdapter(
-                child: SizedBox(height: player.hasMedia ? 180 : 100),
+             Selector<PlayerProvider, bool>(
+               selector: (_, player) => player.hasMedia,
+               builder: (context, hasMedia, _) => SliverToBoxAdapter(
+                 child: SizedBox(height: hasMedia ? 180 : 100),
+               ),
              ),
         ],
       ),

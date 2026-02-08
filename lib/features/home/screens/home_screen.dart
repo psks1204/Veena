@@ -8,6 +8,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/dashboard_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/services/album_service.dart';
+import '../../../core/services/library_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
@@ -16,6 +17,7 @@ import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
+import '../../playlist/screens/playlist_detail_screen.dart';
 import 'section_view_screen.dart';
 
 /// Home Screen - Premium Studio Design
@@ -53,11 +55,13 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final dashboard = context.read<DashboardService>();
       final albumService = context.read<AlbumService>();
+      final libraryService = context.read<LibraryService>();
       
-      // Load dashboard and albums concurrently
+      // Load dashboard, albums, and featured playlists concurrently
       await Future.wait([
         dashboard.fetchDashboard(),
         albumService.getAllAlbums(),
+        libraryService.getFeaturedPlaylists(),
       ]);
       
       if (mounted) setState(() => _isLoading = false);
@@ -143,6 +147,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       isHorizontal: true,
                     ),
                   ],
+
+                  // Featured Playlists
+                  _buildFeaturedPlaylistsSection(context),
 
                   // Latest Releases
                   if (latestReleases.isNotEmpty) ...[
@@ -528,6 +535,172 @@ class _HomeScreenState extends State<HomeScreen> {
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedPlaylistsSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Consumer<LibraryService>(
+      builder: (context, libraryService, _) {
+        final featuredPlaylists = libraryService.featuredPlaylists;
+        
+        if (featuredPlaylists.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+        
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section Header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.screenPadding,
+                  AppSpacing.lg,
+                  AppSpacing.screenPadding,
+                  AppSpacing.md,
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)],
+                        ),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Featured Playlists',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              // Playlist Cards Horizontal Scroll
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: featuredPlaylists.length,
+                  itemBuilder: (context, index) {
+                    final playlist = featuredPlaylists[index];
+                    return _buildPlaylistCard(context, playlist, isDark);
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPlaylistCard(BuildContext context, Playlist playlist, bool isDark) {
+    final theme = Theme.of(context);
+    
+    return GestureDetector(
+      onTap: () {
+        AppNavigation.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PlaylistDetailScreen(
+              playlistId: playlist.id,
+              playlistTitle: playlist.name,
+              coverUrl: playlist.coverUrl,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        width: 140,
+        margin: const EdgeInsets.only(right: AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Playlist Cover
+            Container(
+              height: 140,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: playlist.coverUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Icon(
+                            Icons.playlist_play_rounded,
+                            color: isDark ? Colors.grey[600] : Colors.grey[400],
+                            size: 48,
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Icon(
+                            Icons.playlist_play_rounded,
+                            color: isDark ? Colors.grey[600] : Colors.grey[400],
+                            size: 48,
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        child: Icon(
+                          Icons.playlist_play_rounded,
+                          color: isDark ? Colors.grey[600] : Colors.grey[400],
+                          size: 48,
+                        ),
+                      ),
+              ),
+            ),
+            
+            const SizedBox(height: AppSpacing.sm),
+            
+            // Title
+            Text(
+              playlist.name,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            
+            // Track count
+            Text(
+              '${playlist.trackCount} songs',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

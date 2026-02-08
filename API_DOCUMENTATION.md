@@ -42,6 +42,7 @@ Powered by `LibraryService`. Manages personal collections and playlists.
 | :--- | :--- | :--- | :--- |
 | `/user/library` | GET | **Library Overview** | Full summary of user's saved content. |
 | `/user/library/playlists` | GET | **Get Playlists** | Lists all playlists created by the user. |
+| `/user/library/playlists/featured` | GET | **Featured Playlists** | Retrieves predefined playlists always visible in dashboard. |
 | `/user/library/playlists` | POST | **Create Playlist** | Creates a new empty playlist. |
 | `/user/library/playlists/{id}`| DELETE | **Delete Playlist** | Removes a playlist from the user's library. |
 | `/user/library/playlists/{id}/tracks` | GET | **Playlist Content** | Fetches all songs within a specific playlist. |

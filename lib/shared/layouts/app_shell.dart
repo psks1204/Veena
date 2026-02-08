@@ -110,6 +110,7 @@ class _AppShellState extends State<AppShell> {
   bool _wasPlaying = false;
 
   void _onPlayerChanged() {
+    if (!mounted) return; // Guard against unmounted widget
     final player = context.read<PlayerProvider>();
     if (player.isPlaying && !_wasPlaying) {
       setState(() {

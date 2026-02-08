@@ -39,12 +39,9 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
       }
     });
     
-    // Listen to processing state for completion
-    _player.processingStateStream.listen((state) {
-      if (state == ProcessingState.completed) {
-        stop();
-      }
-    });
+    // NOTE: Removed automatic stop() on ProcessingState.completed
+    // The PlayerProvider will handle track completion based on position/duration checks
+    // This prevents premature track skipping with HLS streams
   }
 
   /// Set the current media item for notification display

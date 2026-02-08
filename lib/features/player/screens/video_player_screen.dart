@@ -10,6 +10,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/models/media_item.dart';
 import '../../../shared/widgets/full_player.dart';
+import '../../../shared/widgets/seekbar_control.dart';
 import '../../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../../core/utils/fullscreen_stub.dart' as fullscreen;
 
 /// Video Player Screen - Refined to fix layout and overlap issues
@@ -531,33 +532,12 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   }
 
   Widget _buildProgressBar(PlayerProvider player) {
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: AppColors.primary,
-            inactiveTrackColor: Colors.white24,
-            thumbColor: Colors.white,
-            overlayShape: SliderComponentShape.noOverlay,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-            trackHeight: 3,
-          ),
-          child: Slider(
-            value: player.progress.clamp(0.0, 1.0),
-            onChanged: (v) => player.seekToProgress(v),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(player.formatDuration(player.position), style: const TextStyle(color: Colors.white60, fontSize: 11)),
-              Text(player.formatDuration(player.duration), style: const TextStyle(color: Colors.white60, fontSize: 11)),
-            ],
-          ),
-        ),
-      ],
+    return SeekbarControl(
+      progress: player.progress,
+      duration: player.duration,
+      currentPosition: player.position,
+      onSeek: (v) => player.seekToProgress(v),
+      isWeb: true, // Reuse web styling for video overlay
     );
   }
 

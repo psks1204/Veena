@@ -40,6 +40,11 @@ class PlayerProvider extends ChangeNotifier {
   List<int> _shuffledIndices = [];
   RepeatMode _repeatMode = RepeatMode.off;
   
+  // Play operation lock to prevent duplicate concurrent plays
+  int _activePlayOperations = 0;
+  String? _lastPlayedMediaId;
+  DateTime? _lastPlayRequestTime;
+  
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
   bool get isPlaying => _isPlaying;
@@ -93,12 +98,17 @@ class PlayerProvider extends ChangeNotifier {
                    state.processingState == audio_service.AudioProcessingState.buffering;
       
       // Auto-advance to next track when current track completes
-      // Guard: only advance if we actually played something (position > 5s and near end)
+      // STRICT guard: only advance if we actually played most of the song
       if (state.processingState == audio_service.AudioProcessingState.completed) {
-        final hasValidDuration = _duration.inSeconds > 5;
-        final isNearEnd = _position.inSeconds >= _duration.inSeconds - 2;
-        if (hasValidDuration && isNearEnd) {
+        final hasValidDuration = _duration.inSeconds > 10;
+        final hasPlayedMostOfSong = _position.inSeconds >= (_duration.inSeconds * 0.95).floor();
+        final isActuallyNearEnd = _position.inSeconds >= _duration.inSeconds - 3;
+        
+        if (hasValidDuration && hasPlayedMostOfSong && isActuallyNearEnd) {
+          debugPrint('[PlayerProvider] Track completed - advancing (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)');
           _onTrackCompleted();
+        } else {
+          debugPrint('[PlayerProvider] Ignoring premature completion signal (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)');
         }
       }
       
@@ -235,8 +245,31 @@ class PlayerProvider extends ChangeNotifier {
     final actualIndex = _getActualIndex(_currentIndex);
     final media = _queue[actualIndex];
     
+    // Debounce protection: prevent duplicate plays of the same media within 1 second
+    final now = DateTime.now();
+    if (_lastPlayedMediaId == media.id && _lastPlayRequestTime != null) {
+      final timeSinceLastPlay = now.difference(_lastPlayRequestTime!).inMilliseconds;
+      if (timeSinceLastPlay < 1000) {
+        debugPrint('[PlayerProvider] BLOCKED duplicate play request for ${media.id} (${timeSinceLastPlay}ms ago)');
+        return;
+      }
+    }
+    
+    // Lock protection: prevent concurrent play operations for the SAME media
+    // But allow if we are switching to a different track (User pressed Next/Prev)
+    if (_activePlayOperations > 0 && _lastPlayedMediaId == media.id) {
+      debugPrint('[PlayerProvider] BLOCKED duplicate play request for ${media.id} - operation already in progress. Active ops: $_activePlayOperations');
+      return;
+    }
+    
+    // Increment active operations counter
+    _activePlayOperations++;
+    _lastPlayedMediaId = media.id;
+    _lastPlayRequestTime = now;
+    
     if (media.hlsUrl == null || media.hlsUrl!.isEmpty) {
       debugPrint('[PlayerProvider] No HLS URL available for media: ${media.id}');
+      _activePlayOperations--; // Release lock before trying next
       // Try next track
       if (hasNext) {
         _currentIndex++;
@@ -278,6 +311,9 @@ class PlayerProvider extends ChangeNotifier {
       debugPrint('[PlayerProvider] Error playing media: $e');
       _isLoading = false;
       notifyListeners();
+    } finally {
+      // Release lock after play operation completes
+      if (_activePlayOperations > 0) _activePlayOperations--;
     }
   }
 

@@ -35,21 +35,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
   bool _isLoading = true;
   String? _error;
   List<MediaItem> _tracks = [];
-  bool _hasLoadedOnce = false;
 
   @override
   void initState() {
     super.initState();
     _loadTracks();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Refresh tracks when returning to this screen (after adding songs elsewhere)
-    if (_hasLoadedOnce && !_isLoading) {
-      _loadTracks();
-    }
   }
 
   Future<void> _loadTracks() async {
@@ -64,14 +54,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
       setState(() {
         _tracks = tracks;
         _isLoading = false;
-        _hasLoadedOnce = true;
       });
       debugPrint('[PlaylistDetail] Loaded ${tracks.length} tracks');
     } catch (e) {
       setState(() {
         _error = e.toString();
         _isLoading = false;
-        _hasLoadedOnce = true;
       });
       debugPrint('Error loading playlist tracks: $e');
     }
@@ -120,7 +108,6 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
     final isDark = theme.brightness == Brightness.dark;
     final screenWidth = MediaQuery.of(context).size.width;
     final artworkSize = (screenWidth * 0.55).clamp(160.0, 280.0);
-    final player = context.watch<PlayerProvider>();
 
     return Scaffold(
       body: CustomScrollView(
@@ -220,33 +207,6 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
               ),
               child: Row(
                 children: [
-                  // Like button
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _isLiked = !_isLiked;
-                      });
-                    },
-                    icon: Icon(
-                      _isLiked 
-                          ? Icons.favorite_rounded 
-                          : Icons.favorite_border_rounded,
-                      color: _isLiked ? AppColors.primary : null,
-                    ),
-                  ),
-                  
-                  // Download button
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.download_outlined),
-                  ),
-                  
-                  // More options
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.more_vert_rounded),
-                  ),
-                  
                   const Spacer(),
                   
                   // Shuffle button
@@ -338,39 +298,44 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
               ),
             )
           else
-            // Track list
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
-              sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final track = _tracks[index];
-                    final isPlaying = player.currentMedia?.id == track.id;
-                    
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      child: AuraTrackTile(
-                        index: index + 1,
-                        title: track.title,
-                        subtitle: track.artistName,
-                        duration: '',
-                        imageUrl: track.thumbnailUrl,
-                        isPlaying: isPlaying,
-                        onTap: () => _playTrack(track, trackIndex: index),
-                        onMoreTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) => AddToPlaylistSheet(mediaItem: track),
-                          );
-                        },
-                      ),
-                    );
-                  },
-                  childCount: _tracks.length,
-                ),
-              ),
+            // Track list - use Selector to only rebuild when current track changes, not on every position update
+            Selector<PlayerProvider, String?>(
+              selector: (_, player) => player.currentMedia?.id,
+              builder: (context, currentPlayingId, _) {
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final track = _tracks[index];
+                        final isPlaying = currentPlayingId == track.id;
+                        
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                          child: AuraTrackTile(
+                            index: index + 1,
+                            title: track.title,
+                            subtitle: track.artistName,
+                            duration: '',
+                            imageUrl: track.thumbnailUrl,
+                            isPlaying: isPlaying,
+                            onTap: () => _playTrack(track, trackIndex: index),
+                            onMoreTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (context) => AddToPlaylistSheet(mediaItem: track),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                      childCount: _tracks.length,
+                    ),
+                  ),
+                );
+              },
             ),
 
           // Bottom padding

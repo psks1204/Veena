@@ -105,6 +105,7 @@ class LibraryService extends ChangeNotifier {
   LibraryService(this._api);
   
   List<Playlist> _playlists = [];
+  List<Playlist> _featuredPlaylists = [];
   List<MediaItem> _favorites = [];
   List<Artist> _artists = [];
   List<Album> _albums = [];
@@ -112,6 +113,7 @@ class LibraryService extends ChangeNotifier {
   String? _error;
   
   List<Playlist> get playlists => _playlists;
+  List<Playlist> get featuredPlaylists => _featuredPlaylists;
   List<MediaItem> get favorites => _favorites;
   List<Artist> get artists => _artists;
   List<Album> get albums => _albums;
@@ -183,6 +185,23 @@ class LibraryService extends ChangeNotifier {
       return _playlists;
     } catch (e) {
       debugPrint('Get playlists error: $e');
+      return [];
+    }
+  }
+  
+  /// Get featured playlists
+  /// GET /api/user/library/playlists/featured
+  Future<List<Playlist>> getFeaturedPlaylists() async {
+    try {
+      final data = await _api.get('/user/library/playlists/featured');
+      if (data != null && data is List) {
+        _featuredPlaylists = data.map((item) => Playlist.fromJson(item)).toList();
+        debugPrint('[LibraryService] Loaded ${_featuredPlaylists.length} featured playlists');
+        notifyListeners();
+      }
+      return _featuredPlaylists;
+    } catch (e) {
+      debugPrint('Get featured playlists error: $e');
       return [];
     }
   }
