@@ -85,10 +85,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       builder: (context, p, _) {
         final m = p.currentMedia;
         return FullPlayer(
-          trackTitle: m?.title ?? 'Unknown',
-          artistName: m?.artistName ?? 'Unknown Artist',
-          albumName: m?.artistName ?? '',
-          artworkUrl: m?.thumbnailUrl,
+          mediaItem: m!,
           isPlaying: p.isPlaying,
           progress: p.progress,
           duration: p.duration,
@@ -515,7 +512,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
-                player.currentMedia?.description ?? 'Unknown Artist',
+                player.currentMedia?.fullArtistString ?? 'Unknown Artist',
                 style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,

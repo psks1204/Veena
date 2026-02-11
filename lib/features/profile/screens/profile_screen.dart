@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/theme_provider.dart';
+import '../../../core/providers/profile_provider.dart';
+import '../../../core/navigation/app_navigation.dart';
 import '../../auth/services/auth_service.dart';
+import 'edit_profile_screen.dart';
 
 /// Profile Screen
-/// 
+///
 /// User profile with theme toggle and settings.
+/// Now integrated with ProfileProvider for API-sourced data.
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, this.onSignOut});
 
@@ -28,7 +33,12 @@ class ProfileScreen extends StatelessWidget {
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
           // Profile header
-          _ProfileHeader(),
+          _ProfileHeader(onEditTap: () {
+            AppNavigation.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+            );
+          }),
           
           const SizedBox(height: AppSpacing.xl),
           
@@ -143,16 +153,49 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({this.onEditTap});
+
+  final VoidCallback? onEditTap;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final profileProvider = context.watch<ProfileProvider>();
     final authService = context.watch<AuthService>();
 
-    final userName = authService.userName ?? 'User';
-    final userEmail = authService.userEmail ?? 'user@example.com';
-    final userPicture = authService.userPicture;
-    final userInitials = authService.userInitials;
+    // Use ProfileProvider data first, fallback to AuthService
+    final profile = profileProvider.profile;
+    
+    final pName = profile?.name;
+    final userName = (pName != null && pName.isNotEmpty) 
+        ? pName 
+        : (authService.userName ?? 'User');
+        
+    final pEmail = profile?.email;
+    final userEmail = (pEmail != null && pEmail.isNotEmpty)
+        ? pEmail
+        : (authService.userEmail ?? 'user@example.com');
+        
+    final pPhoto = profile?.photoUrl;
+    final userPicture = (pPhoto != null && pPhoto.isNotEmpty)
+        ? pPhoto
+        : authService.userPicture;
+        
+    // Initials logic
+    String userInitials = 'U';
+    if (userName != 'User') {
+      final parts = userName.split(' ');
+      if (parts.length >= 2) {
+        userInitials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      } else if (userName.isNotEmpty) {
+        userInitials = userName[0].toUpperCase();
+      }
+    } else if (profile?.initials != null) {
+      userInitials = profile!.initials;
+    } else if (authService.userInitials.isNotEmpty) {
+      userInitials = authService.userInitials;
+    }
 
     return Column(
       children: [
@@ -170,14 +213,14 @@ class _ProfileHeader extends StatelessWidget {
                 offset: const Offset(0, 8),
               ),
             ],
-            image: userPicture != null
+            image: userPicture != null && userPicture.isNotEmpty
                 ? DecorationImage(
                     image: NetworkImage(userPicture),
                     fit: BoxFit.cover,
                   )
                 : null,
           ),
-          child: userPicture == null
+          child: userPicture == null || userPicture.isEmpty
               ? Center(
                   child: Text(
                     userInitials,
@@ -215,7 +258,7 @@ class _ProfileHeader extends StatelessWidget {
         
         // Edit profile button
         OutlinedButton(
-          onPressed: () {},
+          onPressed: onEditTap,
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.lg,

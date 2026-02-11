@@ -8,6 +8,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
+import '../../features/library/screens/album_detail_screen.dart';
 import 'seekbar_control.dart';
 
 
@@ -16,10 +17,7 @@ import 'seekbar_control.dart';
 class FullPlayer extends StatelessWidget {
   const FullPlayer({
     super.key,
-    required this.trackTitle,
-    required this.artistName,
-    required this.albumName,
-    this.artworkUrl,
+    required this.mediaItem,
     this.isPlaying = false,
     this.progress = 0.0,
     this.duration = const Duration(minutes: 3, seconds: 30),
@@ -38,10 +36,7 @@ class FullPlayer extends StatelessWidget {
     this.onClose,
   });
 
-  final String trackTitle;
-  final String artistName;
-  final String albumName;
-  final String? artworkUrl;
+  final MediaItem mediaItem;
   final bool isPlaying;
   final double progress;
   final Duration duration;
@@ -63,6 +58,23 @@ class FullPlayer extends StatelessWidget {
     final minutes = d.inMinutes;
     final seconds = d.inSeconds % 60;
     return '$minutes:${seconds.toString().padLeft(2, '0')}';
+  }
+
+  void _navigateToAlbum(BuildContext context) {
+    if (mediaItem.album != null) {
+      // Close player first if it's a modal or separate screen
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
+      
+      // Navigate to album detail
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AlbumDetailScreen(albumId: mediaItem.album!.id.toString()),
+        ),
+      );
+    }
   }
 
   void _showQueueSheet(BuildContext context) {
@@ -189,12 +201,12 @@ class FullPlayer extends StatelessWidget {
       body: Stack(
         children: [
           // 1. Blurred Background layer
-          if (artworkUrl != null && artworkUrl!.isNotEmpty)
+          if (mediaItem.thumbnailUrl != null && mediaItem.thumbnailUrl!.isNotEmpty)
             Positioned.fill(
               child: ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
                 child: Image.network(
-                  artworkUrl!,
+                  mediaItem.thumbnailUrl!,
                   fit: BoxFit.cover,
                   color: Colors.black.withOpacity(0.5),
                   colorBlendMode: BlendMode.darken,
@@ -226,7 +238,7 @@ class FullPlayer extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Left side - Artwork and controls
+              // Left side - Artwork, Metadata and Controls
               Expanded(
                 flex: 2,
                 child: Container(
@@ -240,7 +252,7 @@ class FullPlayer extends StatelessWidget {
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                // Artwork with premium shadow and glow
+                                // Artwork
                                 Container(
                                   width: artworkSize,
                                   height: artworkSize,
@@ -260,8 +272,8 @@ class FullPlayer extends StatelessWidget {
                                     ],
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child: artworkUrl != null && artworkUrl!.isNotEmpty
-                                      ? Image.network(artworkUrl!, fit: BoxFit.cover)
+                                  child: mediaItem.thumbnailUrl != null && mediaItem.thumbnailUrl!.isNotEmpty
+                                      ? Image.network(mediaItem.thumbnailUrl!, fit: BoxFit.cover)
                                       : Container(
                                           color: Colors.grey[900],
                                           child: const Icon(Icons.music_note_rounded, size: 80, color: Colors.white24),
@@ -272,7 +284,7 @@ class FullPlayer extends StatelessWidget {
                                 Column(
                                   children: [
                                     Text(
-                                      trackTitle,
+                                      mediaItem.title,
                                       style: const TextStyle(
                                         color: Colors.white,
                                         fontSize: 28,
@@ -285,13 +297,29 @@ class FullPlayer extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      artistName,
+                                      mediaItem.fullArtistString,
                                       style: TextStyle(
                                         color: Colors.white.withOpacity(0.7),
                                         fontSize: 16,
                                         fontWeight: FontWeight.w500,
                                       ),
+                                      textAlign: TextAlign.center,
                                     ),
+                                    // Credits (Composer/Lyricist) for Web
+                                    if (mediaItem.composerName != null || mediaItem.lyricistName != null) ...[
+                                      const SizedBox(height: 12),
+                                      Row(
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          if (mediaItem.composerName != null)
+                                            _buildCreditBadge('Music', mediaItem.composerName!),
+                                          if (mediaItem.composerName != null && mediaItem.lyricistName != null)
+                                            const SizedBox(width: 8),
+                                          if (mediaItem.lyricistName != null)
+                                            _buildCreditBadge('Lyrics', mediaItem.lyricistName!),
+                                        ],
+                                      ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 32),
@@ -306,7 +334,7 @@ class FullPlayer extends StatelessWidget {
                                     const SizedBox(width: 24),
                                     IconButton(onPressed: () {}, icon: const Icon(Icons.share_outlined, color: Colors.white54, size: 18)),
                                     const SizedBox(width: 24),
-                                    IconButton(onPressed: () {}, icon: const Icon(Icons.list_rounded, color: Colors.white54, size: 22)),
+                                    IconButton(onPressed: () => _showQueueSheet(context), icon: const Icon(Icons.list_rounded, color: Colors.white54, size: 22)),
                                   ],
                                 ),
                               ],
@@ -361,7 +389,7 @@ class FullPlayer extends StatelessWidget {
                             )
                           : Center(
                               child: Text(
-                                'Lyrics not available for this track',
+                                'Lyrics not available',
                                 style: TextStyle(color: Colors.white24, fontSize: 14),
                               ),
                             ),
@@ -394,32 +422,69 @@ class FullPlayer extends StatelessWidget {
               child: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 24),
             ),
           ),
-          Column(
-            children: [
-              Text(
-                'PLAYING FROM',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white54,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 2.0,
-                  fontSize: 9,
-                ),
+          if (mediaItem.album != null)
+            GestureDetector(
+              onTap: () => _navigateToAlbum(context),
+              child: Column(
+                children: [
+                  Text(
+                    'PLAYING FROM',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white54,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.0,
+                      fontSize: 9,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        mediaItem.albumName?.toUpperCase() ?? '',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 12,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.chevron_right_rounded, color: Colors.white54, size: 14),
+                    ],
+                  ),
+                ],
               ),
-              const SizedBox(height: 4),
-              Text(
-                albumName.toUpperCase(),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  letterSpacing: 1.0,
-                ),
-              ),
-            ],
-          ),
+            )
+          else
+            const SizedBox(),
           IconButton(
             onPressed: () {},
             icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCreditBadge(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: const TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
+          ),
+          Text(
+            value,
+            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -471,27 +536,7 @@ class FullPlayer extends StatelessWidget {
               const SizedBox(width: 16),
               GestureDetector(
                 onTap: onPlayPause,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Icon(
-                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    size: 32,
-                    color: Colors.black,
-                  ),
-                ),
+                child: Icon(isPlaying ? Icons.pause_circle_filled_rounded : Icons.play_circle_fill_rounded, size: 60, color: Colors.white),
               ),
               const SizedBox(width: 16),
               IconButton(
@@ -520,7 +565,7 @@ class FullPlayer extends StatelessWidget {
     );
   }
 
-  /// Mobile Layout - Original design (unchanged)
+  /// Mobile Layout - Enhanced with Credits and Sub-artists
   Widget _buildMobileLayout(BuildContext context, ThemeData theme, double artworkSize) {
     return SingleChildScrollView(
       padding: const EdgeInsets.only(bottom: 40),
@@ -536,27 +581,40 @@ class FullPlayer extends StatelessWidget {
                   onPressed: onClose,
                   icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
                 ),
-                Column(
-                  children: [
-                    Text(
-                      'PLAYING FROM PLAYLIST',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.0,
-                        fontSize: 10,
-                      ),
+                if (mediaItem.album != null)
+                  GestureDetector(
+                    onTap: () => _navigateToAlbum(context),
+                    child: Column(
+                      children: [
+                        Text(
+                          'PLAYING FROM',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.0,
+                            fontSize: 10,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            Text(
+                              mediaItem.albumName!.toUpperCase(),
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(width: 2),
+                            const Icon(Icons.chevron_right_rounded, color: Colors.white70, size: 16),
+                          ],
+                        ),
+                      ],
                     ),
-                    Text(
-                      albumName,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
+                  )
+                else
+                  const Text('NOW PLAYING', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: () {},
                   icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
@@ -585,8 +643,8 @@ class FullPlayer extends StatelessWidget {
                   ],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child: artworkUrl != null && artworkUrl!.isNotEmpty
-                    ? Image.network(artworkUrl!, fit: BoxFit.cover)
+                child: mediaItem.thumbnailUrl != null && mediaItem.thumbnailUrl!.isNotEmpty
+                    ? Image.network(mediaItem.thumbnailUrl!, fit: BoxFit.cover)
                     : Container(
                         color: Colors.grey[900],
                         child: const Icon(Icons.music_note_rounded, size: 80, color: Colors.white24),
@@ -595,9 +653,9 @@ class FullPlayer extends StatelessWidget {
             ),
           ),
 
-          const SizedBox(height: 60),
+          const SizedBox(height: 40),
 
-          // Meta info and Add button
+          // Meta info (Title, Artist, Sub-artists)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Row(
@@ -607,7 +665,7 @@ class FullPlayer extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        trackTitle,
+                        mediaItem.title,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -617,14 +675,16 @@ class FullPlayer extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 4),
+                      // Artist & Sub-artists
                       Text(
-                        artistName,
+                        mediaItem.fullArtistString,
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
                         ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
@@ -632,41 +692,42 @@ class FullPlayer extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: () {
-                    // We need MediaItem. Since FullPlayer only receives basic strings, we construct a temp one
-                    // ideally FullPlayer should receive the full MediaItem
-                    final tempItem = MediaItem(
-                      id: 'current', // This will fail if ID is needed for API. 
-                      // FIX: FullPlayer needs the actual MediaItem or ID.
-                      // For now, assuming the context provides the current player state which has the item.
-                      title: trackTitle,
-                      description: artistName,
-                      thumbnailUrl: artworkUrl,
-                      mediaType: MediaType.audio,
-                      status: MediaStatus.published,
-                      createdAt: DateTime.now(),
-                      updatedAt: DateTime.now(),
+                     showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => AddToPlaylistSheet(mediaItem: mediaItem),
                     );
-                    
-                    // Better approach: Get current item from PlayerProvider
-                    final player = context.read<PlayerProvider>();
-                    final currentMedia = player.currentMedia;
-                    
-                    if (currentMedia != null) {
-                       showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => AddToPlaylistSheet(mediaItem: currentMedia),
-                      );
-                    }
                   },
                   icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
                 ),
               ],
             ),
           ),
+          
+          // Credits Section (if available)
+          if (mediaItem.composerName != null || mediaItem.lyricistName != null) ...[
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    if (mediaItem.composerName != null)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: _buildCreditBadge('Music', mediaItem.composerName!),
+                      ),
+                    if (mediaItem.lyricistName != null)
+                      _buildCreditBadge('Lyrics', mediaItem.lyricistName!),
+                  ],
+                ),
+              ),
+            ),
+          ],
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 24),
 
           // Progress bar
           Padding(
@@ -743,7 +804,7 @@ class FullPlayer extends StatelessWidget {
 
           const SizedBox(height: 32),
 
-          // Bottom mini controls
+          // Linked Media Switcher & Footer
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
             child: Consumer<PlayerProvider>(
@@ -758,34 +819,27 @@ class FullPlayer extends StatelessWidget {
                     if (hasLinkedVideo)
                       GestureDetector(
                         onTap: () {
-                          // Switch to linked video - unified player will adapt
-                          final currentPosition = player.position;
-                          
-                          // Create MediaItem from LinkedMediaInfo
-                          final videoItem = MediaItem(
-                            id: linkedMedia.id,
-                            title: linkedMedia.title,
-                            mediaType: linkedMedia.mediaType,
-                            thumbnailUrl: linkedMedia.thumbnailUrl,
-                            hlsUrl: linkedMedia.hlsUrl,
-                            status: MediaStatus.published,
-                            createdAt: DateTime.now(),
-                            updatedAt: DateTime.now(),
-                            artist: linkedMedia.artist,
-                          );
-                          
-                          // Just play the media - the unified player screen will adapt
-                          player.play(videoItem, startPosition: currentPosition);
+                           // Switch logic identical to before, just consolidated
+                           final currentPosition = player.position;
+                           final videoItem = MediaItem(
+                             id: linkedMedia.id,
+                             title: linkedMedia.title,
+                             mediaType: linkedMedia.mediaType,
+                             thumbnailUrl: linkedMedia.thumbnailUrl,
+                             hlsUrl: linkedMedia.hlsUrl,
+                             status: MediaStatus.published,
+                             createdAt: DateTime.now(),
+                             updatedAt: DateTime.now(),
+                             artist: linkedMedia.artist,
+                           );
+                           player.play(videoItem, startPosition: currentPosition);
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                           decoration: BoxDecoration(
                             color: Colors.white.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: Colors.white.withOpacity(0.2),
-                              width: 1,
-                            ),
+                            border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -799,29 +853,23 @@ class FullPlayer extends StatelessWidget {
                                 child: const Icon(Icons.videocam_rounded, size: 14, color: Colors.white),
                               ),
                               const SizedBox(width: 8),
-                              const Text(
-                                'Watch Video',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
+                              const Text('Watch Video', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
                             ],
                           ),
                         ),
                       )
-                    else
-                      const Icon(Icons.devices_rounded, color: Colors.white60, size: 24),
+                    else 
+                      const SizedBox(),
+                    
                     const Spacer(),
-                    const Icon(Icons.share_outlined, color: Colors.white60, size: 22),
+                    
+                    const Icon(Icons.share_outlined, color: Colors.white60, size: 20),
                     const SizedBox(width: 24),
                     IconButton(
                       onPressed: () => _showQueueSheet(context),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(),
-                      icon: const Icon(Icons.queue_music_rounded, color: Colors.white60, size: 26),
+                      icon: const Icon(Icons.list_rounded, color: Colors.white60, size: 24),
                     ),
                   ],
                 );
@@ -857,9 +905,9 @@ class FullPlayer extends StatelessWidget {
                 children: [
                   Stack(
                     children: [
-                      if (artworkUrl != null)
+                      if (mediaItem.thumbnailUrl != null)
                         Image.network(
-                          artworkUrl!,
+                          mediaItem.thumbnailUrl!,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -884,7 +932,7 @@ class FullPlayer extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          artistName,
+                          mediaItem.fullArtistString,
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -893,7 +941,7 @@ class FullPlayer extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Listening to $artistName is a soul-refreshing experience. More bio details would be fetched from API.',
+                          'Listening to ${mediaItem.fullArtistString} is a soul-refreshing experience. More bio details would be fetched from API.',
                           style: const TextStyle(
                             color: Colors.white70,
                             fontSize: 14,

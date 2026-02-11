@@ -119,6 +119,41 @@ class LikeResponse {
   }
 }
 
+/// Credit information (Composer/Lyricist)
+class CreditInfo {
+  final int id;
+  final String name;
+  final String? bio;
+  final String? imageUrl;
+  final String? creditType;
+
+  const CreditInfo({
+    required this.id,
+    required this.name,
+    this.bio,
+    this.imageUrl,
+    this.creditType,
+  });
+
+  factory CreditInfo.fromJson(Map<String, dynamic> json) {
+    return CreditInfo(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      name: json['name'] as String? ?? 'Unknown',
+      bio: json['bio'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      creditType: json['creditType'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'bio': bio,
+    'imageUrl': imageUrl,
+    'creditType': creditType,
+  };
+}
+
 /// Media Item - main content model
 class MediaItem {
   final String id;
@@ -134,6 +169,11 @@ class MediaItem {
   final DateTime updatedAt;
   final String? linkedMediaId;
   final ArtistInfo? artist;
+  final List<ArtistInfo> subArtists;
+  final String? composerName;
+  final String? lyricistName;
+  final CreditInfo? composer;
+  final CreditInfo? lyricist;
   final AlbumInfo? album;
   final LinkedMediaInfo? linkedMedia;
 
@@ -151,6 +191,11 @@ class MediaItem {
     required this.updatedAt,
     this.linkedMediaId,
     this.artist,
+    this.subArtists = const [],
+    this.composerName,
+    this.lyricistName,
+    this.composer,
+    this.lyricist,
     this.album,
     this.linkedMedia,
   });
@@ -171,6 +216,18 @@ class MediaItem {
       linkedMediaId: json['linkedMediaId'] as String?,
       artist: json['artist'] != null 
           ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
+          : null,
+      subArtists: (json['subArtists'] as List<dynamic>?)
+              ?.map((e) => ArtistInfo.fromJson(e as Map<String, dynamic>))
+              .toList() ?? 
+          [],
+      composerName: json['composerName'] as String?,
+      lyricistName: json['lyricistName'] as String?,
+      composer: json['composer'] != null
+          ? CreditInfo.fromJson(json['composer'] as Map<String, dynamic>)
+          : null,
+      lyricist: json['lyricist'] != null
+          ? CreditInfo.fromJson(json['lyricist'] as Map<String, dynamic>)
           : null,
       album: json['album'] != null 
           ? AlbumInfo.fromJson(json['album'] as Map<String, dynamic>)
@@ -195,11 +252,22 @@ class MediaItem {
     'updatedAt': updatedAt.toIso8601String(),
     'linkedMediaId': linkedMediaId,
     'artist': artist?.toJson(),
+    'subArtists': subArtists.map((e) => e.toJson()).toList(),
+    'composerName': composerName,
+    'lyricistName': lyricistName,
+    'composer': composer?.toJson(),
+    'lyricist': lyricist?.toJson(),
     'album': album?.toJson(),
   };
 
-  /// Helper to get artist name (falls back to description for backwards compat)
+  /// Helper to get artist name
   String get artistName => artist?.name ?? description ?? '';
+  
+  /// Helper to get full artist string (Main + Sub)
+  String get fullArtistString {
+    if (subArtists.isEmpty) return artistName;
+    return '$artistName feat. ${subArtists.map((e) => e.name).join(", ")}';
+  }
   
   /// Helper to get album name
   String? get albumName => album?.name;

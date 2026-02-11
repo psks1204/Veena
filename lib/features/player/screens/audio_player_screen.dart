@@ -27,10 +27,7 @@ class AudioPlayerScreen extends StatelessWidget {
         }
 
         return FullPlayer(
-          trackTitle: player.currentMedia!.title,
-          artistName: player.currentMedia!.description ?? '',
-          albumName: 'Now Playing',
-          artworkUrl: player.currentMedia!.thumbnailUrl,
+          mediaItem: player.currentMedia!,
           isPlaying: player.isPlaying,
           progress: player.progress,
           currentPosition: player.position,

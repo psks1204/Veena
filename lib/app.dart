@@ -3,11 +3,13 @@ import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/player_provider.dart';
+import 'core/providers/profile_provider.dart';
 import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
 import 'core/services/dashboard_service.dart';
 import 'core/services/library_service.dart';
 import 'core/services/album_service.dart';
+import 'core/services/profile_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
@@ -16,6 +18,7 @@ import 'features/home/screens/home_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/player/screens/unified_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'core/services/push_notification_service.dart';
@@ -50,6 +53,7 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MediaService(apiService)),
         ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
         ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
+        ChangeNotifierProvider(create: (_) => ProfileProvider(ProfileService(apiService))),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -100,6 +104,32 @@ class _AppRouterState extends State<_AppRouter> {
         // Inject access token into ApiService for authenticated API calls
         final apiService = context.read<ApiService>();
         apiService.setAccessToken(authService.accessToken);
+        
+        // Initialize profile on login: sends location + Google name via PUT, then fetches GET
+        final profileProvider = context.read<ProfileProvider>();
+        if (!profileProvider.hasInitialized && !profileProvider.isLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            profileProvider.initializeOnLogin(
+              googleName: authService.userName,
+              googleEmail: authService.userEmail,
+            );
+          });
+        }
+        
+        // Show first-login name setup if profile has no name
+        if (profileProvider.needsNameSetup) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) => EditProfileScreen(
+                  initialName: authService.userName,
+                  isFirstLogin: true,
+                ),
+              ),
+            );
+            profileProvider.markNameSetupDone();
+          });
+        }
         
         // Handle 401 Unauthorized - Logout automatically
         apiService.onUnauthorized = () {

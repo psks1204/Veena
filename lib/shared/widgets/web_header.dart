@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/auth/services/auth_service.dart';
+import '../../core/providers/profile_provider.dart';
 
 /// Spotify-style Web Header Bar
 /// 
@@ -103,14 +104,14 @@ class _WebHeaderState extends State<WebHeader> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildMenuItem(
-            icon: Icons.account_circle_outlined,
-            label: 'Account',
-            onTap: () {
-              _toggleUserMenu();
-              // Account navigation
-            },
-          ),
+          // _buildMenuItem(
+          //   icon: Icons.account_circle_outlined,
+          //   label: 'Account',
+          //   onTap: () {
+          //     _toggleUserMenu();
+          //     // Account navigation
+          //   },
+          // ),
           _buildMenuItem(
             icon: Icons.person_outline_rounded,
             label: 'Profile',
@@ -119,14 +120,14 @@ class _WebHeaderState extends State<WebHeader> {
               widget.onNavigateTo(3); // Profile tab
             },
           ),
-          _buildMenuItem(
-            icon: Icons.settings_outlined,
-            label: 'Settings',
-            onTap: () {
-              _toggleUserMenu();
-              // Settings navigation
-            },
-          ),
+          // _buildMenuItem(
+          //   icon: Icons.settings_outlined,
+          //   label: 'Settings',
+          //   onTap: () {
+          //     _toggleUserMenu();
+          //     // Settings navigation
+          //   },
+          // ),
           Divider(color: Colors.white.withOpacity(0.1), height: 1),
           _buildMenuItem(
             icon: Icons.logout_rounded,
@@ -227,7 +228,7 @@ class _WebHeaderState extends State<WebHeader> {
           ),
 
           // Navigation arrows
-          _buildNavigationArrows(),
+          // _buildNavigationArrows(),
           
           const SizedBox(width: 16),
           
@@ -293,6 +294,36 @@ class _WebHeaderState extends State<WebHeader> {
   }
 
   Widget _buildRightActions() {
+    final profileProvider = context.watch<ProfileProvider>();
+    final authService = context.watch<AuthService>();
+    final profile = profileProvider.profile;
+
+    // Fallback logic
+    final pName = profile?.name;
+    final userName = (pName != null && pName.isNotEmpty) 
+        ? pName 
+        : (authService.userName ?? 'User');
+    
+    final pPhoto = profile?.photoUrl;
+    final userPicture = (pPhoto != null && pPhoto.isNotEmpty)
+        ? pPhoto
+        : authService.userPicture;
+
+    // Initials logic
+    String userInitials = 'U';
+    if (userName != 'User') {
+      final parts = userName.split(' ');
+      if (parts.length >= 2) {
+        userInitials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+      } else if (userName.isNotEmpty) {
+        userInitials = userName[0].toUpperCase();
+      }
+    } else if (profile?.initials != null) {
+      userInitials = profile!.initials;
+    } else if (authService.userInitials.isNotEmpty) {
+      userInitials = authService.userInitials;
+    }
+
     return Row(
       children: [
         // Notifications
@@ -320,24 +351,32 @@ class _WebHeaderState extends State<WebHeader> {
                   Container(
                     width: 28,
                     height: 28,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF535353),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF535353),
                       shape: BoxShape.circle,
+                      image: userPicture != null && userPicture.isNotEmpty
+                          ? DecorationImage(
+                              image: NetworkImage(userPicture),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
                     ),
-                    child: Center(
-                      child: Text(
-                        context.read<AuthService>().userInitials,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+                    child: userPicture == null || userPicture.isEmpty
+                        ? Center(
+                            child: Text(
+                              userInitials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    context.read<AuthService>().userName ?? 'User',
+                    userName,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,

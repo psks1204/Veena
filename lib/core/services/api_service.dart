@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 /// Callback type for handling 401 Unauthorized responses
 typedef OnUnauthorizedCallback = void Function();
@@ -111,6 +112,88 @@ class ApiService {
       return _handleResponse(response);
     } catch (e) {
       debugPrint('❌ DELETE Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Multipart POST request (for file uploads)
+  Future<dynamic> multipartPost(
+    String endpoint, {
+    required String filePath,
+    required String fieldName,
+    String? contentType,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      debugPrint('🌐 MULTIPART POST: $uri');
+      
+      final request = http.MultipartRequest('POST', uri);
+      
+      // Add auth header
+      if (_accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+      
+      // Add file with explicit content type if provided
+      MediaType? mediaType;
+      if (contentType != null) {
+        try {
+          mediaType = MediaType.parse(contentType);
+        } catch (_) {}
+      }
+      
+      request.files.add(await http.MultipartFile.fromPath(
+        fieldName,
+        filePath,
+        contentType: mediaType,
+      ));
+      
+      final streamResponse = await request.send();
+      final response = await http.Response.fromStream(streamResponse);
+      return _handleResponse(response);
+    } catch (e) {
+      debugPrint('❌ MULTIPART POST Error: $e');
+      rethrow;
+    }
+  }
+  
+  /// Multipart POST from bytes (for web where file path isn't available)
+  Future<dynamic> multipartPostBytes(
+    String endpoint, {
+    required List<int> bytes,
+    required String fieldName,
+    required String fileName,
+    String? contentType,
+  }) async {
+    try {
+      final uri = Uri.parse('$baseUrl$endpoint');
+      debugPrint('🌐 MULTIPART POST (bytes): $uri');
+      
+      final request = http.MultipartRequest('POST', uri);
+      
+      if (_accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+      
+      MediaType? mediaType;
+      if (contentType != null) {
+        try {
+          mediaType = MediaType.parse(contentType);
+        } catch (_) {}
+      }
+      
+      request.files.add(http.MultipartFile.fromBytes(
+        fieldName,
+        bytes,
+        filename: fileName,
+        contentType: mediaType,
+      ));
+      
+      final streamResponse = await request.send();
+      final response = await http.Response.fromStream(streamResponse);
+      return _handleResponse(response);
+    } catch (e) {
+      debugPrint('❌ MULTIPART POST (bytes) Error: $e');
       rethrow;
     }
   }
