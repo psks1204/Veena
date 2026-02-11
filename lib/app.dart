@@ -24,11 +24,16 @@ import 'shared/layouts/app_shell.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/navigation/app_navigation.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+import 'features/alarm/services/alarm_service.dart';
+
 /// Veena Music Streaming App
 /// 
 /// Premium music streaming application with Spotify-level polish.
 class VeenaApp extends StatelessWidget {
-  const VeenaApp({super.key});
+  final SharedPreferences prefs;
+
+  const VeenaApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +48,7 @@ class VeenaApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         // Core providers
+        Provider<AlarmService>(create: (_) => AlarmService(prefs)),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),

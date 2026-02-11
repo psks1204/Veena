@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'api_service.dart';
 
 /// Background message handler - must be top-level function
@@ -16,6 +17,28 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
   debugPrint('[PushNotification] Background message: ${message.messageId}');
   // Background messages are handled by the system notification
+}
+
+/// Background notification action handler - must be top-level function.
+/// This handles notification action taps (like 'Stop' on alarm) when app is in background.
+@pragma('vm:entry-point')
+void onBackgroundNotificationResponse(NotificationResponse response) async {
+  debugPrint('[PushNotification:BG] Background action received: action=${response.actionId}, id=${response.id}');
+  
+  if (response.actionId == 'stop_alarm') {
+    debugPrint('[PushNotification:BG] Writing stop signal file');
+    try {
+      final dir = await getTemporaryDirectory();
+      final stopFile = File('${dir.path}/stop_alarm_signal');
+      await stopFile.writeAsString('stop');
+    } catch (e) {
+      debugPrint('[PushNotification:BG] Error: $e');
+    }
+    try {
+      final plugin = FlutterLocalNotificationsPlugin();
+      await plugin.cancel(response.id ?? 0);
+    } catch (_) {}
+  }
 }
 
 /// Push Notification Service - Handles FCM and rich notifications
@@ -70,9 +93,10 @@ class PushNotificationService {
     await _localNotifications.initialize(
       initSettings,
       onDidReceiveNotificationResponse: _onNotificationTap,
+      onDidReceiveBackgroundNotificationResponse: onBackgroundNotificationResponse,
     );
     
-    // Create notification channel for Android
+    // Create notification channels for Android
     if (Platform.isAndroid) {
       const channel = AndroidNotificationChannel(
         'veena_notifications',
@@ -83,9 +107,20 @@ class PushNotificationService {
         enableVibration: true,
       );
       
-      await _localNotifications
-          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-          ?.createNotificationChannel(channel);
+      // Alarm channel for alarm notifications
+      const alarmChannel = AndroidNotificationChannel(
+        'veena_alarm_channel',
+        'Veena Alarm',
+        description: 'Alarm playback notifications',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      final androidPlugin = _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      await androidPlugin?.createNotificationChannel(channel);
+      await androidPlugin?.createNotificationChannel(alarmChannel);
     }
   }
 
@@ -333,10 +368,27 @@ class PushNotificationService {
   }
 
   /// Handle notification tap from local notification
-  void _onNotificationTap(NotificationResponse response) {
-    debugPrint('[PushNotification] Notification tapped: ${response.payload}');
+  void _onNotificationTap(NotificationResponse response) async {
+    debugPrint('[PushNotification] Notification tapped: action=${response.actionId}, id=${response.id}, payload=${response.payload}');
     
-    if (response.payload != null) {
+    // Handle Stop Alarm action (action button tap)
+    // OR handle alarm notification body tap (payload contains "veena_alarm")
+    if (response.actionId == 'stop_alarm' || response.payload == 'veena_alarm') {
+      debugPrint('[PushNotification] Alarm stop triggered - writing stop signal file');
+      try {
+        final dir = await getTemporaryDirectory();
+        final stopFile = File('${dir.path}/stop_alarm_signal');
+        await stopFile.writeAsString('stop');
+        debugPrint('[PushNotification] Stop signal file written');
+        
+        await _localNotifications.cancel(response.id ?? 0);
+      } catch (e) {
+        debugPrint('[PushNotification] Error handling stop alarm: $e');
+      }
+      return;
+    }
+
+    if (response.payload != null && response.payload!.isNotEmpty) {
       try {
         final data = jsonDecode(response.payload!) as Map<String, dynamic>;
         _navigateFromNotification(data);

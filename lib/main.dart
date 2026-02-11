@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:audio_service/audio_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
 import 'app.dart';
 import 'core/services/audio_handler.dart';
 import 'core/services/push_notification_service.dart';
@@ -23,7 +25,12 @@ Future<void> main() async {
     
     // Initialize Push Notification Service
     await PushNotificationService().initialize();
+    
+    // Initialize Alarm Manager
+    await AndroidAlarmManager.initialize();
   }
+  
+  final prefs = await SharedPreferences.getInstance();
   
   // Initialize AudioService BEFORE runApp
   audioHandler = await AudioService.init(
@@ -54,5 +61,5 @@ Future<void> main() async {
     overlays: [SystemUiOverlay.top, SystemUiOverlay.bottom],
   );
 
-  runApp(const VeenaApp());
+  runApp(VeenaApp(prefs: prefs));
 }

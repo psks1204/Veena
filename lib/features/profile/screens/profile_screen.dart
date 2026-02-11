@@ -7,6 +7,7 @@ import '../../../core/providers/profile_provider.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../auth/services/auth_service.dart';
 import 'edit_profile_screen.dart';
+import '../../alarm/screens/alarm_list_screen.dart';
 
 /// Profile Screen
 ///
@@ -59,6 +60,17 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Playback',
                 onTap: () {},
               ),
+              if (!kIsWeb)
+                _SettingsTile(
+                  icon: Icons.alarm_rounded,
+                  title: 'Alarms',
+                  onTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AlarmListScreen()),
+                    );
+                  },
+                ),
               _SettingsTile(
                 icon: Icons.storage_rounded,
                 title: 'Data Saver',
