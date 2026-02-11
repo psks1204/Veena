@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
@@ -227,17 +228,37 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Mutex for token refresh to prevent multiple concurrent refresh requests
+  Future<bool>? _refreshFuture;
+
   Future<bool> refreshAccessToken() async {
     if (_refreshToken == null) return false;
+    
+    // If a refresh is already in progress, wait for it
+    if (_refreshFuture != null) {
+      return _refreshFuture!;
+    }
+
+    // Start a new refresh task
+    final completer = Completer<bool>();
+    _refreshFuture = completer.future;
+
     try {
       final result = await platform.refreshToken(_refreshToken!);
       if (result.success) {
         _accessToken = result.accessToken;
         _idToken = result.idToken;
         await platform.storeTokens(accessToken: _accessToken, idToken: _idToken);
+        completer.complete(true);
+        _refreshFuture = null; // Clear future after completion
         return true;
       }
-    } catch (e) { debugPrint(e.toString()); }
+    } catch (e) { 
+      debugPrint(e.toString()); 
+    }
+    
+    completer.complete(false);
+    _refreshFuture = null;
     return false;
   }
 }

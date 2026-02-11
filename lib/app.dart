@@ -105,6 +105,17 @@ class _AppRouterState extends State<_AppRouter> {
         final apiService = context.read<ApiService>();
         apiService.setAccessToken(authService.accessToken);
         
+        // Handle Token Refresh
+        apiService.onRefreshToken = () async {
+          debugPrint('🔄 AppRouter: Refreshing token...');
+          final success = await authService.refreshAccessToken();
+          if (success) {
+            debugPrint('✅ AppRouter: Token refreshed, updating ApiService');
+            apiService.setAccessToken(authService.accessToken);
+          }
+          return success;
+        };
+        
         // Initialize profile on login: sends location + Google name via PUT, then fetches GET
         final profileProvider = context.read<ProfileProvider>();
         if (!profileProvider.hasInitialized && !profileProvider.isLoading) {

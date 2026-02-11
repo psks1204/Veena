@@ -110,4 +110,53 @@ class DashboardService extends ChangeNotifier {
       return [];
     }
   }
+  /// Fetch paginated latest releases with optional type filter
+  Future<List<MediaItem>> fetchLatestMedia({
+    int page = 1, 
+    int limit = 20, 
+    String? type,
+  }) async {
+    try {
+      final queryParams = {
+        'page': page.toString(),
+        'limit': limit.toString(),
+        if (type != null) 'type': type,
+      };
+      
+      final data = await _api.get('/user/dashboard/latest', queryParams: queryParams);
+      
+      if (data != null && data is List) {
+        return data.map((item) => MediaItem.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Latest media fetch error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch paginated popular tracks with optional type filter
+  Future<List<MediaItem>> fetchPopularMedia({
+    int page = 1,
+    int limit = 20,
+    String? type,
+  }) async {
+    try {
+      final queryParams = {
+        'page': page.toString(),
+        'limit': limit.toString(),
+        if (type != null) 'type': type,
+      };
+
+      final data = await _api.get('/user/dashboard/popular', queryParams: queryParams);
+
+      if (data != null && data is List) {
+        return data.map((item) => MediaItem.fromJson(item)).toList();
+      }
+      return [];
+    } catch (e) {
+      debugPrint('Popular media fetch error: $e');
+      return [];
+    }
+  }
 }

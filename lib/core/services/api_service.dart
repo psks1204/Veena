@@ -6,6 +6,10 @@ import 'package:http_parser/http_parser.dart';
 /// Callback type for handling 401 Unauthorized responses
 typedef OnUnauthorizedCallback = void Function();
 
+/// Callback type for refreshing access token
+/// Returns true if refresh was successful
+typedef RefreshTokenCallback = Future<bool> Function();
+
 /// API Service
 /// 
 /// Central HTTP client for all Veena API calls.
@@ -19,6 +23,9 @@ class ApiService {
   /// Callback to be invoked when a 401 Unauthorized response is received
   /// This should trigger logout and redirect to login
   OnUnauthorizedCallback? onUnauthorized;
+
+  /// Callback to be invoked when a 401 is received, to attempt a token refresh
+  RefreshTokenCallback? onRefreshToken;
   
   /// Set the access token for authenticated requests
   void setAccessToken(String? token) {
@@ -44,6 +51,42 @@ class ApiService {
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
   
+  /// Helper: Execute request with retry logic for 401
+  Future<dynamic> _retryRequest(
+    Future<http.Response> Function() requestFn, {
+    bool skipUnauthorizedCallback = false,
+  }) async {
+    try {
+      final response = await requestFn();
+
+      // Check for 401
+      if (response.statusCode == 401 && !skipUnauthorizedCallback) {
+        // Try refresh if callback is available
+        if (onRefreshToken != null) {
+          debugPrint('🔄 401 received, attempting token refresh...');
+          try {
+            final success = await onRefreshToken!();
+            if (success) {
+              debugPrint('✅ Token refresh successful, retrying request...');
+              // Retry request (ApiService token should have been updated by callback)
+              final retryResponse = await requestFn();
+              return _handleResponse(retryResponse, skipUnauthorizedCallback: skipUnauthorizedCallback);
+            } else {
+              debugPrint('❌ Token refresh failed');
+            }
+          } catch (e) {
+            debugPrint('❌ Token refresh error: $e');
+          }
+        }
+      }
+
+      return _handleResponse(response, skipUnauthorizedCallback: skipUnauthorizedCallback);
+    } catch (e) {
+      // If we rethrew from inside, it bubbles up
+      rethrow;
+    }
+  }
+
   /// GET request
   Future<dynamic> get(String endpoint, {Map<String, String>? queryParams}) async {
     try {
@@ -54,8 +97,7 @@ class ApiService {
       
       debugPrint('🌐 GET: $uri');
       
-      final response = await http.get(uri, headers: _headers);
-      return _handleResponse(response);
+      return _retryRequest(() => http.get(uri, headers: _headers));
     } catch (e) {
       debugPrint('❌ GET Error: $e');
       rethrow;
@@ -70,12 +112,14 @@ class ApiService {
       
       debugPrint('🌐 POST: $uri');
       
-      final response = await http.post(
-        uri,
-        headers: _headers,
-        body: body != null ? jsonEncode(body) : null,
+      return _retryRequest(
+        () => http.post(
+          uri,
+          headers: _headers,
+          body: body != null ? jsonEncode(body) : null,
+        ),
+        skipUnauthorizedCallback: skipUnauthorizedCallback,
       );
-      return _handleResponse(response, skipUnauthorizedCallback: skipUnauthorizedCallback);
     } catch (e) {
       debugPrint('❌ POST Error: $e');
       rethrow;
@@ -89,12 +133,11 @@ class ApiService {
       
       debugPrint('🌐 PUT: $uri');
       
-      final response = await http.put(
+      return _retryRequest(() => http.put(
         uri,
         headers: _headers,
         body: body != null ? jsonEncode(body) : null,
-      );
-      return _handleResponse(response);
+      ));
     } catch (e) {
       debugPrint('❌ PUT Error: $e');
       rethrow;
@@ -108,8 +151,7 @@ class ApiService {
       
       debugPrint('🌐 DELETE: $uri');
       
-      final response = await http.delete(uri, headers: _headers);
-      return _handleResponse(response);
+      return _retryRequest(() => http.delete(uri, headers: _headers));
     } catch (e) {
       debugPrint('❌ DELETE Error: $e');
       rethrow;
@@ -127,30 +169,31 @@ class ApiService {
       final uri = Uri.parse('$baseUrl$endpoint');
       debugPrint('🌐 MULTIPART POST: $uri');
       
-      final request = http.MultipartRequest('POST', uri);
-      
-      // Add auth header
-      if (_accessToken != null) {
-        request.headers['Authorization'] = 'Bearer $_accessToken';
-      }
-      
-      // Add file with explicit content type if provided
-      MediaType? mediaType;
-      if (contentType != null) {
-        try {
-          mediaType = MediaType.parse(contentType);
-        } catch (_) {}
-      }
-      
-      request.files.add(await http.MultipartFile.fromPath(
-        fieldName,
-        filePath,
-        contentType: mediaType,
-      ));
-      
-      final streamResponse = await request.send();
-      final response = await http.Response.fromStream(streamResponse);
-      return _handleResponse(response);
+      return _retryRequest(() async {
+        final request = http.MultipartRequest('POST', uri);
+        
+        // Add auth header
+        if (_accessToken != null) {
+          request.headers['Authorization'] = 'Bearer $_accessToken';
+        }
+        
+        // Add file with explicit content type if provided
+        MediaType? mediaType;
+        if (contentType != null) {
+          try {
+            mediaType = MediaType.parse(contentType);
+          } catch (_) {}
+        }
+        
+        request.files.add(await http.MultipartFile.fromPath(
+          fieldName,
+          filePath,
+          contentType: mediaType,
+        ));
+        
+        final streamResponse = await request.send();
+        return await http.Response.fromStream(streamResponse);
+      });
     } catch (e) {
       debugPrint('❌ MULTIPART POST Error: $e');
       rethrow;
@@ -169,29 +212,30 @@ class ApiService {
       final uri = Uri.parse('$baseUrl$endpoint');
       debugPrint('🌐 MULTIPART POST (bytes): $uri');
       
-      final request = http.MultipartRequest('POST', uri);
-      
-      if (_accessToken != null) {
-        request.headers['Authorization'] = 'Bearer $_accessToken';
-      }
-      
-      MediaType? mediaType;
-      if (contentType != null) {
-        try {
-          mediaType = MediaType.parse(contentType);
-        } catch (_) {}
-      }
-      
-      request.files.add(http.MultipartFile.fromBytes(
-        fieldName,
-        bytes,
-        filename: fileName,
-        contentType: mediaType,
-      ));
-      
-      final streamResponse = await request.send();
-      final response = await http.Response.fromStream(streamResponse);
-      return _handleResponse(response);
+      return _retryRequest(() async {
+        final request = http.MultipartRequest('POST', uri);
+        
+        if (_accessToken != null) {
+          request.headers['Authorization'] = 'Bearer $_accessToken';
+        }
+        
+        MediaType? mediaType;
+        if (contentType != null) {
+          try {
+            mediaType = MediaType.parse(contentType);
+          } catch (_) {}
+        }
+        
+        request.files.add(http.MultipartFile.fromBytes(
+          fieldName,
+          bytes,
+          filename: fileName,
+          contentType: mediaType,
+        ));
+        
+        final streamResponse = await request.send();
+        return await http.Response.fromStream(streamResponse);
+      });
     } catch (e) {
       debugPrint('❌ MULTIPART POST (bytes) Error: $e');
       rethrow;

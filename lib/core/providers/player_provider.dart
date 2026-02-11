@@ -280,9 +280,14 @@ class PlayerProvider extends ChangeNotifier {
 
     // Clean up video controller if it exists
     if (_videoController != null) {
-      _videoController!.removeListener(_onVideoUpdate);
-      await _videoController!.dispose();
+      final oldController = _videoController!;
       _videoController = null;
+      // Notify listeners immediately so the UI stops using the old controller
+      // caused 'Bad state: No active player with ID' error
+      notifyListeners();
+      
+      oldController.removeListener(_onVideoUpdate);
+      await oldController.dispose();
     }
 
     _currentMedia = media;

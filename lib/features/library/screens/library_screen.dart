@@ -7,6 +7,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/providers/profile_provider.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/video_player_screen.dart';
@@ -110,14 +111,45 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 children: [
                   Builder(
                     builder: (context) {
+                      final profileProvider = context.watch<ProfileProvider>();
                       final authService = context.watch<AuthService>();
-                      final userPicture = authService.userPicture;
-                      final userInitials = authService.userInitials;
+                      final profile = profileProvider.profile;
+                      
+                      // Fallback logic for photo
+                      final pPhoto = profile?.photoUrl;
+                      final userPicture = (pPhoto != null && pPhoto.isNotEmpty)
+                          ? pPhoto
+                          : authService.userPicture;
+                          
+                      // Fallback logic for initials
+                      String userInitials = 'U';
+                      final pName = profile?.name;
+                      final userName = (pName != null && pName.isNotEmpty) 
+                          ? pName 
+                          : (authService.userName ?? 'User');
+                          
+                      if (userName != 'User') {
+                        final parts = userName.split(' ');
+                        if (parts.length >= 2) {
+                          userInitials = '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+                        } else if (userName.isNotEmpty) {
+                          userInitials = userName[0].toUpperCase();
+                        }
+                      } else if (profile?.initials != null) {
+                        userInitials = profile!.initials;
+                      } else if (authService.userInitials.isNotEmpty) {
+                        userInitials = authService.userInitials;
+                      }
+
                       return CircleAvatar(
                         radius: 18,
                         backgroundColor: AppColors.primary,
-                        backgroundImage: userPicture != null ? NetworkImage(userPicture) : null,
-                        child: userPicture == null ? Text(userInitials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)) : null,
+                        backgroundImage: userPicture != null && userPicture.isNotEmpty 
+                            ? NetworkImage(userPicture) 
+                            : null,
+                        child: (userPicture == null || userPicture.isEmpty) 
+                            ? Text(userInitials, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)) 
+                            : null,
                       );
                     },
                   ),

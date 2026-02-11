@@ -18,6 +18,7 @@ import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
 import '../../playlist/screens/playlist_detail_screen.dart';
+import '../widgets/featured_carousel.dart';
 import 'section_view_screen.dart';
 
 /// Home Screen - Premium Studio Design
@@ -75,11 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _playMedia(MediaItem item) {
+  void _playMedia(List<MediaItem> items, int index) {
     final player = context.read<PlayerProvider>();
     final mediaService = context.read<MediaService>();
     
-    player.play(item);
+    player.playQueue(items, startIndex: index);
+    
+    final item = items[index];
     mediaService.recordPlay(item.id); // Track analytics
 
     if (item.isVideo && !kIsWeb) {
@@ -215,101 +218,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    // Interactive Hero Section - Shows top item if available
+    // Interactive Hero Carousel - Shows top 5 latest releases
     return SliverToBoxAdapter(
       child: Consumer<DashboardService>(
         builder: (context, dashboard, _) {
-           final featuredItem = dashboard.popularTracks.isNotEmpty 
-               ? dashboard.popularTracks.first 
-               : (dashboard.latestReleases.isNotEmpty ? dashboard.latestReleases.first : null);
-               
-           if (featuredItem == null) return const SizedBox.shrink();
+           final featuredItems = dashboard.latestReleases.take(5).toList();
+           
+           if (featuredItems.isEmpty) return const SizedBox.shrink();
 
-           return Container(
-             height: 300,
-             margin: const EdgeInsets.all(AppSpacing.screenPadding),
-             child: MouseRegion(
-               cursor: SystemMouseCursors.click,
-               child: GestureDetector(
-                 onTap: () => _playMedia(featuredItem),
-                 child: Stack(
-                   fit: StackFit.expand,
-                   children: [
-                     // Hero Image
-                     ClipRRect(
-                       borderRadius: BorderRadius.circular(24),
-                       child: Image.network(
-                         featuredItem.thumbnailUrl ?? '', 
-                         fit: BoxFit.cover,
-                         errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
-                       ),
-                     ),
-                     // Gradient Overlay
-                     Container(
-                       decoration: BoxDecoration(
-                         borderRadius: BorderRadius.circular(24),
-                         gradient: LinearGradient(
-                           begin: Alignment.topCenter,
-                           end: Alignment.bottomCenter,
-                           colors: [
-                             Colors.transparent,
-                             Colors.black.withOpacity(0.8),
-                           ],
-                         ),
-                       ),
-                     ),
-                     // Content
-                     Padding(
-                       padding: const EdgeInsets.all(AppSpacing.xl),
-                       child: Column(
-                         crossAxisAlignment: CrossAxisAlignment.start,
-                         mainAxisAlignment: MainAxisAlignment.end,
-                         children: [
-                           Container(
-                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                             decoration: BoxDecoration(
-                               color: AppColors.primary,
-                               borderRadius: BorderRadius.circular(20),
-                             ),
-                             child: const Text(
-                               'FEATURED',
-                               style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
-                             ),
-                           ),
-                           const SizedBox(height: AppSpacing.md),
-                           Text(
-                             featuredItem.title,
-                             style: theme.textTheme.displaySmall?.copyWith(
-                               color: Colors.white,
-                               fontWeight: FontWeight.bold,
-                             ),
-                           ),
-                           const SizedBox(height: 8),
-                           Text(
-                             featuredItem.artistName,
-                             style: theme.textTheme.titleMedium?.copyWith(
-                               color: Colors.white70,
-                             ),
-                           ),
-                           const SizedBox(height: AppSpacing.lg),
-                           ElevatedButton.icon(
-                             onPressed: () => _playMedia(featuredItem),
-                             icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                             label: const Text('Play Now'),
-                             style: ElevatedButton.styleFrom(
-                               backgroundColor: AppColors.primary,
-                               foregroundColor: Colors.white,
-                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                             ),
-                           ),
-                         ],
-                       ),
-                     ),
-                   ],
-                 ),
-               ),
-             ),
+           return FeaturedCarousel(
+             items: featuredItems,
+             onPlay: _playMedia,
            );
         },
       ),
@@ -368,7 +287,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     mediaType: item.mediaType,
                     isNew: showBadge && index < 3,
                     isLiked: mediaService.isLiked(item.id),
-                    onTap: () => _playMedia(item),
+                    onTap: () => _playMedia(items, index),
                     onLikeTap: () => _toggleLike(item),
                     onMoreTap: () {
                       showModalBottomSheet(
@@ -404,7 +323,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SectionHeader(
               title: title,
               actionLabel: 'See all',
-              onActionTap: () {},
+              onActionTap: () {
+                AppNavigation.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SectionViewScreen(
+                      title: title,
+                      items: items,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           GridView.builder(
@@ -428,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 subtitle: item.artistName,
                 imageUrl: item.thumbnailUrl ?? '',
                 mediaType: item.mediaType,
-                onTap: () => _playMedia(item),
+                onTap: () => _playMedia(items, index),
               );
             },
           ),
@@ -455,7 +384,17 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SectionHeader(
               title: title,
               actionLabel: 'See all',
-              onActionTap: () {},
+              onActionTap: () {
+                AppNavigation.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => SectionViewScreen(
+                      title: title,
+                      items: items,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           ListView.builder(
@@ -478,7 +417,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
                   isLiked: mediaService.isLiked(item.id),
-                  onTap: () => _playMedia(item),
+                  onTap: () => _playMedia(items, index),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {
                       showModalBottomSheet(

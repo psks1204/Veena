@@ -80,6 +80,7 @@ class _EditProfileScreenState extends State<EditProfileScreen>
     // Show bottom sheet for options
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
+      useRootNavigator: true, // Show above bottom nav
       backgroundColor: Colors.transparent,
       builder: (ctx) => _PhotoPickerSheet(),
     );
