@@ -12,6 +12,7 @@ class ProfileService {
 
   /// GET /api/profile - Fetch current user profile
   Future<UserProfile> getProfile() async {
+    debugPrint('👤 Fetching user profile...');
     try {
       final data = await _api.get('/profile');
       if (data == null) {

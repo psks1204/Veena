@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_profile.dart';
 import '../services/profile_service.dart';
+import '../services/location_service.dart';
 
 /// Profile Provider
 ///
@@ -107,10 +108,16 @@ class ProfileProvider extends ChangeNotifier {
 
   /// Get device location - returns (lat, lng) or null
   Future<(double, double)?> _getDeviceLocation() async {
-    // Use platform-agnostic approach: 
-    // On web, we can't easily get location without geolocator.
-    // For now, return null (location = 0,0 means not set).
-    // The geolocator package can be added later for actual GPS.
+    try {
+      final locationService = LocationService();
+      final position = await locationService.getCurrentPosition();
+      if (position != null) {
+        debugPrint('📍 Location fetched: ${position.latitude}, ${position.longitude}');
+        return (position.latitude, position.longitude);
+      }
+    } catch (e) {
+      debugPrint('Failed to get location: $e');
+    }
     return null;
   }
 
