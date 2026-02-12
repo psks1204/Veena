@@ -8,6 +8,8 @@ import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/services/artist_service.dart';
+import '../../../core/services/library_service.dart';
 import '../../../core/models/media_item.dart';
 import '../../../shared/widgets/full_player.dart';
 import '../../../shared/widgets/seekbar_control.dart';
@@ -520,9 +522,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             ],
           ),
         ),
-        IconButton(
-          onPressed: () {},
-          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 26),
+        // Follow button
+        Consumer<ArtistService>(
+          builder: (context, artistService, _) {
+            final media = player.currentMedia;
+            if (media == null || media.artistId == null) return const SizedBox.shrink();
+            
+            // We need to know if we are following this artist. 
+            // The MediaItem doesn't have 'following' status usually.
+            // We might need to fetch it or check against followed artists list.
+            // For now, let's just show a generic add button that toggles follow if we can.
+            // But better: Check if artist is in LibraryService.artists
+            
+            final library = context.watch<LibraryService>();
+            final isFollowing = library.artists.any((a) => a.id == media.artistId);
+            
+            return IconButton(
+              onPressed: () async {
+                 // Toggle follow
+                 if (media.artistId != null) {
+                   await artistService.toggleFollow(media.artistId!);
+                   // Refresh library to update isFollowing state context
+                   // context.read<LibraryService>().getArtists(); // properly done in toggleFollow usually?
+                   // Actually toggleFollow in ArtistService returns the artist but doesn't update LibraryService list directly unless we call it.
+                   // Let's call refresh
+                   await context.read<LibraryService>().getArtists();
+                 }
+              },
+              icon: Icon(
+                isFollowing ? Icons.check_circle : Icons.add_circle_outline_rounded,
+                color: isFollowing ? AppColors.primary : Colors.white,
+                size: 26
+              ),
+            );
+          }
         ),
       ],
     );

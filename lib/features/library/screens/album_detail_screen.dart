@@ -8,6 +8,8 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/album_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../core/services/artist_service.dart';
+import '../../../core/services/library_service.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/layouts/player_overlay_shell.dart';
@@ -314,6 +316,30 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
                               ),
                            ),
                            const SizedBox(width: AppSpacing.lg),
+                           // Follow Button
+                           if (_album != null && _album!.tracks.isNotEmpty && _album!.tracks.first.artistId != null)
+                             Consumer<ArtistService>(
+                               builder: (context, artistService, _) {
+                                 final artistId = _album!.tracks.first.artistId!;
+                                 final library = context.watch<LibraryService>();
+                                 final isFollowing = library.artists.any((a) => a.id == artistId);
+                                 
+                                 return IconButton(
+                                   onPressed: () async {
+                                     await artistService.toggleFollow(artistId);
+                                     await context.read<LibraryService>().getArtists();
+                                   },
+                                   icon: Icon(
+                                     isFollowing ? Icons.check_circle : Icons.person_add_alt_1_rounded,
+                                     size: 28,
+                                   ),
+                                   color: isFollowing ? AppColors.primary : (isDark ? Colors.white : Colors.black),
+                                 );
+                               }
+                             ),
+                           if (_album != null && _album!.tracks.isNotEmpty && _album!.tracks.first.artistId != null)
+                             const SizedBox(width: AppSpacing.lg),
+
                            // Shuffle
                            IconButton(
                              onPressed: _trackCount > 0 ? () => _playAllTracks(shuffle: true) : null,

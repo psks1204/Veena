@@ -10,6 +10,8 @@ import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
 import '../../features/library/screens/album_detail_screen.dart';
 import 'seekbar_control.dart';
+import '../../../core/services/artist_service.dart';
+import '../../../core/services/library_service.dart';
 
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
@@ -701,6 +703,29 @@ class FullPlayer extends StatelessWidget {
                   },
                   icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
                 ),
+                // Follow Button
+                Consumer<ArtistService>(
+                  builder: (context, artistService, _) {
+                    if (mediaItem.artistId == null) return const SizedBox.shrink();
+                    
+                    final library = context.watch<LibraryService>();
+                    final isFollowing = library.artists.any((a) => a.id == mediaItem.artistId);
+                    
+                    return IconButton(
+                      onPressed: () async {
+                        if (mediaItem.artistId != null) {
+                          await artistService.toggleFollow(mediaItem.artistId!);
+                          await context.read<LibraryService>().getArtists();
+                        }
+                      },
+                      icon: Icon(
+                        isFollowing ? Icons.check_circle : Icons.person_add_alt_1_rounded,
+                        color: isFollowing ? AppColors.primary : Colors.white,
+                        size: 28
+                      ),
+                    );
+                  }
+                ),
               ],
             ),
           ),
@@ -951,14 +976,27 @@ class FullPlayer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 16),
-                        OutlinedButton(
-                          onPressed: () {},
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Colors.white30),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                          ),
-                          child: const Text('Follow'),
+                        const SizedBox(height: 16),
+                        Consumer<ArtistService>(
+                          builder: (context, artistService, _) {
+                            if (mediaItem.artistId == null) return const SizedBox.shrink();
+                            final library = context.watch<LibraryService>();
+                            final isFollowing = library.artists.any((a) => a.id == mediaItem.artistId);
+                            
+                            return OutlinedButton(
+                              onPressed: () async {
+                                await artistService.toggleFollow(mediaItem.artistId!);
+                                await context.read<LibraryService>().getArtists();
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: isFollowing ? Colors.white : Colors.black,
+                                backgroundColor: isFollowing ? Colors.transparent : Colors.white,
+                                side: isFollowing ? const BorderSide(color: Colors.white30) : BorderSide.none,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              ),
+                              child: Text(isFollowing ? 'Following' : 'Follow'),
+                            );
+                          }
                         ),
                       ],
                     ),

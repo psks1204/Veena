@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/artist.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
@@ -299,7 +300,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             } else if (item is Artist) {
               return _buildLibraryTile(
                 title: item.name,
-                subtitle: 'Artist',
+                subtitle: 'Followed Artist',
                 imageUrl: item.imageUrl,
                 isCircle: true,
                 onTap: () {

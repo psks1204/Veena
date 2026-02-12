@@ -279,6 +279,9 @@ class MediaItem {
   bool get isAudio => mediaType == MediaType.audio;
   bool get isPublished => status == MediaStatus.published;
   bool get hasLinkedMedia => linkedMediaId != null || linkedMedia != null;
+
+  /// Helper to get artist ID as String
+  String? get artistId => artist?.id.toString();
 }
 
 /// Media type enum

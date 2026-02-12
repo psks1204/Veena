@@ -11,6 +11,8 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/lyrics_model.dart';
 import '../../../core/navigation/app_navigation.dart';
+import '../../../core/services/artist_service.dart';
+import '../../../core/services/library_service.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/lyrics_card.dart';
 import 'lyrics_fullscreen_screen.dart';
@@ -755,20 +757,37 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   ),
                 ),
                 // Follow button
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white.withOpacity(0.5)),
-                  ),
-                  child: const Text(
-                    'Follow',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                Consumer<ArtistService>(
+                  builder: (context, artistService, _) {
+                    if (media.artistId == null) return const SizedBox.shrink();
+                    final library = context.watch<LibraryService>();
+                    final isFollowing = library.artists.any((a) => a.id == media.artistId);
+
+                    return GestureDetector(
+                      onTap: () async {
+                         await artistService.toggleFollow(media.artistId!);
+                         await context.read<LibraryService>().getArtists();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isFollowing ? Colors.transparent : Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isFollowing ? Colors.white : Colors.transparent
+                          ),
+                        ),
+                        child: Text(
+                          isFollowing ? 'Following' : 'Follow',
+                          style: TextStyle(
+                            color: isFollowing ? Colors.white : Colors.black,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
                 ),
               ],
             ),

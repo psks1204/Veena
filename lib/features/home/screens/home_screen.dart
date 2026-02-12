@@ -5,6 +5,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/artist.dart';
 import '../../../core/services/dashboard_service.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/services/album_service.dart';
@@ -14,6 +15,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../player/screens/unified_player_screen.dart';
+import '../../library/screens/artist_detail_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
@@ -198,6 +200,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.music_note_rounded,
                       items: audios,
                     ),
+                  ],
+
+                  // Artists Section (Moved from Library)
+                  if (dashboard.artists.isNotEmpty) ...[
+                    _buildArtistSection(context, dashboard.artists),
                   ],
 
                   // Empty state
@@ -643,6 +650,97 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildArtistSection(BuildContext context, List<Artist> artists) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return SliverToBoxAdapter(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.lg, AppSpacing.screenPadding, AppSpacing.md),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)]),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Artists',
+                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: 160,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              scrollDirection: Axis.horizontal,
+              itemCount: artists.length > 10 ? 10 : artists.length,
+              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+              itemBuilder: (context, index) {
+                final artist = artists[index];
+                return GestureDetector(
+                  onTap: () {
+                     AppNavigation.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: artist)),
+                    );
+                  },
+                  child: SizedBox(
+                    width: 110,
+                    child: Column(
+                      children: [
+                        Container(
+                          width: 110,
+                          height: 110,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.2),
+                                blurRadius: 8,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                            image: artist.imageUrl != null
+                                ? DecorationImage(image: NetworkImage(artist.imageUrl!), fit: BoxFit.cover)
+                                : null,
+                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          ),
+                          child: artist.imageUrl == null
+                              ? Icon(Icons.person, size: 48, color: isDark ? Colors.grey[600] : Colors.grey[400])
+                              : null,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          artist.name,
+                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

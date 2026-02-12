@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
+import '../models/artist.dart';
 
 /// Dashboard Service
 /// 
@@ -19,6 +20,8 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> get latestReleases => _latestReleases;
   List<MediaItem> get popularTracks => _popularTracks;
   List<MediaItem> get recentlyPlayed => _recentlyPlayed;
+  List<Artist> _artists = [];
+  List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
   String? get error => _error;
   
@@ -51,6 +54,16 @@ class DashboardService extends ChangeNotifier {
           final seen = <String>{};
           _recentlyPlayed = allHistory.where((item) => seen.add(item.id)).toList();
         }
+      }
+
+      // Fetch artists concurrently (from library/all endpoint or where appropriate)
+      try {
+        final artistsData = await _api.get('/user/library/artists/all');
+        if (artistsData != null && artistsData is List) {
+          _artists = artistsData.map((item) => Artist.fromJson(item)).toList();
+        }
+      } catch (e) {
+        debugPrint('Dashboard artists fetch error: $e');
       }
       
       _isLoading = false;

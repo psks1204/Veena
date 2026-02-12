@@ -9,6 +9,7 @@ import 'core/services/media_service.dart';
 import 'core/services/dashboard_service.dart';
 import 'core/services/library_service.dart';
 import 'core/services/album_service.dart';
+import 'core/services/artist_service.dart';
 import 'core/services/profile_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
@@ -59,6 +60,8 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MediaService(apiService)),
         ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
         ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
+        ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
+        ChangeNotifierProvider(create: (_) => ArtistService(apiService)),
         ChangeNotifierProvider(create: (_) => ProfileProvider(ProfileService(apiService))),
       ],
       child: Consumer<ThemeProvider>(

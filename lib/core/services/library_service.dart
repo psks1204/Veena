@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
+import '../models/artist.dart';
 
 /// Playlist Model
 class Playlist {
@@ -34,32 +35,7 @@ class Playlist {
   }
 }
 
-/// Artist Model
-class Artist {
-  final String id;
-  final String name;
-  final String? imageUrl;
-  final String? genre;
-  final bool verified;
-  
-  Artist({
-    required this.id,
-    required this.name,
-    this.imageUrl,
-    this.genre,
-    this.verified = false,
-  });
-  
-  factory Artist.fromJson(Map<String, dynamic> json) {
-    return Artist(
-      id: (json['id'] ?? '').toString(),
-      name: json['name'] ?? 'Unknown Artist',
-      imageUrl: json['imageUrl'] ?? json['thumbnailUrl'],
-      genre: json['genre'] as String?,
-      verified: json['verified'] as bool? ?? false,
-    );
-  }
-}
+
 
 /// Album Model
 class Album {
@@ -147,11 +123,11 @@ class LibraryService extends ChangeNotifier {
               .map((item) => MediaItem.fromJson(item))
               .toList();
         }
-        if (data['artists'] != null) {
-          _artists = (data['artists'] as List)
-              .map((item) => Artist.fromJson(item))
-              .toList();
-        }
+        // if (data['artists'] != null) {
+        //   _artists = (data['artists'] as List)
+        //       .map((item) => Artist.fromJson(item))
+        //       .toList();
+        // }
       }
       
       // Parse albums from /albums endpoint (GET all albums)
@@ -162,6 +138,13 @@ class LibraryService extends ChangeNotifier {
         debugPrint('[LibraryService] Loaded ${_albums.length} albums');
       }
       
+      // Fetch artists separately (followed artists)
+      try {
+        await getArtists();
+      } catch (e) {
+        debugPrint('[LibraryService] Failed to load artists: $e');
+      }
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -285,11 +268,16 @@ class LibraryService extends ChangeNotifier {
   // ==================== ARTISTS ====================
   
   /// Get followed artists
+  /// Get followed artists
+  /// GET /api/artists/following/page
   Future<List<Artist>> getArtists() async {
     try {
-      final data = await _api.get('/user/library/artists');
-      if (data != null && data is List) {
-        _artists = data.map((item) => Artist.fromJson(item)).toList();
+      // Using the new pagination endpoint but fetching first page for now
+      // Ideally this should use ArtistService, but keeping logic here for now to avoid circular dependencies if simple
+      final data = await _api.get('/artists/following/page', queryParams: {'page': '0', 'size': '50'});
+      if (data != null && data['content'] != null) {
+        final content = data['content'] as List;
+        _artists = content.map((item) => Artist.fromJson(item)).toList();
         notifyListeners();
       }
       return _artists;
