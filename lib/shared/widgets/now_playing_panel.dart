@@ -7,6 +7,8 @@ import '../../core/models/media_item.dart';
 import '../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../core/utils/fullscreen_stub.dart' as fullscreen;
 import 'web_video_fullscreen.dart';
 import 'lyrics_card.dart';
+import '../../core/services/artist_service.dart';
+import '../../core/services/library_service.dart';
 
 /// Spotify-style Now Playing Panel
 /// 
@@ -554,15 +556,28 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                 ),
               ),
               const SizedBox(width: 8),
-              OutlinedButton(
-                onPressed: () {},
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  side: const BorderSide(color: Colors.white),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              if (media.artistId != null)
+                Consumer<ArtistService>(
+                  builder: (context, artistService, _) {
+                    final library = context.watch<LibraryService>();
+                    final isFollowing = library.artists.any((a) => a.id == media.artistId);
+                    
+                    return OutlinedButton(
+                      onPressed: () async {
+                        await artistService.toggleFollow(media.artistId!);
+                        await context.read<LibraryService>().getArtists();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isFollowing ? Colors.white : Colors.white,
+                        backgroundColor: isFollowing ? Colors.transparent : Colors.white.withOpacity(0.1),
+                        side: BorderSide(color: isFollowing ? Colors.white38 : Colors.transparent),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                      ),
+                      child: Text(isFollowing ? 'Following' : 'Follow'),
+                    );
+                  }
                 ),
-                child: const Text('Follow'),
-              ),
             ],
           ),
         ],

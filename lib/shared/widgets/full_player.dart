@@ -307,6 +307,28 @@ class FullPlayer extends StatelessWidget {
                                       ),
                                       textAlign: TextAlign.center,
                                     ),
+                                    const SizedBox(height: 16),
+                                    if (mediaItem.artistId != null)
+                                      Consumer<ArtistService>(
+                                        builder: (context, artistService, _) {
+                                          final library = context.watch<LibraryService>();
+                                          final isFollowing = library.artists.any((a) => a.id == mediaItem.artistId);
+                                          
+                                          return OutlinedButton(
+                                            onPressed: () async {
+                                              await artistService.toggleFollow(mediaItem.artistId!);
+                                              await context.read<LibraryService>().getArtists();
+                                            },
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: isFollowing ? AppColors.primary : Colors.white,
+                                              side: BorderSide(color: isFollowing ? AppColors.primary : Colors.white38),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 0),
+                                            ),
+                                            child: Text(isFollowing ? 'Following' : 'Follow'),
+                                          );
+                                        }
+                                      ),
                                     // Credits (Composer/Lyricist) for Web
                                     if (mediaItem.composerName != null || mediaItem.lyricistName != null) ...[
                                       const SizedBox(height: 12),

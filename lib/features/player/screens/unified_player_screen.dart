@@ -1390,13 +1390,48 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
                     const SizedBox(height: 8),
 
-                    // Artist name
-                    Text(
                       media.artistName ?? 'Unknown Artist',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.6),
                         fontSize: 16,
                       ),
+                    ),
+                    
+                    const SizedBox(height: 16),
+
+                    // Web Follow Button
+                    Consumer<ArtistService>(
+                      builder: (context, artistService, _) {
+                        if (media.artistId == null) return const SizedBox.shrink();
+                        final library = context.watch<LibraryService>();
+                        final isFollowing = library.artists.any((a) => a.id == media.artistId);
+
+                        return GestureDetector(
+                          onTap: () async {
+                             await artistService.toggleFollow(media.artistId!);
+                             await context.read<LibraryService>().getArtists();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isFollowing ? AppColors.primary : Colors.white.withOpacity(0.3)
+                              ),
+                            ),
+                            child: Text(
+                              isFollowing ? 'Following' : 'Follow',
+                              style: TextStyle(
+                                color: isFollowing ? AppColors.primary : Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
                     ),
 
                     const SizedBox(height: 40),
