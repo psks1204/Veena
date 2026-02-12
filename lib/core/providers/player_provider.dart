@@ -295,7 +295,8 @@ class PlayerProvider extends ChangeNotifier {
     _currentLyrics = null;
     notifyListeners();
     
-    // Auto-record play event for analytics
+    // Auto-record play event for analytics (Fire-and-forget, non-blocking)
+    debugPrint('[PlayerProvider] 📊 Analytics: Recording play for ${media.id}');
     _mediaService?.recordPlay(media.id);
 
     // Fetch lyrics if available

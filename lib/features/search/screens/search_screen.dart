@@ -83,7 +83,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final mediaService = context.read<MediaService>();
     
     player.play(item);
-    mediaService.recordPlay(item.id);
+    // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
 
     if (item.isVideo) {
       Navigator.of(context, rootNavigator: true).push(

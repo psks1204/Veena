@@ -83,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
     player.playQueue(items, startIndex: index);
     
     final item = items[index];
-    mediaService.recordPlay(item.id); // Track analytics
+    // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
 
     if (item.isVideo && !kIsWeb) {
       // Use rootNavigator to open fullscreen on top of everything
