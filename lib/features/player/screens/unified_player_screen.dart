@@ -1390,6 +1390,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
                     const SizedBox(height: 8),
 
+                    // Artist name
+                    Text(
                       media.artistName ?? 'Unknown Artist',
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.6),
