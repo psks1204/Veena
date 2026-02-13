@@ -31,7 +31,6 @@ Write-Host "========================================="
 Write-Host "  ANDROID LAUNCHER ICONS (mipmap)"
 Write-Host "========================================="
 
-# Android mipmap launcher icons
 $androidIcons = @{
     "mdpi"    = 48
     "hdpi"    = 72
@@ -56,7 +55,6 @@ Write-Host "========================================="
 Write-Host "  ANDROID SPLASH IMAGES (drawable)"
 Write-Host "========================================="
 
-# Android splash images (centered logo)
 $splashSizes = @{
     "mdpi"    = 288
     "hdpi"    = 432
@@ -98,7 +96,6 @@ Write-Host "========================================="
 Write-Host "  iOS APP ICONS"
 Write-Host "========================================="
 
-# iOS App Icons - exact sizes required by Apple
 $iosIcons = @(
     @{ Name = "Icon-App-1024x1024@1x.png"; Size = 1024 }
     @{ Name = "Icon-App-20x20@1x.png"; Size = 20 }
@@ -136,7 +133,6 @@ Write-Host "========================================="
 Write-Host "  iOS LAUNCH + BRANDING IMAGES"
 Write-Host "========================================="
 
-# iOS Launch Images
 $launchImageDir = "$iosDir\LaunchImage.imageset"
 $launchImages = @(
     @{ Name = "LaunchImage.png"; Size = 288 }
@@ -154,7 +150,6 @@ foreach ($img in $launchImages) {
     }
 }
 
-# iOS Branding Images
 $brandingDir = "$iosDir\BrandingImage.imageset"
 $brandingImages = @(
     @{ Name = "BrandingImage.png"; W = 114; H = 34 }
@@ -172,18 +167,35 @@ foreach ($img in $brandingImages) {
     }
 }
 
+# iOS background images (solid dark)
+$bgDir = "$iosDir\LaunchBackground.imageset"
+if (Test-Path "$bgDir\background.png") {
+    $bmp = New-Object System.Drawing.Bitmap(1, 1)
+    $bmp.SetPixel(0, 0, [System.Drawing.Color]::FromArgb(255, 18, 18, 18))
+    $bmp.Save("$bgDir\background.png", [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    Write-Host "Created 1x1 dark bg: background.png"
+}
+if (Test-Path "$bgDir\darkbackground.png") {
+    $bmp = New-Object System.Drawing.Bitmap(1, 1)
+    $bmp.SetPixel(0, 0, [System.Drawing.Color]::FromArgb(255, 18, 18, 18))
+    $bmp.Save("$bgDir\darkbackground.png", [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose()
+    Write-Host "Created 1x1 dark bg: darkbackground.png"
+}
+
 Write-Host ""
 Write-Host "========================================="
 Write-Host "  WEB ICONS"
 Write-Host "========================================="
 
-# Web icons
 $webIcons = @(
     @{ Name = "favicon.png"; Size = 32; Dir = $webDir }
     @{ Name = "Icon-192.png"; Size = 192; Dir = "$webDir\icons" }
     @{ Name = "Icon-512.png"; Size = 512; Dir = "$webDir\icons" }
     @{ Name = "Icon-maskable-192.png"; Size = 192; Dir = "$webDir\icons" }
     @{ Name = "Icon-maskable-512.png"; Size = 512; Dir = "$webDir\icons" }
+    @{ Name = "app_logo.png"; Size = 512; Dir = "$webDir\icons" }
 )
 
 foreach ($icon in $webIcons) {
@@ -195,5 +207,5 @@ foreach ($icon in $webIcons) {
 
 Write-Host ""
 Write-Host "========================================="
-Write-Host "  DONE! All icons resized correctly."
+Write-Host "  ALL DONE! Every icon resized."
 Write-Host "========================================="
