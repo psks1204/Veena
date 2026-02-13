@@ -211,7 +211,7 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
                                 child: CircularProgressIndicator(strokeWidth: 2),
                               ),
                             )
-                          : const SizedBox(height: 80); // Bottom padding
+                          : const SizedBox(height: 140); // Bottom padding
                     }
 
                     final item = _items[index];

@@ -272,7 +272,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+          padding: const EdgeInsets.only(left: AppSpacing.screenPadding, right: AppSpacing.screenPadding, bottom: 140),
           itemCount: items.length + (showLikedSongsTile ? 1 : 0),
           itemBuilder: (context, index) {
             // Liked Songs tile at the top
@@ -488,7 +488,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         Expanded(
           child: Consumer<PlayerProvider>(
             builder: (context, playerWatch, _) => ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              padding: const EdgeInsets.only(left: AppSpacing.screenPadding, right: AppSpacing.screenPadding, bottom: 140),
               itemCount: favorites.length,
               itemBuilder: (context, index) {
                 final item = favorites[index];

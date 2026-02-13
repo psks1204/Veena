@@ -105,7 +105,7 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
         elevation: 0,
       ),
       floatingActionButton: Padding(
-        padding: const EdgeInsets.only(bottom: 72),
+        padding: const EdgeInsets.only(bottom: 140),
         child: FloatingActionButton(
           onPressed: () => _openEditScreen(),
           backgroundColor: AppColors.primary,

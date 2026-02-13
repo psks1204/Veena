@@ -200,7 +200,7 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
 
           // Bottom padding for mini player
           const SliverToBoxAdapter(
-            child: SizedBox(height: 100),
+            child: SizedBox(height: 140),
           ),
         ],
       ),

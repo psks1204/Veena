@@ -193,7 +193,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
           // Bottom padding
           const SliverToBoxAdapter(
-            child: SizedBox(height: 120),
+            child: SizedBox(height: 140),
           ),
         ],
       ),

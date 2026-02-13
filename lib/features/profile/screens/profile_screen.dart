@@ -9,6 +9,9 @@ import '../../../core/navigation/app_navigation.dart';
 import '../../auth/services/auth_service.dart';
 import 'edit_profile_screen.dart';
 import '../../alarm/screens/alarm_list_screen.dart';
+import 'privacy_policy_screen.dart';
+import 'about_us_screen.dart';
+import 'contact_us_screen.dart';
 
 /// Profile Screen
 ///
@@ -56,11 +59,6 @@ class ProfileScreen extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           _SettingsCard(
             children: [
-              _SettingsTile(
-                icon: Icons.music_note_rounded,
-                title: 'Playback',
-                onTap: () {},
-              ),
               if (!kIsWeb)
                 _SettingsTile(
                   icon: Icons.alarm_rounded,
@@ -73,23 +71,8 @@ class ProfileScreen extends StatelessWidget {
                   },
                 ),
               _SettingsTile(
-                icon: Icons.storage_rounded,
-                title: 'Data Saver',
-                onTap: () {},
-              ),
-              _SettingsTile(
-                icon: Icons.download_rounded,
-                title: 'Downloads',
-                onTap: () {},
-              ),
-              _SettingsTile(
                 icon: Icons.notifications_rounded,
                 title: 'Notifications',
-                onTap: () {},
-              ),
-              _SettingsTile(
-                icon: Icons.privacy_tip_rounded,
-                title: 'Privacy',
                 onTap: () {},
                 showDivider: false,
               ),
@@ -106,17 +89,44 @@ class ProfileScreen extends StatelessWidget {
               _SettingsTile(
                 icon: Icons.info_rounded,
                 title: 'About Veena',
-                onTap: () {},
+                onTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AboutUsScreen()),
+                  );
+                },
+              ),
+              _SettingsTile(
+                icon: Icons.contact_mail_rounded,
+                title: 'Contact Us',
+                onTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ContactUsScreen()),
+                  );
+                },
               ),
               _SettingsTile(
                 icon: Icons.article_rounded,
                 title: 'Terms of Service',
-                onTap: () {},
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Coming Soon'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
               ),
               _SettingsTile(
                 icon: Icons.shield_rounded,
                 title: 'Privacy Policy',
-                onTap: () {},
+                onTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                  );
+                },
                 showDivider: false,
               ),
             ],
