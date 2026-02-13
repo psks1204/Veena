@@ -6,7 +6,6 @@ import '../../core/providers/player_provider.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
-import '../widgets/web_sidebar.dart';
 import '../widgets/now_playing_panel.dart';
 import '../widgets/web_header.dart';
 import '../../features/playlist/screens/playlist_detail_screen.dart';
@@ -99,10 +98,8 @@ class _AppShellState extends State<AppShell> {
   final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
 
   // Web-specific state
-  bool _isSidebarCollapsed = false;
   bool _isNowPlayingOpen = false;
   bool _isQueueTabOpen = false;  // Track if Queue tab is selected in NowPlayingPanel
-  String _searchQuery = '';
 
 
 
@@ -328,54 +325,33 @@ class _AppShellState extends State<AppShell> {
         final hasMedia = player.hasMedia;
         
         return Scaffold(
-          backgroundColor: const Color(0xFF000000),
+          backgroundColor: isDark ? const Color(0xFF000000) : AppColors.lightBg,
           body: Column(
             children: [
               // Main content area
               Expanded(
                 child: Row(
                   children: [
-                      // Left Sidebar
-                    WebSidebar(
-                      currentTabIndex: widget.currentIndex,
-                      onTabSelected: widget.onDestinationSelected,
-                      isCollapsed: _isSidebarCollapsed,
-                      onToggleCollapse: () {
-                        setState(() => _isSidebarCollapsed = !_isSidebarCollapsed);
-                      },
-                      onPlaylistSelected: (id, title) {
-                        widget.onDestinationSelected(0); // Switch to Home
-                        // Push to Home navigator
-                        _navigatorKeys[0].currentState?.push(
-                          MaterialPageRoute(
-                            builder: (_) => PlaylistDetailScreen(
-                              playlistId: id, 
-                              playlistTitle: title
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-                    
                     // Main content + header
                     Expanded(
                       child: Container(
-                        margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
+                        margin: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF121212),
+                          color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: isDark ? null : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
                             // Header
                             WebHeader(
-                              onSearch: (query) {
-                                setState(() => _searchQuery = query);
-                                // Navigate to search tab if typing
-                                if (query.isNotEmpty && widget.currentIndex != 1) {
-                                  widget.onDestinationSelected(1);
-                                }
-                              },
+                              currentTabIndex: widget.currentIndex,
                               onNavigateTo: widget.onDestinationSelected,
                             ),
                             
@@ -398,8 +374,15 @@ class _AppShellState extends State<AppShell> {
                       Container(
                         margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF121212),
+                          color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(8),
+                          boxShadow: isDark ? null : [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: NowPlayingPanel(
                           onClose: () {

@@ -56,30 +56,33 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF121212) : AppColors.lightSurface;
+
     return Consumer<PlayerProvider>(
       builder: (context, player, _) {
         if (!player.hasMedia) {
-          return _buildEmptyState();
+          return _buildEmptyState(isDark);
         }
 
         final media = player.currentMedia!;
 
         return Container(
           width: 340,
-          color: const Color(0xFF121212),
+          color: backgroundColor,
           child: Column(
             children: [
               // Header
-              _buildHeader(media),
+              _buildHeader(media, isDark),
               
               // Tabs (Details / Queue)
-              _buildTabs(),
+              _buildTabs(isDark),
 
               // Content
               Expanded(
                 child: _tabIndex == 0 
-                    ? _buildDetailsView(player, media) 
-                    : _buildQueueView(player),
+                    ? _buildDetailsView(player, media, isDark) 
+                    : _buildQueueView(player, isDark),
               ),
             ],
           ),
@@ -88,19 +91,19 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isDark) {
     return Container(
       width: 340,
-      color: const Color(0xFF121212),
+      color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.music_note_rounded, color: Colors.white.withOpacity(0.2), size: 64),
+            Icon(Icons.music_note_rounded, color: isDark ? Colors.white.withOpacity(0.2) : Colors.black12, size: 64),
             const SizedBox(height: 16),
             Text(
               'Play something to see it here',
-              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
+              style: TextStyle(color: isDark ? Colors.white.withOpacity(0.5) : AppColors.lightTextSecondary, fontSize: 14),
             ),
           ],
         ),
@@ -108,15 +111,15 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildHeader(MediaItem media) {
+  Widget _buildHeader(MediaItem media, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
           Text(
             media.album?.name ?? media.title,
-            style: const TextStyle(
-              color: Colors.white,
+            style: TextStyle(
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w700,
             ),
@@ -126,7 +129,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           const Spacer(),
           IconButton(
             onPressed: widget.onClose,
-            icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
+            icon: Icon(Icons.close_rounded, color: isDark ? Colors.white54 : AppColors.lightTextSecondary, size: 20),
             splashRadius: 18,
           ),
         ],
@@ -134,12 +137,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildTabs() {
+  Widget _buildTabs(bool isDark) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFF282828),
+        color: isDark ? const Color(0xFF282828) : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -151,10 +154,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                 final wasPlaying = player.isPlaying;
                 
                 setState(() => _tabIndex = 0);
-                widget.onTabChanged?.call(false);  // Notify parent: Details opened
+                widget.onTabChanged?.call(false);
                 
-                // Auto-resume video after tab switch (Flutter Web workaround)
-                // Brief delay allows VideoPlayer to mount in NowPlayingPanel
                 if (wasPlaying && player.videoController != null) {
                   Future.delayed(const Duration(milliseconds: 150), () {
                     if (mounted && !player.videoController!.value.isPlaying) {
@@ -166,13 +167,20 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 0 ? const Color(0xFF3E3E3E) : Colors.transparent,
+                  color: _tabIndex == 0 ? (isDark ? const Color(0xFF3E3E3E) : Colors.white) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
+                  boxShadow: _tabIndex == 0 && !isDark ? [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))
+                  ] : null,
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'Details',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : (_tabIndex == 0 ? AppColors.lightTextPrimary : AppColors.lightTextSecondary), 
+                      fontSize: 12, 
+                      fontWeight: FontWeight.w600
+                    ),
                   ),
                 ),
               ),
@@ -185,10 +193,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                 final wasPlaying = player.isPlaying;
                 
                 setState(() => _tabIndex = 1);
-                widget.onTabChanged?.call(true);  // Notify parent: Queue opened
+                widget.onTabChanged?.call(true);
                 
-                // Auto-resume video after tab switch (Flutter Web workaround)
-                // Brief delay allows VideoPlayer to mount in DesktopPlayerBar
                 if (wasPlaying && player.videoController != null) {
                   Future.delayed(const Duration(milliseconds: 150), () {
                     if (mounted && !player.videoController!.value.isPlaying) {
@@ -200,13 +206,20 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 1 ? const Color(0xFF3E3E3E) : Colors.transparent,
+                  color: _tabIndex == 1 ? (isDark ? const Color(0xFF3E3E3E) : Colors.white) : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
+                   boxShadow: _tabIndex == 1 && !isDark ? [
+                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))
+                  ] : null,
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'Queue',
-                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      color: isDark ? Colors.white : (_tabIndex == 1 ? AppColors.lightTextPrimary : AppColors.lightTextSecondary), 
+                      fontSize: 12, 
+                      fontWeight: FontWeight.w600
+                    ),
                   ),
                 ),
               ),
@@ -217,7 +230,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildDetailsView(PlayerProvider player, MediaItem media) {
+  Widget _buildDetailsView(PlayerProvider player, MediaItem media, bool isDark) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -230,12 +243,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           
           // Switch Button
           if (media.linkedMedia != null)
-            _buildSwitchButton(player, media),
+            _buildSwitchButton(player, media, isDark),
 
           if (media.linkedMedia != null)
             const SizedBox(height: 16),
           
-          // Lyrics Card (before track info)
+          // Lyrics Card
           if (player.currentLyrics != null)
             LyricsCard(
               lyrics: player.currentLyrics!,
@@ -248,17 +261,17 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           // Track Info
           Text(
             media.title,
-            style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(color: isDark ? Colors.white : AppColors.lightTextPrimary, fontSize: 24, fontWeight: FontWeight.bold),
           ),
           Text(
             media.artistName ?? 'Unknown Artist',
-            style: const TextStyle(color: Colors.white70, fontSize: 16),
+            style: TextStyle(color: isDark ? Colors.white70 : AppColors.lightTextSecondary, fontSize: 16),
           ),
           
           const SizedBox(height: 24),
 
           // Artist Section
-          _buildArtistSection(media),
+          _buildArtistSection(media, isDark),
 
           const SizedBox(height: 24),
         ],
@@ -272,7 +285,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     final isFullscreen = WebVideoFullscreen.isFullscreenActive;
     final hasVideoController = media.isVideo && player.videoController != null;
     final isVideoInitialized = hasVideoController && player.videoController!.value.isInitialized;
-    final isQueueSelected = _tabIndex == 1;
+    final isQueueSelected = _tabIndex == 1; // 1 = Queue
     
     // Show video player ONLY when: video initialized + Details tab + not fullscreen
     if (isVideoInitialized && !isFullscreen && !isQueueSelected) {
@@ -384,10 +397,13 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildQueueView(PlayerProvider player) {
+  Widget _buildQueueView(PlayerProvider player, bool isDark) {
     if (player.queue.isEmpty) {
-      return const Center(
-        child: Text('Queue is empty', style: TextStyle(color: Colors.white54)),
+      return Center(
+        child: Text(
+          'Queue is empty', 
+          style: TextStyle(color: isDark ? Colors.white54 : AppColors.lightTextSecondary)
+        ),
       );
     }
     
@@ -407,14 +423,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               image: (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty)
                   ? DecorationImage(image: NetworkImage(item.thumbnailUrl!), fit: BoxFit.cover)
                   : null,
-              color: Colors.grey[800],
+              color: isDark ? Colors.grey[800] : Colors.grey[300],
             ),
             child: isCurrent ? const Icon(Icons.equalizer, color: AppColors.primary) : null,
           ),
           title: Text(
             item.title,
             style: TextStyle(
-              color: isCurrent ? AppColors.primary : Colors.white,
+              color: isCurrent ? AppColors.primary : (isDark ? Colors.white : AppColors.lightTextPrimary),
               fontSize: 14,
               fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
             ),
@@ -423,7 +439,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           ),
           subtitle: Text(
             item.artistName ?? 'Unknown',
-            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+            style: TextStyle(color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary, fontSize: 12),
             maxLines: 1,
           ),
           onTap: () {
@@ -434,13 +450,13 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildSwitchButton(PlayerProvider player, MediaItem media) {
+  Widget _buildSwitchButton(PlayerProvider player, MediaItem media, bool isDark) {
     final isVideo = media.isVideo;
     final linked = media.linkedMedia!;
     
     return GestureDetector(
       onTap: () {
-        // Create MediaItem from linked media
+        // ... switch logic ...
         final newItem = MediaItem(
           id: linked.id,
           title: linked.title,
@@ -467,18 +483,13 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           ),
         );
 
-        // Capture current position and log it
         final currentPosition = player.position;
-        debugPrint('[SwitchButton] Current position: ${currentPosition.inSeconds}s');
-        debugPrint('[SwitchButton] Switching from ${media.isVideo ? "video" : "audio"} to ${linked.mediaType}');
-        
-        // Switch media while preserving position
         player.play(newItem, startPosition: currentPosition);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF282828),
+          color: isDark ? const Color(0xFF282828) : AppColors.lightSurfaceVariant,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -486,21 +497,21 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           children: [
             Text(
               isVideo ? 'Switch to audio' : 'Switch to video',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.lightTextPrimary,
                 fontWeight: FontWeight.w700,
                 fontSize: 14,
               ),
             ),
             Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(
-                color: Color(0xFF121212),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
                 shape: BoxShape.circle,
               ),
               child: Icon(
                 isVideo ? Icons.music_note_rounded : Icons.videocam_rounded, 
-                color: Colors.white, 
+                color: isDark ? Colors.white : AppColors.lightTextPrimary, 
                 size: 20,
               ),
             ),
@@ -510,20 +521,20 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildArtistSection(MediaItem media) {
+  Widget _buildArtistSection(MediaItem media, bool isDark) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF282828),
+        color: isDark ? const Color(0xFF282828) : AppColors.lightSurfaceVariant,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'About the artist',
             style: TextStyle(
-              color: Colors.white,
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
               fontWeight: FontWeight.w700,
               fontSize: 16,
             ),
@@ -534,8 +545,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: Colors.grey[800],
-                child: const Icon(Icons.person, color: Colors.white),
+                backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
+                child: Icon(Icons.person, color: isDark ? Colors.white : Colors.grey[600]),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -544,13 +555,13 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                   children: [
                     Text(
                       media.artistName ?? 'Unknown',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: isDark ? Colors.white : AppColors.lightTextPrimary, fontWeight: FontWeight.bold),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const Text(
+                    Text(
                       '1.2M listeners',
-                      style: TextStyle(color: Colors.white54, fontSize: 12),
+                      style: TextStyle(color: isDark ? Colors.white54 : AppColors.lightTextSecondary, fontSize: 12),
                     ),
                   ],
                 ),
@@ -568,9 +579,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                         await context.read<LibraryService>().getArtists();
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isFollowing ? Colors.white : Colors.white,
-                        backgroundColor: isFollowing ? Colors.transparent : Colors.white.withOpacity(0.1),
-                        side: BorderSide(color: isFollowing ? Colors.white38 : Colors.transparent),
+                        foregroundColor: isDark ? Colors.white : AppColors.lightTextPrimary,
+                        backgroundColor: isFollowing ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05)),
+                        side: BorderSide(color: isFollowing ? (isDark ? Colors.white38 : Colors.black26) : Colors.transparent),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
                       ),

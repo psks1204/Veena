@@ -56,6 +56,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF181818) : AppColors.lightSurface;
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1);
+
     return Consumer<PlayerProvider>(
       builder: (context, player, _) {
         if (!player.hasMedia) {
@@ -72,10 +76,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
         return Container(
           height: 90,
           decoration: BoxDecoration(
-            color: const Color(0xFF181818),
+            color: backgroundColor,
             border: Border(
               top: BorderSide(
-                color: Colors.white.withOpacity(0.1),
+                color: borderColor,
                 width: 1,
               ),
             ),
@@ -83,7 +87,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
           child: Column(
             children: [
               // Progress bar (full width at top)
-              _buildProgressBar(player),
+              _buildProgressBar(player, isDark),
               
               // Main content
               Expanded(
@@ -94,19 +98,19 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                       // Left: Track Info
                       Expanded(
                         flex: 3,
-                        child: _buildTrackInfo(media, player),
+                        child: _buildTrackInfo(media, player, isDark),
                       ),
                       
                       // Center: Playback Controls
                       Expanded(
                         flex: 4,
-                        child: _buildPlaybackControls(player),
+                        child: _buildPlaybackControls(player, isDark),
                       ),
                       
                       // Right: Volume & Actions
                       Expanded(
                         flex: 3,
-                        child: _buildVolumeAndActions(player),
+                        child: _buildVolumeAndActions(player, isDark),
                       ),
                     ],
                   ),
@@ -120,12 +124,12 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Progress bar spanning full width
-  Widget _buildProgressBar(PlayerProvider player) {
+  Widget _buildProgressBar(PlayerProvider player, bool isDark) {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHoveringProgress = true),
       onExit: (_) => setState(() => _isHoveringProgress = false),
       child: SizedBox(
-        height: 6, // Slightly taller container for easier hover
+        height: 6, 
         child: Stack(
           children: [
             // Background track
@@ -137,9 +141,9 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             // Slider
             SliderTheme(
               data: SliderTheme.of(context).copyWith(
-                activeTrackColor: _isHoveringProgress ? AppColors.primary : Colors.white,
-                inactiveTrackColor: Colors.white.withOpacity(0.2),
-                thumbColor: _isHoveringProgress ? Colors.white : Colors.transparent,
+                activeTrackColor: _isHoveringProgress ? AppColors.primary : (isDark ? Colors.white : AppColors.lightTextPrimary),
+                inactiveTrackColor: isDark ? Colors.white.withOpacity(0.2) : Colors.black.withOpacity(0.1),
+                thumbColor: _isHoveringProgress ? (isDark ? Colors.white : AppColors.lightTextPrimary) : Colors.transparent,
                 thumbShape: RoundSliderThumbShape(
                   enabledThumbRadius: _isHoveringProgress ? 6 : 0,
                 ),
@@ -160,20 +164,17 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
     );
   }
 
-  /// Left section: Track artwork (or mini video when queue is open), title, artist, like button
-  Widget _buildTrackInfo(MediaItem media, PlayerProvider player) {
-    // Check if video is playing
+  /// Left section
+  Widget _buildTrackInfo(MediaItem media, PlayerProvider player, bool isDark) {
     final isVideoPlaying = media.isVideo && 
         player.videoController != null && 
         player.videoController!.value.isInitialized;
     
-    // CRITICAL: Only render VideoPlayer when Queue tab is open
-    // This ensures only ONE VideoPlayer exists in the widget tree at any time
     final showVideoHere = widget.isQueueTabOpen && isVideoPlaying;
 
     return Row(
       children: [
-        // Container that holds artwork OR video player (never both)
+        // Container that holds artwork OR video player 
         GestureDetector(
           onTap: widget.onNowPlayingToggle,
           child: MouseRegion(
@@ -183,7 +184,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
               height: 56,
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(4),
-                color: Colors.grey[800],
+                color: isDark ? Colors.grey[800] : Colors.grey[300],
               ),
               clipBehavior: Clip.antiAlias,
               child: showVideoHere
@@ -195,7 +196,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                   // Show artwork when Details tab or when audio
                   : media.thumbnailUrl != null
                       ? Image.network(media.thumbnailUrl!, fit: BoxFit.cover)
-                      : const Icon(Icons.music_note_rounded, color: Colors.white54),
+                      : Icon(Icons.music_note_rounded, color: isDark ? Colors.white54 : Colors.black26),
             ),
           ),
         ),
@@ -213,8 +214,8 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                   cursor: SystemMouseCursors.click,
                   child: Text(
                     media.title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: isDark ? Colors.white : AppColors.lightTextPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                     ),
@@ -227,7 +228,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
               Text(
                 media.artistName ?? 'Unknown Artist',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.7),
+                  color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary,
                   fontSize: 12,
                 ),
                 maxLines: 1,
@@ -239,12 +240,12 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
         const SizedBox(width: 8),
         
         // Like button
-        _buildLikeButton(media),
+        _buildLikeButton(media, isDark),
       ],
     );
   }
 
-  Widget _buildLikeButton(MediaItem media) {
+  Widget _buildLikeButton(MediaItem media, bool isDark) {
     return Consumer<LibraryService>(
       builder: (context, library, _) {
         final isLiked = library.favorites.any((item) => item.id == media.id);
@@ -259,7 +260,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
           },
           icon: Icon(
             isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-            color: isLiked ? AppColors.primary : Colors.white70,
+            color: isLiked ? AppColors.primary : (isDark ? Colors.white70 : AppColors.lightTextSecondary),
             size: 20,
           ),
           splashRadius: 20,
@@ -269,8 +270,11 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
     );
   }
 
-  /// Center section: Playback controls and time
-  Widget _buildPlaybackControls(PlayerProvider player) {
+  /// Center section
+  Widget _buildPlaybackControls(PlayerProvider player, bool isDark) {
+    final iconColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final secondaryIconColor = isDark ? Colors.white70 : AppColors.lightTextSecondary;
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -283,7 +287,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
               onPressed: () => player.toggleShuffle(),
               icon: Icon(
                 Icons.shuffle_rounded,
-                color: player.shuffleEnabled ? AppColors.primary : Colors.white70,
+                color: player.shuffleEnabled ? AppColors.primary : secondaryIconColor,
                 size: 20,
               ),
               splashRadius: 18,
@@ -294,7 +298,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             // Previous
             IconButton(
               onPressed: () => player.previous(),
-              icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 28),
+              icon: Icon(Icons.skip_previous_rounded, color: iconColor, size: 28),
               splashRadius: 20,
               tooltip: 'Previous',
             ),
@@ -308,13 +312,13 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                 child: Container(
                   width: 32,
                   height: 32,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
+                  decoration: BoxDecoration(
+                    color: isDark ? Colors.white : AppColors.lightTextPrimary,
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                    color: Colors.black,
+                    color: isDark ? Colors.black : Colors.white,
                     size: 20,
                   ),
                 ),
@@ -325,7 +329,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             // Next
             IconButton(
               onPressed: () => player.next(),
-              icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 28),
+              icon: Icon(Icons.skip_next_rounded, color: iconColor, size: 28),
               splashRadius: 20,
               tooltip: 'Next',
             ),
@@ -338,7 +342,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                 player.repeatMode == RepeatMode.one 
                     ? Icons.repeat_one_rounded 
                     : Icons.repeat_rounded,
-                color: player.repeatMode != RepeatMode.off ? AppColors.primary : Colors.white70,
+                color: player.repeatMode != RepeatMode.off ? AppColors.primary : secondaryIconColor,
                 size: 20,
               ),
               splashRadius: 18,
@@ -355,7 +359,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             Text(
               _formatDuration(player.position),
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary,
                 fontSize: 11,
                 fontFamily: 'monospace', 
               ),
@@ -364,9 +368,9 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             Text(
               _formatDuration(player.duration),
               style: TextStyle(
-                color: Colors.white.withOpacity(0.7),
+                color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary,
                 fontSize: 11,
-                fontFamily: 'monospace',
+                fontFamily: 'monospace', 
               ),
             ),
           ],
@@ -375,8 +379,8 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
     );
   }
 
-  /// Right section: Volume, queue, now playing toggle
-  Widget _buildVolumeAndActions(PlayerProvider player) {
+  /// Right section
+  Widget _buildVolumeAndActions(PlayerProvider player, bool isDark) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -385,7 +389,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
           onPressed: widget.onNowPlayingToggle,
           icon: Icon(
             Icons.queue_music_rounded, 
-            color: widget.isNowPlayingOpen ? AppColors.primary : Colors.white70,
+            color: widget.isNowPlayingOpen ? AppColors.primary : (isDark ? Colors.white70 : AppColors.lightTextSecondary),
             size: 20,
           ),
           splashRadius: 18,
@@ -393,7 +397,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
         ),
         
         // Volume
-        _buildVolumeControl(player),
+        _buildVolumeControl(player, isDark),
         
         const SizedBox(width: 8),
       ],
@@ -401,7 +405,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Volume control with slider
-  Widget _buildVolumeControl(PlayerProvider player) {
+  Widget _buildVolumeControl(PlayerProvider player, bool isDark) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -415,7 +419,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                 : player.volume < 0.5
                     ? Icons.volume_down_rounded
                     : Icons.volume_up_rounded,
-            color: Colors.white.withOpacity(0.7),
+            color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary,
             size: 20,
           ),
           splashRadius: 18,
@@ -425,9 +429,9 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
           width: 90,
           child: SliderTheme(
             data: SliderTheme.of(context).copyWith(
-              activeTrackColor: Colors.white,
-              inactiveTrackColor: Colors.white.withOpacity(0.2),
-              thumbColor: _isDraggingVolume ? Colors.white : Colors.transparent, // Hide thumb when not interacting
+              activeTrackColor: isDark ? Colors.white : AppColors.lightTextPrimary,
+              inactiveTrackColor: isDark ? Colors.white.withOpacity(0.2) : Colors.black.withOpacity(0.1),
+              thumbColor: _isDraggingVolume ? (isDark ? Colors.white : AppColors.lightTextPrimary) : Colors.transparent, // Hide thumb when not interacting
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
               overlayShape: const RoundSliderOverlayShape(overlayRadius: 12),
               trackHeight: 4,
