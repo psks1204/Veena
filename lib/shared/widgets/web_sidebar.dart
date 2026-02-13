@@ -69,12 +69,14 @@ class _WebSidebarState extends State<WebSidebar> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primary.withOpacity(0.7)],
-              ),
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.music_note_rounded, color: Colors.white, size: 24),
+            padding: const EdgeInsets.all(4),
+            child: Image.asset(
+              'assets/images/app_logo.png',
+              fit: BoxFit.contain,
+            ),
           ),
           const SizedBox(height: 24),
           

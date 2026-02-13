@@ -110,10 +110,12 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.music_note_rounded,
-                        size: 48,
-                        color: Colors.white,
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Image.asset(
+                          'assets/images/app_logo.png',
+                          fit: BoxFit.contain,
+                        ),
                       ),
                     ),
 

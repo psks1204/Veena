@@ -126,53 +126,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                           width: 1,
                         ),
                       ),
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          Container(
-                            width: 140,
-                            height: 140,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.05),
-                                width: 1,
-                              ),
-                            ),
-                          ),
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.white30,
-                                  blurRadius: 20,
-                                  spreadRadius: 2,
-                                ),
-                              ],
-                            ),
-                            child: Center(
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                decoration: const BoxDecoration(
-                                  color: AppColors.primary,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppColors.primary,
-                                      blurRadius: 8,
-                                      spreadRadius: 2,
-                                    )
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      padding: const EdgeInsets.all(32),
+                      child: Image.asset(
+                        'assets/images/app_logo.png',
+                        fit: BoxFit.contain,
                       ),
                     ),
                   ),
