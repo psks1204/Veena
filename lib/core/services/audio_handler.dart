@@ -4,13 +4,19 @@ import 'package:just_audio/just_audio.dart';
 import 'package:rxdart/rxdart.dart';
 
 /// Veena Audio Handler
-/// 
+///
 /// Manages background audio playback and notification/lock screen controls.
 class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
   final _player = AudioPlayer();
-  
+
+  // Callbacks for skip controls from notification bar
+  VoidCallback? onSkipToNext;
+  VoidCallback? onSkipToPrevious;
+
   // Our own mediaItem subject since we're not using the queue system
-  final BehaviorSubject<MediaItem?> _mediaItemSubject = BehaviorSubject.seeded(null);
+  final BehaviorSubject<MediaItem?> _mediaItemSubject = BehaviorSubject.seeded(
+    null,
+  );
 
   VeenaAudioHandler() {
     _init();
@@ -21,24 +27,29 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
 
   /// Get the position stream for UI updates
   Stream<Duration> get positionStream => _player.positionStream;
-  
+
   /// Get the current duration
   Duration? get currentDuration => _player.duration;
 
   Future<void> _init() async {
     // Listen to playback events and broadcast them to AudioService
-    _player.playbackEventStream.listen(_broadcastState, onError: (e) {
-      debugPrint('VeenaAudioHandler: playbackEventStream error: $e');
-    });
-    
+    _player.playbackEventStream.listen(
+      _broadcastState,
+      onError: (e) {
+        debugPrint('VeenaAudioHandler: playbackEventStream error: $e');
+      },
+    );
+
     // Listen to duration changes and update mediaItem
     _player.durationStream.listen((duration) {
       if (duration != null && _mediaItemSubject.value != null) {
-        final updatedItem = _mediaItemSubject.value!.copyWith(duration: duration);
+        final updatedItem = _mediaItemSubject.value!.copyWith(
+          duration: duration,
+        );
         _mediaItemSubject.add(updatedItem);
       }
     });
-    
+
     // NOTE: Removed automatic stop() on ProcessingState.completed
     // The PlayerProvider will handle track completion based on position/duration checks
     // This prevents premature track skipping with HLS streams
@@ -76,49 +87,54 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
 
   @override
   Future<void> skipToNext() async {
-    // Stub - no queue implementation yet
-    debugPrint('VeenaAudioHandler: skipToNext called (no queue)');
+    debugPrint('VeenaAudioHandler: skipToNext called');
+    onSkipToNext?.call();
   }
 
   @override
   Future<void> skipToPrevious() async {
-    // Stub - no queue implementation yet  
-    debugPrint('VeenaAudioHandler: skipToPrevious called (no queue)');
+    debugPrint('VeenaAudioHandler: skipToPrevious called');
+    onSkipToPrevious?.call();
   }
 
   // --- Broadcast State Helpers ---
 
   void _broadcastState(PlaybackEvent event) {
-    playbackState.add(playbackState.value.copyWith(
-      controls: [
-        MediaControl.skipToPrevious,
-        if (_player.playing) MediaControl.pause else MediaControl.play,
-        MediaControl.skipToNext,
-        MediaControl.stop,
-      ],
-      systemActions: const {
-        MediaAction.seek,
-        MediaAction.seekForward,
-        MediaAction.seekBackward,
-      },
-      androidCompactActionIndices: const [0, 1, 2],
-      processingState: const {
-        ProcessingState.idle: AudioProcessingState.idle,
-        ProcessingState.loading: AudioProcessingState.loading,
-        ProcessingState.buffering: AudioProcessingState.buffering,
-        ProcessingState.ready: AudioProcessingState.ready,
-        ProcessingState.completed: AudioProcessingState.completed,
-      }[_player.processingState]!,
-      playing: _player.playing,
-      updatePosition: _player.position,
-      bufferedPosition: _player.bufferedPosition,
-      speed: _player.speed,
-      queueIndex: 0,
-    ));
+    playbackState.add(
+      playbackState.value.copyWith(
+        controls: [
+          MediaControl.skipToPrevious,
+          if (_player.playing) MediaControl.pause else MediaControl.play,
+          MediaControl.skipToNext,
+          MediaControl.stop,
+        ],
+        systemActions: const {
+          MediaAction.seek,
+          MediaAction.seekForward,
+          MediaAction.seekBackward,
+        },
+        androidCompactActionIndices: const [0, 1, 2],
+        processingState: const {
+          ProcessingState.idle: AudioProcessingState.idle,
+          ProcessingState.loading: AudioProcessingState.loading,
+          ProcessingState.buffering: AudioProcessingState.buffering,
+          ProcessingState.ready: AudioProcessingState.ready,
+          ProcessingState.completed: AudioProcessingState.completed,
+        }[_player.processingState]!,
+        playing: _player.playing,
+        updatePosition: _player.position,
+        bufferedPosition: _player.bufferedPosition,
+        speed: _player.speed,
+        queueIndex: 0,
+      ),
+    );
   }
 
   @override
-  Future<dynamic> customAction(String name, [Map<String, dynamic>? extras]) async {
+  Future<dynamic> customAction(
+    String name, [
+    Map<String, dynamic>? extras,
+  ]) async {
     if (name == 'setVolume') {
       final volume = extras?['volume'] as double?;
       if (volume != null) {

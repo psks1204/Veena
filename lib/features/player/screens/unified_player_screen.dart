@@ -18,11 +18,11 @@ import '../../../shared/widgets/lyrics_card.dart';
 import 'lyrics_fullscreen_screen.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
-/// 
+///
 /// This is a single screen that adapts its display based on media type:
 /// - Audio: Shows artwork, lyrics, and standard audio controls
 /// - Video: Shows video player in place of artwork with same controls
-/// 
+///
 /// Switching between audio and video happens seamlessly within the same screen.
 class UnifiedPlayerScreen extends StatefulWidget {
   const UnifiedPlayerScreen({super.key});
@@ -41,7 +41,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   void initState() {
     super.initState();
     _focusNode = FocusNode();
-    
+
     // Allow all orientations for video
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
@@ -54,7 +54,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   void dispose() {
     _hideControlsTimer?.cancel();
     _focusNode.dispose();
-    
+
     // Reset to portrait
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
@@ -63,11 +63,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   void _hideControlsAfterDelay() {
     _hideControlsTimer?.cancel();
-    
+
     // Only auto-hide controls for video in fullscreen/landscape
     final player = context.read<PlayerProvider>();
     if (!player.isVideo || !_isFullscreen) return;
-    
+
     _hideControlsTimer = Timer(const Duration(seconds: 3), () {
       if (mounted && context.read<PlayerProvider>().isPlaying) {
         setState(() => _showControls = false);
@@ -85,7 +85,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   void _toggleFullscreen() {
     final player = context.read<PlayerProvider>();
     if (!player.isVideo) return;
-    
+
     if (_isFullscreen) {
       // Exit fullscreen
       SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
@@ -120,7 +120,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   void _handleKeyEvent(KeyEvent event, PlayerProvider player) {
     if (event is! KeyDownEvent) return;
-    
+
     if (event.logicalKey == LogicalKeyboardKey.space) {
       player.togglePlayPause();
     } else if (event.logicalKey == LogicalKeyboardKey.keyF && player.isVideo) {
@@ -216,25 +216,37 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                                     width: 48,
                                     height: 48,
                                     color: Colors.grey[800],
-                                    child: const Icon(Icons.music_note, color: Colors.white54),
+                                    child: const Icon(
+                                      Icons.music_note,
+                                      color: Colors.white54,
+                                    ),
                                   ),
                           ),
                           title: Text(
                             item.title,
                             style: TextStyle(
-                              color: isPlaying ? AppColors.primary : Colors.white,
-                              fontWeight: isPlaying ? FontWeight.w600 : FontWeight.normal,
+                              color: isPlaying
+                                  ? AppColors.primary
+                                  : Colors.white,
+                              fontWeight: isPlaying
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
                             item.artistName ?? 'Unknown Artist',
-                            style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.6),
+                            ),
                             maxLines: 1,
                           ),
                           trailing: isPlaying
-                              ? Icon(Icons.equalizer_rounded, color: AppColors.primary)
+                              ? Icon(
+                                  Icons.equalizer_rounded,
+                                  color: AppColors.primary,
+                                )
                               : null,
                           onTap: () {
                             player.playQueueIndex(index);
@@ -281,9 +293,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   /// Fullscreen video player (landscape mode)
   Widget _buildFullscreenVideoPlayer(PlayerProvider player) {
     final controller = player.videoController;
-    final isValid = controller != null && 
-                    controller.value.isInitialized && 
-                    !controller.value.hasError;
+    final isValid =
+        controller != null &&
+        controller.value.isInitialized &&
+        !controller.value.hasError;
 
     return KeyboardListener(
       focusNode: _focusNode,
@@ -308,7 +321,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 ),
-              
+
               // Controls overlay
               if (_showControls)
                 _buildVideoControlsOverlay(player, isFullscreen: true),
@@ -324,8 +337,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     final theme = Theme.of(context);
     final screenSize = MediaQuery.of(context).size;
     final isLargeScreen = screenSize.width >= 768;
-    final artworkSize = isLargeScreen 
-        ? 240.0 
+    final artworkSize = isLargeScreen
+        ? 240.0
         : screenSize.width - (AppSpacing.xl * 2);
 
     final media = player.currentMedia!;
@@ -348,10 +361,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 ),
               ),
             ),
-          
+
           // Main content
           SafeArea(
-            child: isLargeScreen 
+            child: isLargeScreen
                 ? _buildWebLayout(player, theme, artworkSize)
                 : _buildMobileLayout(player, theme, artworkSize),
           ),
@@ -361,7 +374,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   }
 
   /// Mobile layout
-  Widget _buildMobileLayout(PlayerProvider player, ThemeData theme, double artworkSize) {
+  Widget _buildMobileLayout(
+    PlayerProvider player,
+    ThemeData theme,
+    double artworkSize,
+  ) {
     final media = player.currentMedia!;
     final isVideo = player.isVideo;
 
@@ -421,8 +438,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           _buildBottomActions(player),
 
           // Lyrics section for audio
-          if (player.currentLyrics != null)
-            _buildLyricsSection(player),
+          if (player.currentLyrics != null) _buildLyricsSection(player),
 
           const SizedBox(height: 24),
 
@@ -437,10 +453,15 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   /// Video-specific mobile layout - Spotify style
   /// Edge-to-edge video at top, switch button, track info with small artwork, artist card
-  Widget _buildVideoMobileLayout(PlayerProvider player, ThemeData theme, MediaItem media, double artworkSize) {
+  Widget _buildVideoMobileLayout(
+    PlayerProvider player,
+    ThemeData theme,
+    MediaItem media,
+    double artworkSize,
+  ) {
     final linkedMedia = media.linkedMedia;
     final hasLinkedMedia = linkedMedia != null;
-    
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -453,7 +474,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               children: [
                 IconButton(
                   onPressed: _handleClose,
-                  icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                  icon: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
                 Text(
                   'PLAYING RECOMMENDED TRACKS',
@@ -466,7 +491,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 ),
                 IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 24),
+                  icon: const Icon(
+                    Icons.more_vert_rounded,
+                    color: Colors.white,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
@@ -480,7 +509,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               aspectRatio: 16 / 9,
               child: Container(
                 color: Colors.black,
-                child: _buildVideoContent(player, MediaQuery.of(context).size.width),
+                child: _buildVideoContent(
+                  player,
+                  MediaQuery.of(context).size.width,
+                ),
               ),
             ),
           ),
@@ -492,7 +524,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               child: GestureDetector(
                 onTap: () => _switchToLinkedMedia(player, media, linkedMedia),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withOpacity(0.08),
                     borderRadius: BorderRadius.circular(24),
@@ -500,7 +535,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.music_note_rounded, color: Colors.white, size: 18),
+                      Icon(
+                        Icons.music_note_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
                         'Switch to audio',
@@ -570,10 +609,15 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => AddToPlaylistSheet(mediaItem: media),
+                      builder: (context) =>
+                          AddToPlaylistSheet(mediaItem: media),
                     );
                   },
-                  icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
+                  icon: const Icon(
+                    Icons.add_circle_outline_rounded,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                 ),
               ],
             ),
@@ -600,19 +644,19 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 // Fullscreen button
                 IconButton(
                   onPressed: _toggleFullscreen,
-                  icon: const Icon(Icons.fullscreen_rounded, color: Colors.white70, size: 24),
+                  icon: const Icon(
+                    Icons.fullscreen_rounded,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
                 ),
-                Row(
-                  children: [
-                    IconButton(
-                      onPressed: () {},
-                      icon: const Icon(Icons.share_outlined, color: Colors.white70, size: 22),
-                    ),
-                    IconButton(
-                      onPressed: () => _showQueueSheet(player),
-                      icon: const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 24),
-                    ),
-                  ],
+                IconButton(
+                  onPressed: () => _showQueueSheet(player),
+                  icon: const Icon(
+                    Icons.queue_music_rounded,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
                 ),
               ],
             ),
@@ -630,7 +674,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   }
 
   /// Switch to linked audio/video
-  void _switchToLinkedMedia(PlayerProvider player, MediaItem current, dynamic linkedMedia) {
+  void _switchToLinkedMedia(
+    PlayerProvider player,
+    MediaItem current,
+    dynamic linkedMedia,
+  ) {
     final currentPosition = player.position;
     final newItem = MediaItem(
       id: linkedMedia.id,
@@ -658,7 +706,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   Widget _buildArtistCard(MediaItem media) {
     final artistName = media.artistName ?? 'Unknown Artist';
     final artistImage = media.artist?.imageUrl ?? media.thumbnailUrl;
-    
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
@@ -672,7 +720,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           Stack(
             children: [
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
                 child: AspectRatio(
                   aspectRatio: 16 / 9,
                   child: artistImage != null
@@ -682,14 +732,22 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                           errorBuilder: (_, __, ___) => Container(
                             color: Colors.grey[900],
                             child: const Center(
-                              child: Icon(Icons.person, color: Colors.white38, size: 48),
+                              child: Icon(
+                                Icons.person,
+                                color: Colors.white38,
+                                size: 48,
+                              ),
                             ),
                           ),
                         )
                       : Container(
                           color: Colors.grey[900],
                           child: const Center(
-                            child: Icon(Icons.person, color: Colors.white38, size: 48),
+                            child: Icon(
+                              Icons.person,
+                              color: Colors.white38,
+                              size: 48,
+                            ),
                           ),
                         ),
                 ),
@@ -741,7 +799,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                                 color: Colors.blue,
                                 shape: BoxShape.circle,
                               ),
-                              child: const Icon(Icons.check, color: Colors.white, size: 10),
+                              child: const Icon(
+                                Icons.check,
+                                color: Colors.white,
+                                size: 10,
+                              ),
                             ),
                         ],
                       ),
@@ -761,20 +823,29 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   builder: (context, artistService, _) {
                     if (media.artistId == null) return const SizedBox.shrink();
                     final library = context.watch<LibraryService>();
-                    final isFollowing = library.artists.any((a) => a.id == media.artistId);
+                    final isFollowing = library.artists.any(
+                      (a) => a.id == media.artistId,
+                    );
 
                     return GestureDetector(
                       onTap: () async {
-                         await artistService.toggleFollow(media.artistId!);
-                         await context.read<LibraryService>().getArtists();
+                        await artistService.toggleFollow(media.artistId!);
+                        await context.read<LibraryService>().getArtists();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
-                          color: isFollowing ? Colors.transparent : Colors.white,
+                          color: isFollowing
+                              ? Colors.transparent
+                              : Colors.white,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: isFollowing ? Colors.white : Colors.transparent
+                            color: isFollowing
+                                ? Colors.white
+                                : Colors.transparent,
                           ),
                         ),
                         child: Text(
@@ -787,7 +858,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         ),
                       ),
                     );
-                  }
+                  },
                 ),
               ],
             ),
@@ -798,14 +869,26 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   }
 
   /// Mobile top bar widget
-  Widget _buildMobileTopBar(PlayerProvider player, ThemeData theme, MediaItem media, bool isVideo) {
+  Widget _buildMobileTopBar(
+    PlayerProvider player,
+    ThemeData theme,
+    MediaItem media,
+    bool isVideo,
+  ) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.sm),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.sm,
+      ),
       child: Row(
         children: [
           IconButton(
             onPressed: _handleClose,
-            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 32),
+            icon: const Icon(
+              Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: 32,
+            ),
           ),
           Expanded(
             child: Column(
@@ -820,7 +903,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   ),
                 ),
                 Text(
-                  media.artistName ?? 'Unknown Artist',
+                  media.artistName,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -832,10 +915,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -863,7 +943,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  media.artistName ?? 'Unknown Artist',
+                  media.artistName,
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 16,
@@ -884,7 +964,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 builder: (context) => AddToPlaylistSheet(mediaItem: media),
               );
             },
-            icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 28),
+            icon: const Icon(
+              Icons.add_circle_outline_rounded,
+              color: Colors.white,
+              size: 28,
+            ),
           ),
         ],
       ),
@@ -894,9 +978,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   /// Video content widget
   Widget _buildVideoContent(PlayerProvider player, double width) {
     final controller = player.videoController;
-    final isValid = controller != null && 
-                    controller.value.isInitialized && 
-                    !controller.value.hasError;
+    final isValid =
+        controller != null &&
+        controller.value.isInitialized &&
+        !controller.value.hasError;
 
     if (!isValid) {
       return Container(
@@ -931,7 +1016,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 shape: BoxShape.circle,
               ),
               padding: const EdgeInsets.all(12),
-              child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 48),
+              child: const Icon(
+                Icons.play_arrow_rounded,
+                color: Colors.white,
+                size: 48,
+              ),
             ),
         ],
       ),
@@ -945,7 +1034,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     }
     return Container(
       color: Colors.grey[900],
-      child: const Icon(Icons.music_note_rounded, size: 80, color: Colors.white24),
+      child: const Icon(
+        Icons.music_note_rounded,
+        size: 80,
+        color: Colors.white24,
+      ),
     );
   }
 
@@ -974,8 +1067,14 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(_formatDuration(player.position), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-                Text(_formatDuration(player.duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                Text(
+                  _formatDuration(player.position),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+                Text(
+                  _formatDuration(player.duration),
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
               ],
             ),
           ),
@@ -1001,7 +1100,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           ),
           IconButton(
             onPressed: player.previous,
-            icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 40),
+            icon: const Icon(
+              Icons.skip_previous_rounded,
+              color: Colors.white,
+              size: 40,
+            ),
           ),
           GestureDetector(
             onTap: player.togglePlayPause,
@@ -1013,7 +1116,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                player.isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
                 color: Colors.black,
                 size: 36,
               ),
@@ -1021,15 +1126,21 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           ),
           IconButton(
             onPressed: player.next,
-            icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 40),
+            icon: const Icon(
+              Icons.skip_next_rounded,
+              color: Colors.white,
+              size: 40,
+            ),
           ),
           IconButton(
             onPressed: player.toggleRepeatMode,
             icon: Icon(
-              player.repeatMode == RepeatMode.one 
-                  ? Icons.repeat_one_rounded 
+              player.repeatMode == RepeatMode.one
+                  ? Icons.repeat_one_rounded
                   : Icons.repeat_rounded,
-              color: player.repeatMode != RepeatMode.off ? AppColors.primary : Colors.white54,
+              color: player.repeatMode != RepeatMode.off
+                  ? AppColors.primary
+                  : Colors.white54,
               size: 24,
             ),
           ),
@@ -1042,7 +1153,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   Widget _buildBottomActions(PlayerProvider player) {
     final linkedMedia = player.currentMedia?.linkedMedia;
     final hasLinkedMedia = linkedMedia != null;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
@@ -1051,9 +1162,16 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           // Switch to linked media button
           if (hasLinkedMedia)
             GestureDetector(
-              onTap: () => _switchToLinkedMedia(player, player.currentMedia!, linkedMedia),
+              onTap: () => _switchToLinkedMedia(
+                player,
+                player.currentMedia!,
+                linkedMedia,
+              ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(24),
@@ -1069,8 +1187,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        linkedMedia.mediaType == MediaType.video 
-                            ? Icons.videocam_rounded 
+                        linkedMedia.mediaType == MediaType.video
+                            ? Icons.videocam_rounded
                             : Icons.music_note_rounded,
                         size: 14,
                         color: Colors.white,
@@ -1078,8 +1196,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      linkedMedia.mediaType == MediaType.video 
-                          ? 'Watch Video' 
+                      linkedMedia.mediaType == MediaType.video
+                          ? 'Watch Video'
                           : 'Listen to Audio',
                       style: const TextStyle(
                         color: Colors.white,
@@ -1093,11 +1211,15 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             )
           else
             const SizedBox.shrink(),
-          
+
           // Queue button
           IconButton(
             onPressed: () => _showQueueSheet(player),
-            icon: const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 24),
+            icon: const Icon(
+              Icons.queue_music_rounded,
+              color: Colors.white70,
+              size: 24,
+            ),
           ),
         ],
       ),
@@ -1108,7 +1230,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   Widget _buildLyricsSection(PlayerProvider player) {
     final lyrics = player.currentLyrics;
     if (lyrics == null) return const SizedBox.shrink();
-    
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(0, 30, 0, 0),
       child: LyricsCard(
@@ -1118,10 +1240,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           // Capture current values before navigation to avoid null reference
           final currentLyrics = player.currentLyrics;
           if (currentLyrics == null) return;
-          
+
           final activeIndex = player.activeLyricIndex;
           final stream = player.lyricIndexStream;
-          
+
           // Use rootNavigator to push on top of the player screen
           Navigator.of(context, rootNavigator: true).push(
             MaterialPageRoute(
@@ -1138,7 +1260,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   }
 
   /// Video controls overlay (for fullscreen mode)
-  Widget _buildVideoControlsOverlay(PlayerProvider player, {bool isFullscreen = false}) {
+  Widget _buildVideoControlsOverlay(
+    PlayerProvider player, {
+    bool isFullscreen = false,
+  }) {
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -1165,7 +1290,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 IconButton(
                   onPressed: _handleClose,
                   icon: Icon(
-                    isFullscreen ? Icons.arrow_back_rounded : Icons.keyboard_arrow_down_rounded,
+                    isFullscreen
+                        ? Icons.arrow_back_rounded
+                        : Icons.keyboard_arrow_down_rounded,
                     color: Colors.white,
                     size: 28,
                   ),
@@ -1185,19 +1312,25 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                       ),
                       Text(
                         player.currentMedia?.artistName ?? '',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: () {},
-                  icon: const Icon(Icons.settings_outlined, color: Colors.white),
+                  icon: const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
-          
+
           // Bottom controls
           Padding(
             padding: const EdgeInsets.all(16),
@@ -1209,7 +1342,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     activeTrackColor: AppColors.primary,
                     inactiveTrackColor: Colors.white30,
                     thumbColor: AppColors.primary,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                    thumbShape: const RoundSliderThumbShape(
+                      enabledThumbRadius: 6,
+                    ),
                     trackHeight: 3,
                   ),
                   child: Slider(
@@ -1222,8 +1357,20 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(_formatDuration(player.position), style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                      Text(_formatDuration(player.duration), style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      Text(
+                        _formatDuration(player.position),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                      Text(
+                        _formatDuration(player.duration),
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1234,7 +1381,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   children: [
                     IconButton(
                       onPressed: player.previous,
-                      icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 32),
+                      icon: const Icon(
+                        Icons.skip_previous_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
                     const SizedBox(width: 24),
                     GestureDetector(
@@ -1247,7 +1398,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
-                          player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                          player.isPlaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
                           color: Colors.black,
                           size: 32,
                         ),
@@ -1256,13 +1409,19 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     const SizedBox(width: 24),
                     IconButton(
                       onPressed: player.next,
-                      icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 32),
+                      icon: const Icon(
+                        Icons.skip_next_rounded,
+                        color: Colors.white,
+                        size: 32,
+                      ),
                     ),
                     const SizedBox(width: 32),
                     IconButton(
                       onPressed: _toggleFullscreen,
                       icon: Icon(
-                        isFullscreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                        isFullscreen
+                            ? Icons.fullscreen_exit_rounded
+                            : Icons.fullscreen_rounded,
                         color: Colors.white,
                         size: 28,
                       ),
@@ -1279,7 +1438,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   /// Web/Tablet layout
   /// Web layout - Spotify-style centered design
-  Widget _buildWebLayout(PlayerProvider player, ThemeData theme, double artworkSize) {
+  Widget _buildWebLayout(
+    PlayerProvider player,
+    ThemeData theme,
+    double artworkSize,
+  ) {
     final media = player.currentMedia!;
     final isVideo = player.isVideo;
     final linkedMedia = media.linkedMedia;
@@ -1311,12 +1474,20 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         children: [
                           IconButton(
                             onPressed: _handleClose,
-                            icon: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 28),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Colors.white,
+                              size: 28,
+                            ),
                             tooltip: 'Close',
                           ),
                           IconButton(
                             onPressed: () {},
-                            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70, size: 24),
+                            icon: const Icon(
+                              Icons.more_horiz_rounded,
+                              color: Colors.white70,
+                              size: 24,
+                            ),
                             tooltip: 'More options',
                           ),
                         ],
@@ -1340,7 +1511,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         ],
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: isVideo 
+                      child: isVideo
                           ? _buildVideoContent(player, mediaWidth)
                           : _buildArtworkContent(media),
                     ),
@@ -1354,7 +1525,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.open_in_full_rounded, color: Colors.white70, size: 16),
+                              Icon(
+                                Icons.open_in_full_rounded,
+                                color: Colors.white70,
+                                size: 16,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Fullscreen',
@@ -1398,34 +1573,44 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         fontSize: 16,
                       ),
                     ),
-                    
+
                     const SizedBox(height: 16),
 
                     // Web Follow Button
                     Consumer<ArtistService>(
                       builder: (context, artistService, _) {
-                        if (media.artistId == null) return const SizedBox.shrink();
+                        if (media.artistId == null)
+                          return const SizedBox.shrink();
                         final library = context.watch<LibraryService>();
-                        final isFollowing = library.artists.any((a) => a.id == media.artistId);
+                        final isFollowing = library.artists.any(
+                          (a) => a.id == media.artistId,
+                        );
 
                         return GestureDetector(
                           onTap: () async {
-                             await artistService.toggleFollow(media.artistId!);
-                             await context.read<LibraryService>().getArtists();
+                            await artistService.toggleFollow(media.artistId!);
+                            await context.read<LibraryService>().getArtists();
                           },
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 8,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.transparent,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: isFollowing ? AppColors.primary : Colors.white.withOpacity(0.3)
+                                color: isFollowing
+                                    ? AppColors.primary
+                                    : Colors.white.withOpacity(0.3),
                               ),
                             ),
                             child: Text(
                               isFollowing ? 'Following' : 'Follow',
                               style: TextStyle(
-                                color: isFollowing ? AppColors.primary : Colors.white,
+                                color: isFollowing
+                                    ? AppColors.primary
+                                    : Colors.white,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.5,
@@ -1433,7 +1618,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             ),
                           ),
                         );
-                      }
+                      },
                     ),
 
                     const SizedBox(height: 40),
@@ -1473,9 +1658,14 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             child: GestureDetector(
               onTap: () => _switchToLinkedMedia(player, media, linkedMedia),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isVideo ? AppColors.primary : Colors.white.withOpacity(0.08),
+                  color: isVideo
+                      ? AppColors.primary
+                      : Colors.white.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
@@ -1488,7 +1678,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
-                        isVideo ? Icons.music_note_rounded : Icons.play_arrow_rounded,
+                        isVideo
+                            ? Icons.music_note_rounded
+                            : Icons.play_arrow_rounded,
                         color: isVideo ? AppColors.primary : Colors.white,
                         size: 14,
                       ),
@@ -1514,7 +1706,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           bottom: 24,
           child: IconButton(
             onPressed: () => _showQueueSheet(player),
-            icon: const Icon(Icons.queue_music_rounded, color: Colors.white70, size: 28),
+            icon: const Icon(
+              Icons.queue_music_rounded,
+              color: Colors.white70,
+              size: 28,
+            ),
             tooltip: 'Queue',
           ),
         ),
@@ -1589,7 +1785,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         // Previous
         IconButton(
           onPressed: () => player.previous(),
-          icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 36),
+          icon: const Icon(
+            Icons.skip_previous_rounded,
+            color: Colors.white,
+            size: 36,
+          ),
           tooltip: 'Previous',
         ),
         const SizedBox(width: 8),
@@ -1616,7 +1816,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         // Next
         IconButton(
           onPressed: () => player.next(),
-          icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 36),
+          icon: const Icon(
+            Icons.skip_next_rounded,
+            color: Colors.white,
+            size: 36,
+          ),
           tooltip: 'Next',
         ),
         const SizedBox(width: 16),
@@ -1625,10 +1829,12 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         IconButton(
           onPressed: () => player.toggleRepeatMode(),
           icon: Icon(
-            player.repeatMode == RepeatMode.one 
-                ? Icons.repeat_one_rounded 
+            player.repeatMode == RepeatMode.one
+                ? Icons.repeat_one_rounded
                 : Icons.repeat_rounded,
-            color: player.repeatMode != RepeatMode.off ? AppColors.primary : Colors.white70,
+            color: player.repeatMode != RepeatMode.off
+                ? AppColors.primary
+                : Colors.white70,
             size: 22,
           ),
           tooltip: 'Repeat',

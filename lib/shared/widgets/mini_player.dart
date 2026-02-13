@@ -32,7 +32,7 @@ class MiniPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     // Theme-aware colors
     // Light mode: White background, Dark text
     // Dark mode: Dark background, White text
@@ -40,9 +40,11 @@ class MiniPlayer extends StatelessWidget {
     final textColor = isDark ? Colors.white : AppColors.lightTextPrimary;
     final subtextColor = isDark ? Colors.white70 : AppColors.lightTextSecondary;
     final iconColor = isDark ? Colors.white : AppColors.lightTextPrimary;
-    final borderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
+    final borderColor = isDark
+        ? Colors.white.withOpacity(0.1)
+        : Colors.black.withOpacity(0.05);
     final progressBgColor = isDark ? Colors.white12 : Colors.black12;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
@@ -56,10 +58,7 @@ class MiniPlayer extends StatelessWidget {
               decoration: BoxDecoration(
                 color: bgColor.withOpacity(isDark ? 0.7 : 0.95),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: borderColor,
-                  width: 0.5,
-                ),
+                border: Border.all(color: borderColor, width: 0.5),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
@@ -84,18 +83,30 @@ class MiniPlayer extends StatelessWidget {
                             height: 44,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
-                              image: artworkUrl != null && artworkUrl!.isNotEmpty
-                                  ? DecorationImage(image: NetworkImage(artworkUrl!), fit: BoxFit.cover)
+                              image:
+                                  artworkUrl != null && artworkUrl!.isNotEmpty
+                                  ? DecorationImage(
+                                      image: NetworkImage(artworkUrl!),
+                                      fit: BoxFit.cover,
+                                    )
                                   : null,
-                              color: isDark ? Colors.grey[800] : Colors.grey[200],
+                              color: isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200],
                             ),
                             child: artworkUrl == null || artworkUrl!.isEmpty
-                                ? Icon(Icons.music_note_rounded, color: isDark ? Colors.white54 : Colors.black54, size: 24)
+                                ? Icon(
+                                    Icons.music_note_rounded,
+                                    color: isDark
+                                        ? Colors.white54
+                                        : Colors.black54,
+                                    size: 24,
+                                  )
                                 : null,
                           ),
                         ),
                         const SizedBox(width: 12),
-                        
+
                         // Metadata
                         Expanded(
                           child: Column(
@@ -125,23 +136,16 @@ class MiniPlayer extends StatelessWidget {
                             ],
                           ),
                         ),
-                        
+
                         // Action Icons
-                        Icon(Icons.devices_rounded, color: iconColor, size: 22),
-                        const SizedBox(width: 12),
-                        IconButton(
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
-                          onPressed: onFavorite,
-                          icon: Icon(Icons.add_circle_outline_rounded, color: iconColor, size: 24),
-                        ),
-                        const SizedBox(width: 12),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: onPlayPause,
                           icon: Icon(
-                            isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                            isPlaying
+                                ? Icons.pause_rounded
+                                : Icons.play_arrow_rounded,
                             color: iconColor,
                             size: 28,
                           ),

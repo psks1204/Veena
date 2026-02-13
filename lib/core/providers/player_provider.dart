@@ -12,7 +12,7 @@ import '../../../main.dart' show audioHandler;
 enum RepeatMode { off, all, one }
 
 /// Player Provider
-/// 
+///
 /// Centralized state management for media playback.
 /// Supports both video and audio playback across all platforms.
 /// Includes queue management for album/playlist playback.
@@ -20,31 +20,31 @@ class PlayerProvider extends ChangeNotifier {
   app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   MediaService? _mediaService;
-  
+
   Lyrics? _currentLyrics;
   final LyricsService _lyricsService = LyricsService();
   final _lyricIndexController = StreamController<int>.broadcast();
   int _lastLyricIndex = -1;
-  
+
   bool _isPlaying = false;
   bool _isLoading = false;
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   double _volume = 1.0;
   bool _isMuted = false;
-  
+
   // Queue management
   List<app_models.MediaItem> _queue = [];
   int _currentIndex = -1;
   bool _shuffleEnabled = false;
   List<int> _shuffledIndices = [];
   RepeatMode _repeatMode = RepeatMode.off;
-  
+
   // Play operation lock to prevent duplicate concurrent plays
   int _activePlayOperations = 0;
   String? _lastPlayedMediaId;
   DateTime? _lastPlayRequestTime;
-  
+
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
   bool get isPlaying => _isPlaying;
@@ -56,7 +56,7 @@ class PlayerProvider extends ChangeNotifier {
   bool get hasMedia => _currentMedia != null;
   Lyrics? get currentLyrics => _currentLyrics;
   Stream<int> get lyricIndexStream => _lyricIndexController.stream;
-  
+
   // Queue getters
   List<app_models.MediaItem> get queue => _queue;
   int get currentIndex => _currentIndex;
@@ -70,21 +70,36 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentLyrics == null) return -1;
     return _currentLyrics!.getActiveLineIndex(_position);
   }
-  
+
   double get progress {
     if (_duration.inMilliseconds == 0) return 0.0;
-    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(0.0, 1.0);
+    return (_position.inMilliseconds / _duration.inMilliseconds).clamp(
+      0.0,
+      1.0,
+    );
   }
-  
+
   VideoPlayerController? get videoController => _videoController;
-  
+
   bool get isVideo => _currentMedia?.isVideo ?? false;
   bool get isAudio => _currentMedia?.isAudio ?? false;
 
   PlayerProvider() {
     _setupAudioListeners();
+    _setupSkipCallbacks();
   }
-  
+
+  /// Wire notification bar skip controls to PlayerProvider
+  void _setupSkipCallbacks() {
+    final handler = audioHandler as dynamic;
+    try {
+      handler.onSkipToNext = () => next();
+      handler.onSkipToPrevious = () => previous();
+    } catch (e) {
+      debugPrint('[PlayerProvider] Could not set skip callbacks: $e');
+    }
+  }
+
   /// Set the media service for auto play recording
   void setMediaService(MediaService service) {
     _mediaService = service;
@@ -94,24 +109,32 @@ class PlayerProvider extends ChangeNotifier {
     // Listen to playback state from AudioService
     audioHandler.playbackState.listen((state) {
       _isPlaying = state.playing;
-      _isLoading = state.processingState == audio_service.AudioProcessingState.loading ||
-                   state.processingState == audio_service.AudioProcessingState.buffering;
-      
+      _isLoading =
+          state.processingState == audio_service.AudioProcessingState.loading ||
+          state.processingState == audio_service.AudioProcessingState.buffering;
+
       // Auto-advance to next track when current track completes
       // STRICT guard: only advance if we actually played most of the song
-      if (state.processingState == audio_service.AudioProcessingState.completed) {
+      if (state.processingState ==
+          audio_service.AudioProcessingState.completed) {
         final hasValidDuration = _duration.inSeconds > 10;
-        final hasPlayedMostOfSong = _position.inSeconds >= (_duration.inSeconds * 0.95).floor();
-        final isActuallyNearEnd = _position.inSeconds >= _duration.inSeconds - 3;
-        
+        final hasPlayedMostOfSong =
+            _position.inSeconds >= (_duration.inSeconds * 0.95).floor();
+        final isActuallyNearEnd =
+            _position.inSeconds >= _duration.inSeconds - 3;
+
         if (hasValidDuration && hasPlayedMostOfSong && isActuallyNearEnd) {
-          debugPrint('[PlayerProvider] Track completed - advancing (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)');
+          debugPrint(
+            '[PlayerProvider] Track completed - advancing (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)',
+          );
           _onTrackCompleted();
         } else {
-          debugPrint('[PlayerProvider] Ignoring premature completion signal (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)');
+          debugPrint(
+            '[PlayerProvider] Ignoring premature completion signal (pos: ${_position.inSeconds}s, dur: ${_duration.inSeconds}s)',
+          );
         }
       }
-      
+
       notifyListeners();
     });
 
@@ -164,7 +187,7 @@ class PlayerProvider extends ChangeNotifier {
   void toggleShuffle() {
     _shuffleEnabled = !_shuffleEnabled;
     debugPrint('[PlayerProvider] Shuffle toggled: $_shuffleEnabled');
-    
+
     if (_shuffleEnabled && _queue.isNotEmpty) {
       // Generate new shuffled indices when enabling shuffle
       _generateShuffledIndices();
@@ -191,7 +214,10 @@ class PlayerProvider extends ChangeNotifier {
 
   /// Play a single media item (clears queue)
   /// [startPosition] - Optional position to start playback from (for audio/video switching)
-  Future<void> play(app_models.MediaItem media, {Duration? startPosition}) async {
+  Future<void> play(
+    app_models.MediaItem media, {
+    Duration? startPosition,
+  }) async {
     // When playing single item, set up a queue with just this item
     _queue = [media];
     _currentIndex = 0;
@@ -199,25 +225,33 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Play a queue of media items starting from an index
-  Future<void> playQueue(List<app_models.MediaItem> items, {int startIndex = 0, bool shuffle = false}) async {
+  Future<void> playQueue(
+    List<app_models.MediaItem> items, {
+    int startIndex = 0,
+    bool shuffle = false,
+  }) async {
     if (items.isEmpty) {
       debugPrint('[PlayerProvider] playQueue called with empty items');
       return;
     }
-    
-    debugPrint('[PlayerProvider] playQueue: ${items.length} items, startIndex: $startIndex, shuffle: $shuffle');
-    
+
+    debugPrint(
+      '[PlayerProvider] playQueue: ${items.length} items, startIndex: $startIndex, shuffle: $shuffle',
+    );
+
     _queue = List.from(items);
     _shuffleEnabled = shuffle;
-    
+
     if (shuffle) {
       _generateShuffledIndices();
       _currentIndex = 0; // Start at first shuffled index
     } else {
       _currentIndex = startIndex.clamp(0, items.length - 1);
     }
-    
-    debugPrint('[PlayerProvider] Queue set: ${_queue.length} items, currentIndex: $_currentIndex');
+
+    debugPrint(
+      '[PlayerProvider] Queue set: ${_queue.length} items, currentIndex: $_currentIndex',
+    );
     await _playCurrentItem();
   }
 
@@ -241,34 +275,42 @@ class PlayerProvider extends ChangeNotifier {
     if (_queue.isEmpty || _currentIndex < 0 || _currentIndex >= _queue.length) {
       return;
     }
-    
+
     final actualIndex = _getActualIndex(_currentIndex);
     final media = _queue[actualIndex];
-    
+
     // Debounce protection: prevent duplicate plays of the same media within 1 second
     final now = DateTime.now();
     if (_lastPlayedMediaId == media.id && _lastPlayRequestTime != null) {
-      final timeSinceLastPlay = now.difference(_lastPlayRequestTime!).inMilliseconds;
+      final timeSinceLastPlay = now
+          .difference(_lastPlayRequestTime!)
+          .inMilliseconds;
       if (timeSinceLastPlay < 1000) {
-        debugPrint('[PlayerProvider] BLOCKED duplicate play request for ${media.id} (${timeSinceLastPlay}ms ago)');
+        debugPrint(
+          '[PlayerProvider] BLOCKED duplicate play request for ${media.id} (${timeSinceLastPlay}ms ago)',
+        );
         return;
       }
     }
-    
+
     // Lock protection: prevent concurrent play operations for the SAME media
     // But allow if we are switching to a different track (User pressed Next/Prev)
     if (_activePlayOperations > 0 && _lastPlayedMediaId == media.id) {
-      debugPrint('[PlayerProvider] BLOCKED duplicate play request for ${media.id} - operation already in progress. Active ops: $_activePlayOperations');
+      debugPrint(
+        '[PlayerProvider] BLOCKED duplicate play request for ${media.id} - operation already in progress. Active ops: $_activePlayOperations',
+      );
       return;
     }
-    
+
     // Increment active operations counter
     _activePlayOperations++;
     _lastPlayedMediaId = media.id;
     _lastPlayRequestTime = now;
-    
+
     if (media.hlsUrl == null || media.hlsUrl!.isEmpty) {
-      debugPrint('[PlayerProvider] No HLS URL available for media: ${media.id}');
+      debugPrint(
+        '[PlayerProvider] No HLS URL available for media: ${media.id}',
+      );
       _activePlayOperations--; // Release lock before trying next
       // Try next track
       if (hasNext) {
@@ -285,7 +327,7 @@ class PlayerProvider extends ChangeNotifier {
       // Notify listeners immediately so the UI stops using the old controller
       // caused 'Bad state: No active player with ID' error
       notifyListeners();
-      
+
       oldController.removeListener(_onVideoUpdate);
       await oldController.dispose();
     }
@@ -294,7 +336,7 @@ class PlayerProvider extends ChangeNotifier {
     _isLoading = true;
     _currentLyrics = null;
     notifyListeners();
-    
+
     // Auto-record play event for analytics (Fire-and-forget, non-blocking)
     debugPrint('[PlayerProvider] 📊 Analytics: Recording play for ${media.id}');
     _mediaService?.recordPlay(media.id);
@@ -326,7 +368,7 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _playVideo(String url, {Duration? startPosition}) async {
     // Stop audio playback but keep notification capability
     await audioHandler.stop();
-    
+
     // Set up audio service notification for video (enables lock screen controls)
     if (_currentMedia != null) {
       final item = audio_service.MediaItem(
@@ -334,31 +376,31 @@ class PlayerProvider extends ChangeNotifier {
         album: _currentMedia!.artistName ?? 'Video',
         title: _currentMedia!.title,
         artist: _currentMedia!.artistName ?? 'Unknown Artist',
-        artUri: _currentMedia!.thumbnailUrl != null 
-            ? Uri.parse(_currentMedia!.thumbnailUrl!) 
+        artUri: _currentMedia!.thumbnailUrl != null
+            ? Uri.parse(_currentMedia!.thumbnailUrl!)
             : null,
         duration: Duration.zero, // Will update after video initializes
       );
       await audioHandler.updateMediaItem(item);
     }
-    
+
     // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
       Uri.parse(url),
-      videoPlayerOptions: VideoPlayerOptions(
-        mixWithOthers: false,
-      ),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
 
     await _videoController!.initialize();
     _duration = _videoController!.value.duration;
-    
+
     // Seek to start position if provided (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
       await _videoController!.seekTo(startPosition);
-      debugPrint('[PlayerProvider] Seeking video to: ${startPosition.inSeconds}s');
+      debugPrint(
+        '[PlayerProvider] Seeking video to: ${startPosition.inSeconds}s',
+      );
     }
-    
+
     // Update notification with actual duration
     if (_currentMedia != null) {
       final itemWithDuration = audio_service.MediaItem(
@@ -366,17 +408,17 @@ class PlayerProvider extends ChangeNotifier {
         album: _currentMedia!.artistName ?? 'Video',
         title: _currentMedia!.title,
         artist: _currentMedia!.artistName ?? 'Unknown Artist',
-        artUri: _currentMedia!.thumbnailUrl != null 
-            ? Uri.parse(_currentMedia!.thumbnailUrl!) 
+        artUri: _currentMedia!.thumbnailUrl != null
+            ? Uri.parse(_currentMedia!.thumbnailUrl!)
             : null,
         duration: _duration,
       );
       await audioHandler.updateMediaItem(itemWithDuration);
     }
-    
+
     // Listen to video position
     _videoController!.addListener(_onVideoUpdate);
-    
+
     await _videoController!.play();
     _isPlaying = true;
     _isLoading = false;
@@ -388,19 +430,23 @@ class PlayerProvider extends ChangeNotifier {
       _position = _videoController!.value.position;
       _isPlaying = _videoController!.value.isPlaying;
       _isLoading = _videoController!.value.isBuffering;
-      
+
       // Check for video completion
-      if (_videoController!.value.position >= _videoController!.value.duration &&
+      if (_videoController!.value.position >=
+              _videoController!.value.duration &&
           _videoController!.value.duration.inMilliseconds > 0) {
         _onTrackCompleted();
       }
-      
+
       _updateLyricIndex();
       notifyListeners();
     }
   }
 
-  Future<void> _playAudio(app_models.MediaItem media, {Duration? startPosition}) async {
+  Future<void> _playAudio(
+    app_models.MediaItem media, {
+    Duration? startPosition,
+  }) async {
     // Create audio_service MediaItem for notification
     final item = audio_service.MediaItem(
       id: media.id,
@@ -408,27 +454,31 @@ class PlayerProvider extends ChangeNotifier {
       title: media.title,
       artist: media.artistName ?? 'Unknown Artist',
       duration: null, // Will be updated when loaded
-      artUri: media.thumbnailUrl != null ? Uri.parse(media.thumbnailUrl!) : null,
+      artUri: media.thumbnailUrl != null
+          ? Uri.parse(media.thumbnailUrl!)
+          : null,
       extras: {'url': media.hlsUrl},
     );
-    
+
     // Set media item for notification (cast to our handler type)
     (audioHandler as dynamic).setMediaItem(item);
-    
+
     // Load audio URL (does NOT auto-play anymore)
     await audioHandler.playFromUri(Uri.parse(media.hlsUrl!));
-    
+
     // Seek to position BEFORE playing (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
-      debugPrint('[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s BEFORE play');
+      debugPrint(
+        '[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s BEFORE play',
+      );
       await audioHandler.seek(startPosition);
       debugPrint('[PlayerProvider] Audio seeked, now starting playback');
     }
-    
+
     // NOW start playback from the seeked position
     await audioHandler.play();
     debugPrint('[PlayerProvider] Audio playback started');
-    
+
     _isLoading = false;
     notifyListeners();
   }
@@ -467,9 +517,9 @@ class PlayerProvider extends ChangeNotifier {
       await _videoController!.dispose();
       _videoController = null;
     }
-    
+
     await audioHandler.stop();
-    
+
     _isPlaying = false;
     _position = Duration.zero;
     _currentLyrics = null;
@@ -528,12 +578,14 @@ class PlayerProvider extends ChangeNotifier {
 
   /// Skip to next item in queue
   Future<void> next() async {
-    debugPrint('[PlayerProvider] next() called - queue: ${_queue.length}, currentIndex: $_currentIndex, hasNext: $hasNext');
+    debugPrint(
+      '[PlayerProvider] next() called - queue: ${_queue.length}, currentIndex: $_currentIndex, hasNext: $hasNext',
+    );
     if (!hasNext) {
       debugPrint('[PlayerProvider] No next track available');
       return;
     }
-    
+
     _currentIndex++;
     await _playCurrentItem();
   }
@@ -545,12 +597,12 @@ class PlayerProvider extends ChangeNotifier {
       await seek(Duration.zero);
       return;
     }
-    
+
     if (!hasPrevious) {
       await seek(Duration.zero);
       return;
     }
-    
+
     _currentIndex--;
     await _playCurrentItem();
   }

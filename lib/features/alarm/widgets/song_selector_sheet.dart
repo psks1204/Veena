@@ -72,13 +72,14 @@ class _SongSelectorSheetState extends State<SongSelectorSheet> {
 
     try {
       final apiService = context.read<ApiService>();
-      // Search with audio filtering (assuming backend supports 'type' or we filter client-side)
-      // If backend doesn't support 'type', we'll filter manually after fetching
-      final results = await apiService.get('/search?q=$query&type=AUDIO');
-      
+      final results = await apiService.get(
+        '/media/search',
+        queryParams: {'query': query, 'page': '0', 'size': '20'},
+      );
+
       List<MediaItem> searchResults = [];
-      if (results != null && results['media'] != null) {
-         searchResults = (results['media'] as List)
+      if (results != null && results['content'] != null) {
+        searchResults = (results['content'] as List)
             .map((e) => MediaItem.fromJson(e))
             .where((item) => item.mediaType == MediaType.audio)
             .toList();
@@ -120,7 +121,7 @@ class _SongSelectorSheetState extends State<SongSelectorSheet> {
               ),
             ),
           ),
-          
+
           // Header & Search
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -141,7 +142,9 @@ class _SongSelectorSheetState extends State<SongSelectorSheet> {
                     hintText: 'Search songs...',
                     prefixIcon: const Icon(Icons.search),
                     filled: true,
-                    fillColor: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                    fillColor: isDark
+                        ? Colors.white.withOpacity(0.05)
+                        : Colors.grey[100],
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: BorderSide.none,
@@ -152,56 +155,56 @@ class _SongSelectorSheetState extends State<SongSelectorSheet> {
               ],
             ),
           ),
-          
+
           const Divider(height: 1),
-          
+
           // List
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _songs.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              _isSearching ? Icons.search_off : Icons.music_off,
-                              size: 48,
-                              color: theme.colorScheme.onSurface.withOpacity(0.4),
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _isSearching 
-                                  ? 'No songs found for "${_searchController.text}"' 
-                                  : 'No liked songs found',
-                              style: TextStyle(
-                                color: theme.colorScheme.onSurface.withOpacity(0.6),
-                              ),
-                            ),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          _isSearching ? Icons.search_off : Icons.music_off,
+                          size: 48,
+                          color: theme.colorScheme.onSurface.withOpacity(0.4),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(AppSpacing.screenPadding),
-                        itemCount: _songs.length,
-                        itemBuilder: (context, index) {
-                          final song = _songs[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: AuraTrackTile(
-                              title: song.title,
-                              subtitle: song.artistName,
-                              imageUrl: song.thumbnailUrl,
-                              isPlaying: false,
-                              onTap: () {
-                                Navigator.pop(context, song);
-                              },
-                              onLikeTap: null,
-                              onMoreTap: null,
-                            ),
-                          );
-                        },
-                      ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _isSearching
+                              ? 'No songs found for "${_searchController.text}"'
+                              : 'No liked songs found',
+                          style: TextStyle(
+                            color: theme.colorScheme.onSurface.withOpacity(0.6),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(AppSpacing.screenPadding),
+                    itemCount: _songs.length,
+                    itemBuilder: (context, index) {
+                      final song = _songs[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: AuraTrackTile(
+                          title: song.title,
+                          subtitle: song.artistName,
+                          imageUrl: song.thumbnailUrl,
+                          isPlaying: false,
+                          onTap: () {
+                            Navigator.pop(context, song);
+                          },
+                          onLikeTap: null,
+                          onMoreTap: null,
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

@@ -11,7 +11,7 @@ import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Search Screen
-/// 
+///
 /// Premium search experience with:
 /// - Real-time API search with debouncing
 /// - Browse categories
@@ -27,7 +27,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
   Timer? _debounceTimer;
-  
+
   List<MediaItem> _searchResults = [];
   bool _isSearching = false;
   bool _hasSearched = false;
@@ -42,7 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
-    
+
     if (query.isEmpty) {
       setState(() {
         _isSearching = false;
@@ -53,7 +53,7 @@ class _SearchScreenState extends State<SearchScreen> {
     }
 
     setState(() => _isSearching = true);
-    
+
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       _performSearch(query);
     });
@@ -63,7 +63,7 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final mediaService = context.read<MediaService>();
       final results = await mediaService.search(query);
-      
+
       setState(() {
         _searchResults = results;
         _isSearching = false;
@@ -81,14 +81,15 @@ class _SearchScreenState extends State<SearchScreen> {
   void _playMedia(MediaItem item) {
     final player = context.read<PlayerProvider>();
     final mediaService = context.read<MediaService>();
-    
+
     player.play(item);
     // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
 
     if (item.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -139,7 +140,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isDark ? Colors.white12 : Colors.black.withOpacity(0.05),
+                    color: isDark
+                        ? Colors.white12
+                        : Colors.black.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: TextField(
@@ -192,9 +195,7 @@ class _SearchScreenState extends State<SearchScreen> {
             _buildBrowseCategories(theme, colorScheme),
 
           // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 140),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
       ),
     );
@@ -203,7 +204,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchResults(ThemeData theme) {
     final mediaService = context.watch<MediaService>();
     final player = context.watch<PlayerProvider>();
-    
+
     if (_searchResults.isEmpty) {
       return SliverFillRemaining(
         child: Center(
@@ -249,9 +250,7 @@ class _SearchScreenState extends State<SearchScreen> {
           // Results count
           Text(
             '${_searchResults.length} results',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.grey,
-            ),
+            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: AppSpacing.lg),
 
@@ -269,7 +268,8 @@ class _SearchScreenState extends State<SearchScreen> {
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: videos.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.md),
                 itemBuilder: (context, index) {
                   final item = videos[index];
                   return SizedBox(
@@ -329,130 +329,47 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Widget _buildBrowseCategories(ThemeData theme, ColorScheme colorScheme) {
-    final categories = [
-      _CategoryData('Podcasts', const Color(0xFF27856A)),
-      _CategoryData('Made For You', const Color(0xFF1E3264)),
-      _CategoryData('Charts', const Color(0xFF8D67AB)),
-      _CategoryData('New Releases', const Color(0xFFE8115B)),
-      _CategoryData('Discover', const Color(0xFFE13300)),
-      _CategoryData('Concerts', const Color(0xFF148A08)),
-      _CategoryData('Pop', const Color(0xFF509BF5)),
-      _CategoryData('Hip-Hop', const Color(0xFFBA5D07)),
-      _CategoryData('Rock', const Color(0xFFE61E32)),
-      _CategoryData('Latin', const Color(0xFFE13300)),
-      _CategoryData('Dance/Electronic', const Color(0xFF8D67AB)),
-      _CategoryData('Indie', const Color(0xFF608108)),
-      _CategoryData('Workout', const Color(0xFF777777)),
-      _CategoryData('R&B', const Color(0xFFDC148C)),
-      _CategoryData('Mood', const Color(0xFF503750)),
-      _CategoryData('Jazz', const Color(0xFF477D95)),
-    ];
+    final isDark = theme.brightness == Brightness.dark;
 
-    return SliverPadding(
-      padding: const EdgeInsets.all(AppSpacing.screenPadding),
-      sliver: SliverMainAxisGroup(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-              child: Text(
-                'Browse all',
-                style: theme.textTheme.headlineSmall?.copyWith(
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 80),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.search_rounded,
+                  size: 56,
+                  color: AppColors.primary.withOpacity(0.6),
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                'Search for music',
+                style: theme.textTheme.titleLarge?.copyWith(
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            ),
-          ),
-          SliverGrid(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 220,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 1.6,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) {
-                final category = categories[index];
-                return _CategoryCard(
-                  title: category.title,
-                  color: category.color,
-                  onTap: () {},
-                );
-              },
-              childCount: categories.length,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _CategoryData {
-  const _CategoryData(this.title, this.color);
-  final String title;
-  final Color color;
-}
-
-class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({
-    required this.title,
-    required this.color,
-    required this.onTap,
-  });
-
-  final String title;
-  final Color color;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        child: Stack(
-          children: [
-            // Title
-            Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              child: Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(height: 10),
+              Text(
+                'Find your favourite songs, artists\nand albums',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+                  height: 1.5,
                 ),
               ),
-            ),
-            
-            // Decorative element
-            Positioned(
-              right: -8,
-              bottom: -4,
-              child: Transform.rotate(
-                angle: 0.3,
-                child: Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 8,
-                        offset: const Offset(2, 2),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
