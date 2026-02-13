@@ -33,6 +33,16 @@ class MiniPlayer extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     
+    // Theme-aware colors
+    // Light mode: White background, Dark text
+    // Dark mode: Dark background, White text
+    final bgColor = isDark ? const Color(0xFF2A2A2A) : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final subtextColor = isDark ? Colors.white70 : AppColors.lightTextSecondary;
+    final iconColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
+    final progressBgColor = isDark ? Colors.white12 : Colors.black12;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: GestureDetector(
@@ -44,12 +54,19 @@ class MiniPlayer extends StatelessWidget {
             child: Container(
               height: 64,
               decoration: BoxDecoration(
-                color: (isDark ? const Color(0xFF2A2A2A) : Colors.white).withOpacity(0.7),
+                color: bgColor.withOpacity(isDark ? 0.7 : 0.95),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.1),
+                  color: borderColor,
                   width: 0.5,
                 ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Stack(
                 alignment: Alignment.bottomLeft,
@@ -70,10 +87,10 @@ class MiniPlayer extends StatelessWidget {
                               image: artworkUrl != null && artworkUrl!.isNotEmpty
                                   ? DecorationImage(image: NetworkImage(artworkUrl!), fit: BoxFit.cover)
                                   : null,
-                              color: Colors.grey[800],
+                              color: isDark ? Colors.grey[800] : Colors.grey[200],
                             ),
                             child: artworkUrl == null || artworkUrl!.isEmpty
-                                ? const Icon(Icons.music_note_rounded, color: Colors.white, size: 24)
+                                ? Icon(Icons.music_note_rounded, color: isDark ? Colors.white54 : Colors.black54, size: 24)
                                 : null,
                           ),
                         ),
@@ -87,20 +104,20 @@ class MiniPlayer extends StatelessWidget {
                             children: [
                               Text(
                                 trackTitle,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w600,
                                   fontSize: 14,
-                                  color: Colors.white,
+                                  color: textColor,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                               Text(
                                 artistName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontWeight: FontWeight.w400,
                                   fontSize: 12,
-                                  color: Colors.white70,
+                                  color: subtextColor,
                                 ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
@@ -110,13 +127,13 @@ class MiniPlayer extends StatelessWidget {
                         ),
                         
                         // Action Icons
-                        const Icon(Icons.devices_rounded, color: Colors.white, size: 22),
+                        Icon(Icons.devices_rounded, color: iconColor, size: 22),
                         const SizedBox(width: 12),
                         IconButton(
                           padding: EdgeInsets.zero,
                           constraints: const BoxConstraints(),
                           onPressed: onFavorite,
-                          icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white, size: 24),
+                          icon: Icon(Icons.add_circle_outline_rounded, color: iconColor, size: 24),
                         ),
                         const SizedBox(width: 12),
                         IconButton(
@@ -125,7 +142,7 @@ class MiniPlayer extends StatelessWidget {
                           onPressed: onPlayPause,
                           icon: Icon(
                             isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                            color: Colors.white,
+                            color: iconColor,
                             size: 28,
                           ),
                         ),
@@ -142,7 +159,7 @@ class MiniPlayer extends StatelessWidget {
                     child: Container(
                       height: 2,
                       decoration: BoxDecoration(
-                        color: Colors.white12,
+                        color: progressBgColor,
                         borderRadius: BorderRadius.circular(1),
                       ),
                       child: FractionallySizedBox(

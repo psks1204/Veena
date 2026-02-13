@@ -139,24 +139,29 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
     final isDark = theme.brightness == Brightness.dark;
     final player = context.watch<PlayerProvider>();
 
+    final iconColor = Color.lerp(Colors.white, isDark ? Colors.white : Colors.black, _opacity);
+
     return Scaffold(
       extendBodyBehindAppBar: true,
       appBar: AppBar(
-        leading: const BackButton(color: Colors.white),
-        backgroundColor: (isDark ? AppColors.darkBg : Colors.white).withOpacity(_opacity),
+        leading: BackButton(color: iconColor),
+        backgroundColor: (isDark ? AppColors.darkBg : AppColors.lightBg).withOpacity(_opacity),
         elevation: 0,
         title: Opacity(
           opacity: _opacity,
-          child: Text(_displayTitle),
+          child: Text(
+            _displayTitle,
+            style: TextStyle(color: iconColor, fontWeight: FontWeight.bold),
+          ),
         ),
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.favorite_border, color: Colors.white),
+            icon: Icon(Icons.favorite_border, color: iconColor),
           ),
           IconButton(
             onPressed: () {},
-            icon: const Icon(Icons.more_horiz, color: Colors.white),
+            icon: Icon(Icons.more_horiz, color: iconColor),
           ),
         ],
       ),

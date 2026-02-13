@@ -56,6 +56,14 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
           SliverAppBar(
             expandedHeight: 320,
             pinned: true,
+            leading: Container(
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: const BackButton(color: Colors.white),
+            ),
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
