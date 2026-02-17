@@ -35,7 +35,9 @@ class ProfileService {
     try {
       final body = <String, dynamic>{
         'name': name,
-        'birthDate': birthDate ?? '',
+        'birthDate': (birthDate != null && birthDate.isNotEmpty)
+            ? birthDate
+            : null,
         'latitude': latitude ?? 0,
         'longitude': longitude ?? 0,
       };
@@ -83,7 +85,7 @@ class ProfileService {
       rethrow;
     }
   }
-  
+
   String _getContentType(String path) {
     final lower = path.toLowerCase();
     if (lower.endsWith('.png')) return 'image/png';

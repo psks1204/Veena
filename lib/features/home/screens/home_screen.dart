@@ -22,7 +22,12 @@ import '../../library/screens/album_detail_screen.dart';
 import '../../playlist/screens/playlist_detail_screen.dart';
 import '../widgets/featured_carousel.dart';
 import 'section_view_screen.dart';
+
 import '../../../shared/widgets/app_footer.dart';
+import '../../../core/services/birthday_service.dart';
+import '../../../shared/widgets/birthday_celebration_overlay.dart';
+import '../../../shared/widgets/birthday_banner.dart';
+import '../../../core/providers/profile_provider.dart';
 
 /// Home Screen - Premium Studio Design
 ///
@@ -47,7 +52,35 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadData();
+      _checkBirthday();
     });
+  }
+
+  void _checkBirthday() async {
+    final profileProvider = context.read<ProfileProvider>();
+    final user = profileProvider.profile;
+
+    // If profile not loaded yet, wait for it (handled by listener in build or subsequent checks)
+    if (user == null) return;
+
+    final birthdayService = BirthdayService();
+    if (await birthdayService.shouldShowBirthdayBomb(user)) {
+      if (!mounted) return;
+
+      // Mark as seen immediately so it doesn't show again on reload
+      await birthdayService.markBirthdayBombAsSeen();
+
+      // Show overlay
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        barrierColor: Colors.transparent, // Helper handles its own background
+        builder: (context) => BirthdayCelebrationOverlay(
+          userName: user.displayName,
+          onDismiss: () => Navigator.of(context).pop(),
+        ),
+      );
+    }
   }
 
   Future<void> _loadData() async {
@@ -118,6 +151,17 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       body: Consumer<DashboardService>(
         builder: (context, dashboard, child) {
+          // Watch profile for birthday updates
+          final profileProvider = context.watch<ProfileProvider>();
+          final user = profileProvider.profile;
+          final isBirthday = BirthdayService().isBirthday(user);
+
+          // Re-check bomb if profile just loaded
+          if (user != null && profileProvider.hasProfile) {
+            // We use a microtask to avoid building-phase side effects
+            Future.microtask(() => _checkBirthday());
+          }
+
           final latestReleases = dashboard.latestReleases;
           final popularTracks = dashboard.popularTracks;
           final recentlyPlayed = dashboard.recentlyPlayed;
@@ -160,17 +204,20 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Featured Playlists
                   _buildFeaturedPlaylistsSection(context),
 
-                  // Latest Releases
-                  if (latestReleases.isNotEmpty) ...[
-                    _buildSection(
-                      context,
-                      title: 'Latest Releases',
-                      icon: Icons.new_releases_rounded,
-                      items: latestReleases,
-                      isHorizontal: true,
-                      showBadge: true,
+                  // 1. Birthday Banner (Conditional)
+                  if (isBirthday && user != null)
+                    SliverToBoxAdapter(
+                      child: BirthdayBanner(userName: user.displayName),
                     ),
-                  ],
+
+                  // 2. Featured Carousel (Hero)
+                  if (dashboard.latestReleases.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: FeaturedCarousel(
+                        items: dashboard.latestReleases,
+                        onPlay: _playMedia,
+                      ),
+                    ),
 
                   // Popular/Trending
                   if (popularTracks.isNotEmpty) ...[
