@@ -27,7 +27,7 @@ class PublicDashboardService extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final uri = Uri.parse('${ApiService.baseUrl}/dashboard');
+      final uri = Uri.parse('${ApiService.baseUrl}/user/dashboard');
       debugPrint('🌐 PUBLIC GET: $uri');
 
       final response = await http.get(

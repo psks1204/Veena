@@ -12,7 +12,10 @@ import 'core/services/album_service.dart';
 import 'core/services/artist_service.dart';
 import 'core/services/profile_service.dart';
 import 'core/services/public_dashboard_service.dart';
+import 'core/services/app_settings_service.dart';
 import 'core/theme/app_theme.dart';
+import 'features/settings/screens/maintenance_page.dart';
+import 'features/settings/screens/update_required_page.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/splash_screen.dart';
@@ -68,6 +71,7 @@ class VeenaApp extends StatelessWidget {
           create: (_) => ProfileProvider(ProfileService(apiService)),
         ),
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
+        ChangeNotifierProvider(create: (_) => AppSettingsService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -95,15 +99,45 @@ class _AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
+  bool _settingsLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Fetch app settings on startup
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchSettings();
+    });
+  }
+
+  Future<void> _fetchSettings() async {
+    final settingsService = context.read<AppSettingsService>();
+    await settingsService.fetchSettings();
+    if (mounted) setState(() => _settingsLoaded = true);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<AuthService, PlayerProvider>(
-      builder: (context, authService, player, child) {
-        // Show loading while initializing
+    return Consumer3<AuthService, PlayerProvider, AppSettingsService>(
+      builder: (context, authService, player, settings, child) {
+        // Show splash while loading auth or settings
         if (authService.state == AuthState.initial ||
-            authService.state == AuthState.loading) {
+            authService.state == AuthState.loading ||
+            !_settingsLoaded) {
           return const SplashScreen();
+        }
+
+        // === GATE 1: Maintenance Mode ===
+        if (settings.maintenanceMode) {
+          return MaintenancePage(onRetry: () => _fetchSettings());
+        }
+
+        // === GATE 2: Minimum Version Check ===
+        if (settings.isAppOutdated) {
+          return UpdateRequiredPage(
+            currentVersion: AppSettingsService.currentAppVersion,
+            minimumVersion: settings.minimumAppVersion,
+          );
         }
 
         // Show login if not authenticated

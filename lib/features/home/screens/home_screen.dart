@@ -22,9 +22,10 @@ import '../../library/screens/album_detail_screen.dart';
 import '../../playlist/screens/playlist_detail_screen.dart';
 import '../widgets/featured_carousel.dart';
 import 'section_view_screen.dart';
+import '../../../shared/widgets/app_footer.dart';
 
 /// Home Screen - Premium Studio Design
-/// 
+///
 /// Dynamic home screen with personalized sections:
 /// - Recently Played (personalized)
 /// - Latest Releases
@@ -59,14 +60,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final dashboard = context.read<DashboardService>();
       final albumService = context.read<AlbumService>();
       final libraryService = context.read<LibraryService>();
-      
+
       // Load dashboard, albums, and featured playlists concurrently
       await Future.wait([
         dashboard.fetchDashboard(),
         albumService.getAllAlbums(),
         libraryService.getFeaturedPlaylists(),
       ]);
-      
+
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       if (mounted) {
@@ -81,17 +82,18 @@ class _HomeScreenState extends State<HomeScreen> {
   void _playMedia(List<MediaItem> items, int index) {
     final player = context.read<PlayerProvider>();
     final mediaService = context.read<MediaService>();
-    
+
     player.playQueue(items, startIndex: index);
-    
+
     final item = items[index];
     // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
 
     if (item.isVideo && !kIsWeb) {
       // Use rootNavigator to open fullscreen on top of everything
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -112,18 +114,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: Consumer<DashboardService>(
         builder: (context, dashboard, child) {
           final latestReleases = dashboard.latestReleases;
           final popularTracks = dashboard.popularTracks;
           final recentlyPlayed = dashboard.recentlyPlayed;
-          
+
           // Split by type
           final videos = latestReleases.where((m) => m.isVideo).toList();
           final audios = latestReleases.where((m) => m.isAudio).toList();
-          
+
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: _loadData,
@@ -136,7 +138,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_isLoading)
                   const SliverFillRemaining(
                     child: Center(
-                      child: CircularProgressIndicator(color: AppColors.primary),
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                      ),
                     ),
                   )
                 else if (_error != null)
@@ -208,14 +212,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
 
                   // Empty state
-                  if (latestReleases.isEmpty && 
-                      popularTracks.isEmpty && 
+                  if (latestReleases.isEmpty &&
+                      popularTracks.isEmpty &&
                       recentlyPlayed.isEmpty)
                     _buildEmptyState(),
                 ],
 
-                // Bottom padding
-                const SliverToBoxAdapter(child: SizedBox(height: 140)),
+                // Footer
+                const SliverToBoxAdapter(child: AppFooter()),
+                const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
             ),
           );
@@ -229,14 +234,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return SliverToBoxAdapter(
       child: Consumer<DashboardService>(
         builder: (context, dashboard, _) {
-           final featuredItems = dashboard.latestReleases.take(5).toList();
-           
-           if (featuredItems.isEmpty) return const SizedBox.shrink();
+          final featuredItems = dashboard.latestReleases.take(5).toList();
 
-           return FeaturedCarousel(
-             items: featuredItems,
-             onPlay: _playMedia,
-           );
+          if (featuredItems.isEmpty) return const SizedBox.shrink();
+
+          return FeaturedCarousel(items: featuredItems, onPlay: _playMedia);
         },
       ),
     );
@@ -251,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
     bool showBadge = false,
   }) {
     final mediaService = context.watch<MediaService>();
-    
+
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -260,12 +262,11 @@ class _HomeScreenState extends State<HomeScreen> {
             title: title,
             actionLabel: 'See all',
             onActionTap: () {
-               AppNavigation.push(
-                context, 
-                MaterialPageRoute(builder: (_) => SectionViewScreen(
-                  title: title,
-                  items: items,
-                )),
+              AppNavigation.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => SectionViewScreen(title: title, items: items),
+                ),
               );
             },
             padding: const EdgeInsets.only(
@@ -301,7 +302,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (context) => AddToPlaylistSheet(mediaItem: item),
+                        builder: (context) =>
+                            AddToPlaylistSheet(mediaItem: item),
                       );
                     },
                   ),
@@ -334,10 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 AppNavigation.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SectionViewScreen(
-                      title: title,
-                      items: items,
-                    ),
+                    builder: (_) =>
+                        SectionViewScreen(title: title, items: items),
                   ),
                 );
               },
@@ -381,7 +381,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }) {
     final player = context.watch<PlayerProvider>();
     final mediaService = context.watch<MediaService>();
-    
+
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -395,10 +395,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 AppNavigation.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => SectionViewScreen(
-                      title: title,
-                      items: items,
-                    ),
+                    builder: (_) =>
+                        SectionViewScreen(title: title, items: items),
                   ),
                 );
               },
@@ -415,7 +413,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemBuilder: (context, index) {
               final item = items[index];
               final isPlaying = player.currentMedia?.id == item.id;
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: AuraTrackTile(
@@ -427,12 +425,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () => _playMedia(items, index),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) => AddToPlaylistSheet(mediaItem: item),
-                      );
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => AddToPlaylistSheet(mediaItem: item),
+                    );
                   },
                 ),
               );
@@ -479,7 +477,10 @@ class _HomeScreenState extends State<HomeScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -491,15 +492,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildFeaturedPlaylistsSection(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Consumer<LibraryService>(
       builder: (context, libraryService, _) {
         final featuredPlaylists = libraryService.featuredPlaylists;
-        
+
         if (featuredPlaylists.isEmpty) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
-        
+
         return SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -518,11 +519,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)],
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withOpacity(0.6),
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.playlist_play_rounded, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.playlist_play_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -536,12 +544,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
               ),
-              
+
               // Playlist Cards Horizontal Scroll
               SizedBox(
                 height: 200,
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenPadding,
+                  ),
                   scrollDirection: Axis.horizontal,
                   itemCount: featuredPlaylists.length,
                   itemBuilder: (context, index) {
@@ -558,9 +568,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPlaylistCard(BuildContext context, Playlist playlist, bool isDark) {
+  Widget _buildPlaylistCard(
+    BuildContext context,
+    Playlist playlist,
+    bool isDark,
+  ) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: () {
         AppNavigation.push(
@@ -595,7 +609,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
+                child:
+                    playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: playlist.coverUrl!,
                         fit: BoxFit.cover,
@@ -626,9 +641,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
               ),
             ),
-            
+
             const SizedBox(height: AppSpacing.sm),
-            
+
             // Title
             Text(
               playlist.name,
@@ -638,7 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            
+
             // Track count
             Text(
               '${playlist.trackCount} songs',
@@ -657,28 +672,44 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildArtistSection(BuildContext context, List<Artist> artists) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return SliverToBoxAdapter(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.screenPadding, AppSpacing.lg, AppSpacing.screenPadding, AppSpacing.md),
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.lg,
+              AppSpacing.screenPadding,
+              AppSpacing.md,
+            ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    gradient: LinearGradient(colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)]),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary,
+                        AppColors.primary.withOpacity(0.6),
+                      ],
+                    ),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.person_rounded, color: Colors.white, size: 20),
+                  child: const Icon(
+                    Icons.person_rounded,
+                    color: Colors.white,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'Artists',
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -687,7 +718,9 @@ class _HomeScreenState extends State<HomeScreen> {
           SizedBox(
             height: 160,
             child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+              ),
               scrollDirection: Axis.horizontal,
               itemCount: artists.length > 10 ? 10 : artists.length,
               separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
@@ -695,9 +728,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 final artist = artists[index];
                 return GestureDetector(
                   onTap: () {
-                     AppNavigation.push(
+                    AppNavigation.push(
                       context,
-                      MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: artist)),
+                      MaterialPageRoute(
+                        builder: (_) => ArtistDetailScreen(artist: artist),
+                      ),
                     );
                   },
                   child: SizedBox(
@@ -717,18 +752,29 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ],
                             image: artist.imageUrl != null
-                                ? DecorationImage(image: NetworkImage(artist.imageUrl!), fit: BoxFit.cover)
+                                ? DecorationImage(
+                                    image: NetworkImage(artist.imageUrl!),
+                                    fit: BoxFit.cover,
+                                  )
                                 : null,
                             color: isDark ? Colors.grey[800] : Colors.grey[200],
                           ),
                           child: artist.imageUrl == null
-                              ? Icon(Icons.person, size: 48, color: isDark ? Colors.grey[600] : Colors.grey[400])
+                              ? Icon(
+                                  Icons.person,
+                                  size: 48,
+                                  color: isDark
+                                      ? Colors.grey[600]
+                                      : Colors.grey[400],
+                                )
                               : null,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           artist.name,
-                          style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
@@ -748,15 +794,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildAlbumsSection(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Consumer<AlbumService>(
       builder: (context, albumService, _) {
         final albums = albumService.albums;
-        
+
         if (albums.isEmpty && !albumService.isLoading) {
           return const SliverToBoxAdapter(child: SizedBox.shrink());
         }
-        
+
         return SliverToBoxAdapter(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -775,11 +821,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.primary, AppColors.primary.withOpacity(0.6)],
+                          colors: [
+                            AppColors.primary,
+                            AppColors.primary.withOpacity(0.6),
+                          ],
                         ),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.album_rounded, color: Colors.white, size: 20),
+                      child: const Icon(
+                        Icons.album_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -794,7 +847,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       onPressed: () {
                         AppNavigation.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const AlbumsBrowseScreen()),
+                          MaterialPageRoute(
+                            builder: (_) => const AlbumsBrowseScreen(),
+                          ),
                         );
                       },
                       child: Row(
@@ -807,23 +862,35 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ),
                           const SizedBox(width: 4),
-                          Icon(Icons.arrow_forward_ios, size: 14, color: AppColors.primary),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 14,
+                            color: AppColors.primary,
+                          ),
                         ],
                       ),
                     ),
                   ],
                 ),
               ),
-              
+
               // Album Cards Horizontal Scroll
               SizedBox(
                 height: 200,
                 child: albumService.isLoading
-                    ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      )
                     : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.screenPadding,
+                        ),
                         scrollDirection: Axis.horizontal,
-                        itemCount: albums.length > 10 ? 10 : albums.length, // Limit to 10 items
+                        itemCount: albums.length > 10
+                            ? 10
+                            : albums.length, // Limit to 10 items
                         itemBuilder: (context, index) {
                           final album = albums[index];
                           return _buildAlbumCard(context, album, isDark);
@@ -837,9 +904,13 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildAlbumCard(BuildContext context, AlbumSummary album, bool isDark) {
+  Widget _buildAlbumCard(
+    BuildContext context,
+    AlbumSummary album,
+    bool isDark,
+  ) {
     final theme = Theme.of(context);
-    
+
     return GestureDetector(
       onTap: () {
         AppNavigation.push(
@@ -906,9 +977,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
               ),
             ),
-            
+
             const SizedBox(height: AppSpacing.sm),
-            
+
             // Title
             Text(
               album.title,
@@ -918,7 +989,7 @@ class _HomeScreenState extends State<HomeScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            
+
             // Artist
             Text(
               album.artistName,

@@ -81,6 +81,7 @@ dependencies:
   path_provider: ^2.1.5
   audio_session: ^0.1.25
   geolocator: ^13.0.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

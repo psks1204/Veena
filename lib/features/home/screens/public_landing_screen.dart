@@ -7,6 +7,7 @@ import '../../../core/services/public_dashboard_service.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../widgets/featured_carousel.dart';
+import '../../../shared/widgets/app_footer.dart';
 
 /// Public Landing Screen
 ///
@@ -61,99 +62,106 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: isDark
-            ? AppColors.darkSurface
-            : AppColors.lightSurface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Icon
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary.withOpacity(0.2),
-                      AppColors.primary.withOpacity(0.05),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.lock_rounded,
-                  size: 48,
-                  color: AppColors.primary,
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Title
-              Text(
-                'Sign In to Play',
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              // Subtitle
-              Text(
-                'Create a free account to start listening to your favorite music and videos.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: isDark
-                      ? AppColors.darkTextSecondary
-                      : AppColors.lightTextSecondary,
-                  height: 1.5,
-                ),
-              ),
-              const SizedBox(height: 28),
-
-              // Sign In Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.of(ctx).pop();
-                    widget.onSignIn();
-                  },
-                  icon: const Icon(Icons.login_rounded),
-                  label: const Text('Sign In with Google'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+      builder: (ctx) => Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Dialog(
+            backgroundColor: isDark
+                ? AppColors.darkSurface
+                : AppColors.lightSurface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.primary.withOpacity(0.2),
+                          AppColors.primary.withOpacity(0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      shape: BoxShape.circle,
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                    child: const Icon(
+                      Icons.lock_rounded,
+                      size: 48,
+                      color: AppColors.primary,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 12),
+                  const SizedBox(height: 24),
 
-              // Cancel
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(
-                  'Maybe Later',
-                  style: TextStyle(
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
+                  // Title
+                  Text(
+                    'Sign In to Play',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+
+                  // Subtitle
+                  Text(
+                    'Create a free account to start listening to your favorite music and videos.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+
+                  // Sign In Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.of(ctx).pop();
+                        widget.onSignIn();
+                      },
+                      icon: const Icon(Icons.login_rounded),
+                      label: const Text('Sign In with Google'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Cancel
+                  TextButton(
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'Maybe Later',
+                      style: TextStyle(
+                        color: isDark
+                            ? AppColors.darkTextSecondary
+                            : AppColors.lightTextSecondary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -248,8 +256,9 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
                     _buildEmptyState(),
                 ],
 
-                // Bottom padding
-                const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                // Footer
+                const SliverToBoxAdapter(child: AppFooter()),
+                const SliverToBoxAdapter(child: SizedBox(height: 20)),
               ],
             ),
           );
