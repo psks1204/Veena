@@ -11,11 +11,13 @@ import 'core/services/library_service.dart';
 import 'core/services/album_service.dart';
 import 'core/services/artist_service.dart';
 import 'core/services/profile_service.dart';
+import 'core/services/public_dashboard_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/services/auth_service.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/home/screens/home_screen.dart';
+import 'features/home/screens/public_landing_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
@@ -29,7 +31,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'features/alarm/services/alarm_service.dart';
 
 /// Veena Music Streaming App
-/// 
+///
 /// Premium music streaming application with Spotify-level polish.
 class VeenaApp extends StatelessWidget {
   final SharedPreferences prefs;
@@ -40,12 +42,12 @@ class VeenaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Create ApiService first as other services depend on it
     final apiService = ApiService();
-    
+
     // Set ApiService on PushNotificationService for FCM token registration (mobile only)
     if (!kIsWeb) {
       PushNotificationService().setApiService(apiService);
     }
-    
+
     return MultiProvider(
       providers: [
         // Core providers
@@ -53,7 +55,7 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
-        
+
         // API-based services (share the same ApiService instance)
         Provider<ApiService>.value(value: apiService),
         ChangeNotifierProvider(create: (_) => DashboardService(apiService)),
@@ -62,7 +64,10 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
         ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
         ChangeNotifierProvider(create: (_) => ArtistService(apiService)),
-        ChangeNotifierProvider(create: (_) => ProfileProvider(ProfileService(apiService))),
+        ChangeNotifierProvider(
+          create: (_) => ProfileProvider(ProfileService(apiService)),
+        ),
+        ChangeNotifierProvider(create: (_) => PublicDashboardService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -103,6 +108,13 @@ class _AppRouterState extends State<_AppRouter> {
 
         // Show login if not authenticated
         if (authService.state != AuthState.authenticated) {
+          // Web: show public landing page with dashboard preview
+          if (kIsWeb) {
+            return PublicLandingScreen(
+              onSignIn: () => authService.signInWithGoogle(),
+            );
+          }
+          // Mobile: show standard login screen
           return LoginScreen(
             onLoginSuccess: () {
               // Navigate to home after login
@@ -113,7 +125,7 @@ class _AppRouterState extends State<_AppRouter> {
         // Inject access token into ApiService for authenticated API calls
         final apiService = context.read<ApiService>();
         apiService.setAccessToken(authService.accessToken);
-        
+
         // Handle Token Refresh
         apiService.onRefreshToken = () async {
           debugPrint('🔄 AppRouter: Refreshing token...');
@@ -124,7 +136,7 @@ class _AppRouterState extends State<_AppRouter> {
           }
           return success;
         };
-        
+
         // Initialize profile on login: sends location + Google name via PUT, then fetches GET
         final profileProvider = context.read<ProfileProvider>();
         if (!profileProvider.hasInitialized && !profileProvider.isLoading) {
@@ -135,7 +147,7 @@ class _AppRouterState extends State<_AppRouter> {
             );
           });
         }
-        
+
         // Show first-login name setup if profile has no name
         if (profileProvider.needsNameSetup) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -150,7 +162,7 @@ class _AppRouterState extends State<_AppRouter> {
             profileProvider.markNameSetupDone();
           });
         }
-        
+
         // Handle 401 Unauthorized - Logout automatically
         apiService.onUnauthorized = () {
           // Prevent infinite loop: don't call signOut if already signing out
@@ -158,10 +170,12 @@ class _AppRouterState extends State<_AppRouter> {
             debugPrint('⚠️ Unauthorized! Signing out...');
             authService.signOut();
           } else {
-            debugPrint('⚠️ 401 received but signOut already in progress, skipping');
+            debugPrint(
+              '⚠️ 401 received but signOut already in progress, skipping',
+            );
           }
         };
-        
+
         // Connect player to media service for auto play tracking
         final playerProvider = context.read<PlayerProvider>();
         final mediaService = context.read<MediaService>();
@@ -215,7 +229,7 @@ class _AppRouterState extends State<_AppRouter> {
   /// Build all tab screens (for nested navigation)
   List<Widget> _buildScreens(BuildContext context) {
     final authService = context.read<AuthService>();
-    
+
     return [
       const HomeScreen(),
       const SearchScreen(),
@@ -228,4 +242,3 @@ class _AppRouterState extends State<_AppRouter> {
     ];
   }
 }
-
