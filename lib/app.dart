@@ -71,7 +71,7 @@ class VeenaApp extends StatelessWidget {
           create: (_) => ProfileProvider(ProfileService(apiService)),
         ),
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
-        ChangeNotifierProvider(create: (_) => AppSettingsService()),
+        ChangeNotifierProvider(create: (_) => AppSettingsService(apiService)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -99,49 +99,30 @@ class _AppRouter extends StatefulWidget {
 
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
-  bool _settingsLoaded = false;
+  bool _settingsFetched = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // Fetch app settings on startup
+  void _fetchSettingsOnce() {
+    if (_settingsFetched) return;
+    _settingsFetched = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _fetchSettings();
+      context.read<AppSettingsService>().fetchSettings();
     });
-  }
-
-  Future<void> _fetchSettings() async {
-    final settingsService = context.read<AppSettingsService>();
-    await settingsService.fetchSettings();
-    if (mounted) setState(() => _settingsLoaded = true);
   }
 
   @override
   Widget build(BuildContext context) {
     return Consumer3<AuthService, PlayerProvider, AppSettingsService>(
       builder: (context, authService, player, settings, child) {
-        // Show splash while loading auth or settings
+        // Show splash while loading auth
         if (authService.state == AuthState.initial ||
-            authService.state == AuthState.loading ||
-            !_settingsLoaded) {
+            authService.state == AuthState.loading) {
           return const SplashScreen();
-        }
-
-        // === GATE 1: Maintenance Mode ===
-        if (settings.maintenanceMode) {
-          return MaintenancePage(onRetry: () => _fetchSettings());
-        }
-
-        // === GATE 2: Minimum Version Check ===
-        if (settings.isAppOutdated) {
-          return UpdateRequiredPage(
-            currentVersion: AppSettingsService.currentAppVersion,
-            minimumVersion: settings.minimumAppVersion,
-          );
         }
 
         // Show login if not authenticated
         if (authService.state != AuthState.authenticated) {
+          // Reset so settings are re-fetched on next login
+          _settingsFetched = false;
           // Web: show public landing page with dashboard preview
           if (kIsWeb) {
             return PublicLandingScreen(
@@ -155,6 +136,8 @@ class _AppRouterState extends State<_AppRouter> {
             },
           );
         }
+
+        // ── Authenticated from here ──
 
         // Inject access token into ApiService for authenticated API calls
         final apiService = context.read<ApiService>();
@@ -170,6 +153,27 @@ class _AppRouterState extends State<_AppRouter> {
           }
           return success;
         };
+
+        // Fetch app settings once after login
+        _fetchSettingsOnce();
+
+        // === GATE 1: Maintenance Mode ===
+        if (settings.maintenanceMode) {
+          return MaintenancePage(
+            onRetry: () {
+              _settingsFetched = false;
+              _fetchSettingsOnce();
+            },
+          );
+        }
+
+        // === GATE 2: Minimum Version Check ===
+        if (settings.isAppOutdated) {
+          return UpdateRequiredPage(
+            currentVersion: AppSettingsService.currentAppVersion,
+            minimumVersion: settings.minimumAppVersion,
+          );
+        }
 
         // Initialize profile on login: sends location + Google name via PUT, then fetches GET
         final profileProvider = context.read<ProfileProvider>();

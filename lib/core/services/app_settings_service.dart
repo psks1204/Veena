@@ -1,67 +1,56 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 /// App Settings Service
 ///
-/// Fetches global app settings from /api/settings (public, no auth).
+/// Fetches global app settings from /api/settings (authenticated).
 /// Used to check maintenance mode and minimum app version.
 class AppSettingsService extends ChangeNotifier {
+  final ApiService _api;
+
   bool _maintenanceMode = false;
   String _minimumAppVersion = '1.0.0';
-  bool _isLoading = true;
-  bool _hasError = false;
+  bool _isLoading = false;
+  bool _hasLoaded = false;
 
   bool get maintenanceMode => _maintenanceMode;
   String get minimumAppVersion => _minimumAppVersion;
   bool get isLoading => _isLoading;
-  bool get hasError => _hasError;
+  bool get hasLoaded => _hasLoaded;
+
+  AppSettingsService(this._api);
 
   /// Current app version — must match pubspec.yaml version
   static const String currentAppVersion = '1.0.0';
 
-  /// Fetch settings from the public API
+  /// Fetch settings from the authenticated API
   Future<void> fetchSettings() async {
     _isLoading = true;
-    _hasError = false;
     notifyListeners();
 
     try {
-      final uri = Uri.parse('${ApiService.baseUrl}/settings');
-      debugPrint('⚙️ GET: $uri');
+      final data = await _api.get('/settings');
+      debugPrint('⚙️ Settings response: $data');
 
-      final response = await http.get(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-      );
-
-      debugPrint('📥 Settings Status: ${response.statusCode}');
-
-      if (response.statusCode >= 200 && response.statusCode < 300) {
-        final data = jsonDecode(response.body);
-
-        if (data != null) {
-          _maintenanceMode = data['maintenanceMode'] ?? false;
-          _minimumAppVersion = data['minimumAppVersion'] ?? '1.0.0';
-        }
-      } else {
-        debugPrint('Settings fetch failed: ${response.statusCode}');
-        // Don't block the app on settings error — default to safe values
-        _maintenanceMode = false;
-        _minimumAppVersion = '1.0.0';
+      if (data != null) {
+        _maintenanceMode = data['maintenanceMode'] ?? false;
+        _minimumAppVersion = data['minimumAppVersion'] ?? '1.0.0';
+        debugPrint('🔧 maintenanceMode: $_maintenanceMode');
+        debugPrint(
+          '📱 minimumAppVersion: $_minimumAppVersion (current: $currentAppVersion)',
+        );
       }
 
       _isLoading = false;
-      _hasError = false;
+      _hasLoaded = true;
       notifyListeners();
     } catch (e) {
-      debugPrint('Settings fetch error: $e');
-      // Don't block the app on network error
+      debugPrint('❌ Settings fetch error: $e');
+      // Don't block the app on settings error — default to safe values
       _maintenanceMode = false;
       _minimumAppVersion = '1.0.0';
       _isLoading = false;
-      _hasError = false;
+      _hasLoaded = true;
       notifyListeners();
     }
   }
