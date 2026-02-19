@@ -5,7 +5,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
+
 import 'app.dart';
 import 'core/services/audio_handler.dart';
 import 'core/services/push_notification_service.dart';
@@ -15,23 +15,20 @@ late AudioHandler audioHandler;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize Firebase (only on mobile - web requires separate config)
   if (!kIsWeb) {
     await Firebase.initializeApp();
-    
+
     // Set up background message handler
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-    
+
     // Initialize Push Notification Service
     await PushNotificationService().initialize();
-    
-    // Initialize Alarm Manager
-    await AndroidAlarmManager.initialize();
   }
-  
+
   final prefs = await SharedPreferences.getInstance();
-  
+
   // Initialize AudioService BEFORE runApp
   audioHandler = await AudioService.init(
     builder: () => VeenaAudioHandler(),
@@ -44,7 +41,7 @@ Future<void> main() async {
       notificationColor: Color(0xFF6366F1),
     ),
   );
-  
+
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -54,7 +51,7 @@ Future<void> main() async {
       systemNavigationBarIconBrightness: Brightness.light,
     ),
   );
-  
+
   // Enable edge-to-edge
   SystemChrome.setEnabledSystemUIMode(
     SystemUiMode.edgeToEdge,

@@ -54,7 +54,18 @@
 
 
 
-        <!-- Alarm Manager Service & Receivers -->
+        <!-- Alarm Player Foreground Service (native MediaPlayer) -->
+        <service
+            android:name=".AlarmPlayerService"
+            android:exported="false"
+            android:foregroundServiceType="mediaPlayback"/>
+
+        <!-- Custom Alarm Receiver — triggers AlarmPlayerService -->
+        <receiver
+            android:name=".AlarmReceiver"
+            android:exported="false"/>
+
+        <!-- Alarm Manager Service & Receivers (for android_alarm_manager_plus, kept for compatibility) -->
         <service
             android:name="dev.fluttercommunity.plus.androidalarmmanager.AlarmService"
             android:permission="android.permission.BIND_JOB_SERVICE"

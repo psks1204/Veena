@@ -1,52 +1,29 @@
 import 'dart:convert';
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:android_alarm_manager_plus/android_alarm_manager_plus.dart';
-import 'package:just_audio/just_audio.dart';
-import 'package:audio_session/audio_session.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:path_provider/path_provider.dart';
 import '../models/alarm_model.dart';
 
-/// Writes a stop signal file that the alarm polling loop will detect.
-/// This is a TOP-LEVEL function so it can be used as a background notification handler.
-@pragma('vm:entry-point')
-Future<void> _onStopAlarmAction(NotificationResponse response) async {
-  if (response.actionId == 'stop_alarm') {
-    debugPrint('[AlarmStop] Stop action received for notification ID: ${response.id}');
-    try {
-      // Write a stop signal file to the app's temporary directory.
-      // dart:io File operations work across Flutter engines/isolates.
-      final dir = await getTemporaryDirectory();
-      final stopFile = File('${dir.path}/stop_alarm_signal');
-      await stopFile.writeAsString('stop');
-      debugPrint('[AlarmStop] Stop signal file written at: ${stopFile.path}');
-    } catch (e) {
-      debugPrint('[AlarmStop] Error writing stop signal file: $e');
-    }
-
-    // Also cancel the notification
-    try {
-      final plugin = FlutterLocalNotificationsPlugin();
-      await plugin.cancel(response.id ?? 0);
-    } catch (e) {
-      debugPrint('[AlarmStop] Error cancelling notification: $e');
-    }
-  }
-}
-
+/// AlarmService — schedules and manages alarms using native Android AlarmManager
+/// via MethodChannel. Audio playback is handled entirely on the native side
+/// (AlarmReceiver → AlarmPlayerService) using Android's MediaPlayer with
+/// USAGE_ALARM attributes, which works reliably on Samsung and all OEM devices.
 @pragma('vm:entry-point')
 class AlarmService {
   static const String _alarmsKey = 'veena_alarms';
+  static const MethodChannel _channel = MethodChannel(
+    'com.dgfly.veena/alarm_player',
+  );
 
   final SharedPreferences _prefs;
 
   AlarmService(this._prefs);
 
+  /// Initialize is kept for API compatibility (no-op now since we use native AlarmManager)
   static Future<void> initialize() async {
-    await AndroidAlarmManager.initialize();
+    // No longer need AndroidAlarmManager.initialize() since we schedule natively
+    debugPrint('[AlarmService] Initialized');
   }
 
   List<Alarm> getAlarms() {
@@ -68,7 +45,9 @@ class AlarmService {
     }
 
     await _prefs.setString(
-        _alarmsKey, jsonEncode(alarms.map((e) => e.toJson()).toList()));
+      _alarmsKey,
+      jsonEncode(alarms.map((e) => e.toJson()).toList()),
+    );
 
     if (alarm.isEnabled) {
       await _scheduleAlarm(alarm);
@@ -79,14 +58,18 @@ class AlarmService {
 
   Future<void> deleteAlarm(String id) async {
     final alarms = getAlarms();
-    final alarm = alarms.firstWhere((a) => a.id == id,
-        orElse: () => throw Exception('Alarm not found'));
+    final alarm = alarms.firstWhere(
+      (a) => a.id == id,
+      orElse: () => throw Exception('Alarm not found'),
+    );
 
     await _cancelAlarm(alarm);
     alarms.removeWhere((a) => a.id == id);
 
     await _prefs.setString(
-        _alarmsKey, jsonEncode(alarms.map((e) => e.toJson()).toList()));
+      _alarmsKey,
+      jsonEncode(alarms.map((e) => e.toJson()).toList()),
+    );
   }
 
   Future<void> _scheduleAlarm(Alarm alarm) async {
@@ -104,176 +87,40 @@ class AlarmService {
     }
 
     final alarmId = alarm.id.hashCode;
+    final triggerAtMillis = scheduledDate.millisecondsSinceEpoch;
 
-    final params = {
-      'mediaUrl': alarm.mediaUrl,
-      'mediaTitle': alarm.mediaTitle,
-      'artistName': alarm.artistName,
-    };
-
-    await AndroidAlarmManager.oneShotAt(
-      scheduledDate,
-      alarmId,
-      alarmCallback,
-      exact: true,
-      wakeup: true,
-      rescheduleOnReboot: true,
-      params: params,
-    );
-
-    debugPrint('Alarm scheduled for $scheduledDate');
+    try {
+      await _channel.invokeMethod('scheduleNativeAlarm', {
+        'alarmId': alarmId,
+        'triggerAtMillis': triggerAtMillis,
+        'mediaUrl': alarm.mediaUrl ?? '',
+        'mediaTitle': alarm.mediaTitle ?? 'Alarm',
+        'artistName': alarm.artistName ?? 'Veena',
+      });
+      debugPrint('[AlarmService] Alarm $alarmId scheduled for $scheduledDate');
+    } catch (e) {
+      debugPrint('[AlarmService] Error scheduling alarm: $e');
+      rethrow;
+    }
   }
 
   Future<void> _cancelAlarm(Alarm alarm) async {
-    await AndroidAlarmManager.cancel(alarm.id.hashCode);
-    debugPrint('Alarm cancelled: ${alarm.id}');
+    final alarmId = alarm.id.hashCode;
+    try {
+      await _channel.invokeMethod('cancelNativeAlarm', {'alarmId': alarmId});
+      debugPrint('[AlarmService] Alarm $alarmId cancelled');
+    } catch (e) {
+      debugPrint('[AlarmService] Error cancelling alarm: $e');
+    }
   }
 
-  // --- Background Alarm Callback ---
-
-  @pragma('vm:entry-point')
-  static Future<void> alarmCallback(
-      int id, Map<String, dynamic> params) async {
-    debugPrint('[AlarmCallback] Alarm fired! ID: $id');
-
-    final mediaUrl = params['mediaUrl'] as String?;
-    final mediaTitle = params['mediaTitle'] as String? ?? 'Alarm';
-    final artistName = params['artistName'] as String? ?? 'Veena';
-
-    if (mediaUrl == null) {
-      debugPrint('[AlarmCallback] No media URL, aborting');
-      return;
-    }
-
-    // 1. Clean up any old stop signal file
+  /// Stop a currently playing alarm (call from UI)
+  static Future<void> stopNativeAlarm() async {
     try {
-      final dir = await getTemporaryDirectory();
-      final stopFile = File('${dir.path}/stop_alarm_signal');
-      if (await stopFile.exists()) {
-        await stopFile.delete();
-      }
-    } catch (_) {}
-
-    // 2. Initialize notifications with the top-level stop handler
-    final notifPlugin = FlutterLocalNotificationsPlugin();
-    const androidSettings =
-        AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
-
-    await notifPlugin.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: _onStopAlarmAction,
-      onDidReceiveBackgroundNotificationResponse: _onStopAlarmAction,
-    );
-
-    // 3. Initialize audio player and start playback
-    final player = AudioPlayer();
-
-    try {
-      // Set audio session attributes for Alarm playback
-      final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration(
-        avAudioSessionCategory: AVAudioSessionCategory.playback,
-        avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.mixWithOthers,
-        avAudioSessionMode: AVAudioSessionMode.defaultMode,
-        avAudioSessionRouteSharingPolicy: AVAudioSessionRouteSharingPolicy.defaultPolicy,
-        avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
-        androidAudioAttributes: AndroidAudioAttributes(
-          contentType: AndroidAudioContentType.music,
-          flags: AndroidAudioFlags.none,
-          usage: AndroidAudioUsage.alarm,
-        ),
-        androidAudioFocusGainType: AndroidAudioFocusGainType.gainTransient,
-        androidWillPauseWhenDucked: false,
-      ));
-
-      await player.setUrl(mediaUrl);
-      player.setLoopMode(LoopMode.one);
-      player.setVolume(1.0);
-      player.play();
-      debugPrint('[AlarmCallback] Audio playback started');
-
-      // 4. Show notification with Stop action
-      const androidDetails = AndroidNotificationDetails(
-        'veena_alarm_channel',
-        'Veena Alarm',
-        channelDescription: 'Alarm playback notifications',
-        importance: Importance.max,
-        priority: Priority.high,
-        ongoing: false, // Allow swipe dismiss
-        autoCancel: false,
-        fullScreenIntent: true,
-        actions: [
-          AndroidNotificationAction(
-            'stop_alarm',
-            'Stop',
-            showsUserInterface: true, // Route through foreground handler (which works)
-            cancelNotification: false,
-          ),
-        ],
-      );
-
-      const notifDetails = NotificationDetails(android: androidDetails);
-
-      await notifPlugin.show(
-        id,
-        '⏰ Alarm',
-        '$mediaTitle • $artistName — Tap to stop',
-        notifDetails,
-        payload: 'veena_alarm',
-      );
-
-      // 5. Poll for stop signal file OR notification dismissed (swipe) every 500ms
-      bool stopped = false;
-      for (int i = 0; i < 600; i++) {
-        // 600 * 500ms = 5 minutes max
-        await Future.delayed(const Duration(milliseconds: 500));
-
-        // Check 1: Stop signal file (written by notification tap/action)
-        try {
-          final dir = await getTemporaryDirectory();
-          final stopFile = File('${dir.path}/stop_alarm_signal');
-          if (await stopFile.exists()) {
-            debugPrint('[AlarmCallback] Stop signal file detected! Stopping...');
-            await stopFile.delete();
-            stopped = true;
-            break;
-          }
-        } catch (e) {
-          debugPrint('[AlarmCallback] Error checking stop file: $e');
-        }
-
-        // Check 2: Notification dismissed (user swiped it away)
-        try {
-          final activeNotifs = await notifPlugin
-              .resolvePlatformSpecificImplementation<
-                  AndroidFlutterLocalNotificationsPlugin>()
-              ?.getActiveNotifications();
-          if (activeNotifs != null) {
-            final alarmNotifExists = activeNotifs.any((n) => n.id == id);
-            if (!alarmNotifExists) {
-              debugPrint('[AlarmCallback] Notification was dismissed (swiped)! Stopping...');
-              stopped = true;
-              break;
-            }
-          }
-        } catch (e) {
-          debugPrint('[AlarmCallback] Error checking active notifications: $e');
-        }
-      }
-
-      // 6. Cleanup
-      debugPrint('[AlarmCallback] Stopping player (stopped=$stopped)');
-      await player.stop();
-      await player.dispose();
-      await notifPlugin.cancel(id);
+      await _channel.invokeMethod('stopAlarm');
+      debugPrint('[AlarmService] Native alarm stopped');
     } catch (e) {
-      debugPrint('[AlarmCallback] Error: $e');
-      try {
-        await player.stop();
-        await player.dispose();
-      } catch (_) {}
-      await notifPlugin.cancel(id);
+      debugPrint('[AlarmService] Error stopping alarm: $e');
     }
   }
 }

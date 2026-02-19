@@ -210,15 +210,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: BirthdayBanner(userName: user.displayName),
                     ),
 
-                  // 2. Featured Carousel (Hero)
-                  if (dashboard.latestReleases.isNotEmpty)
-                    SliverToBoxAdapter(
-                      child: FeaturedCarousel(
-                        items: dashboard.latestReleases,
-                        onPlay: _playMedia,
-                      ),
-                    ),
-
                   // Popular/Trending
                   if (popularTracks.isNotEmpty) ...[
                     _buildSection(
