@@ -132,7 +132,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _toggleLike(MediaItem item) async {
     final mediaService = context.read<MediaService>();
-    await mediaService.toggleLike(item.id);
+    final libraryService = context.read<LibraryService>();
+
+    await mediaService.toggleLike(item.id, initial: item.liked);
+
+    // Update local state for immediate UI reflection
+    if (mediaService.isLiked(item.id, initial: item.liked)) {
+      libraryService.addFavoriteLocal(item);
+    } else {
+      libraryService.removeFavoriteLocal(item.id);
+    }
+
     setState(() {}); // Refresh UI
   }
 
@@ -332,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     imageUrl: item.thumbnailUrl ?? '',
                     mediaType: item.mediaType,
                     isNew: showBadge && index < 3,
-                    isLiked: mediaService.isLiked(item.id),
+                    isLiked: mediaService.isLiked(item.id, initial: item.liked),
                     onTap: () => _playMedia(items, index),
                     onLikeTap: () => _toggleLike(item),
                     onMoreTap: () {
@@ -459,7 +469,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   subtitle: item.artistName,
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
-                  isLiked: mediaService.isLiked(item.id),
+                  isLiked: mediaService.isLiked(item.id, initial: item.liked),
                   onTap: () => _playMedia(items, index),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {

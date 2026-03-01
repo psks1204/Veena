@@ -13,7 +13,10 @@ import '../../../core/services/library_service.dart';
 import '../../../core/models/media_item.dart';
 import '../../../shared/widgets/full_player.dart';
 import '../../../shared/widgets/seekbar_control.dart';
-import '../../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../../core/utils/fullscreen_stub.dart' as fullscreen;
+import 'package:wakelock_plus/wakelock_plus.dart';
+import '../../../core/utils/fullscreen_web.dart'
+    if (dart.library.io) '../../../core/utils/fullscreen_stub.dart'
+    as fullscreen;
 
 /// Video Player Screen - Refined to fix layout and overlap issues
 class VideoPlayerScreen extends StatefulWidget {
@@ -35,38 +38,40 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   void initState() {
     super.initState();
     _focusNode = FocusNode();
-    
+
     // On web, start with controls hidden (will auto-hide)
     // On mobile, start with controls visible
     if (kIsWeb) {
       _hideControlsAfterDelay();
     }
-    
+
     // Monitor orientation
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
-    
-    // Listen for media changes to detect video -> audio transition
+
+    // Listen for media changes to detect video -> audio transition and manage wakelock
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final player = context.read<PlayerProvider>();
       player.addListener(_onPlayerChanged);
     });
   }
-  
-  /// Called when player state changes - check if we need to switch to audio player
+
+  /// Called when player state changes - check if we need to switch to audio player and manage wakelock
   void _onPlayerChanged() {
     if (!mounted || _isClosing) return;
-    
+
     final player = context.read<PlayerProvider>();
     final currentMedia = player.currentMedia;
-    
+
     // If current media is audio (not video), switch to full audio player
     if (currentMedia != null && currentMedia.isAudio) {
       _isClosing = true; // Prevent multiple navigation attempts
-      debugPrint('[VideoPlayerScreen] Detected audio track, switching to FullPlayer');
+      debugPrint(
+        '[VideoPlayerScreen] Detected audio track, switching to FullPlayer',
+      );
       // Use post frame callback to avoid Navigator lock issues
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && Navigator.of(context).canPop()) {
@@ -108,17 +113,15 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     );
   }
 
-
-
   void _hideControlsAfterDelay() {
     // Cancel any existing timer
     _hideControlsTimer?.cancel();
-    
+
     // On mobile (non-fullscreen), always show controls - don't hide
     if (!kIsWeb && !_isLandscape && !_isFullscreen) {
       return; // Don't hide on mobile unless in fullscreen
     }
-    
+
     // Start new timer - 3 seconds delay
     _hideControlsTimer = Timer(const Duration(milliseconds: 3000), () {
       if (mounted && context.read<PlayerProvider>().isPlaying) {
@@ -132,7 +135,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     if (!kIsWeb && !_isLandscape && !_isFullscreen) {
       return; // Controls always visible on mobile
     }
-    
+
     setState(() => _showControls = !_showControls);
     if (_showControls) {
       _hideControlsAfterDelay();
@@ -145,7 +148,6 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
     _hideControlsAfterDelay();
   }
-
 
   void _handleKeyEvent(KeyEvent event, PlayerProvider player) {
     if (event is KeyDownEvent) {
@@ -236,17 +238,19 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     }
   }
 
-
   @override
   void dispose() {
     _hideControlsTimer?.cancel();
     _focusNode.dispose();
-    
+
     // Remove player listener
     try {
       context.read<PlayerProvider>().removeListener(_onPlayerChanged);
     } catch (_) {}
-    
+
+    // Disable wakelock when leaving screen
+    WakelockPlus.disable();
+
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     super.dispose();
@@ -259,10 +263,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     return Consumer<PlayerProvider>(
       builder: (context, player, child) {
         final controller = player.videoController;
-        final isValid = controller != null && 
-                        controller.value.isInitialized &&
-                        !controller.value.hasError;
-        
+        final isValid =
+            controller != null &&
+            controller.value.isInitialized &&
+            !controller.value.hasError;
+
         if (!isValid) {
           return Scaffold(
             backgroundColor: Colors.black,
@@ -272,7 +277,10 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 children: [
                   const CircularProgressIndicator(color: AppColors.primary),
                   const SizedBox(height: 16),
-                  const Text('Loading video...', style: TextStyle(color: Colors.white70)),
+                  const Text(
+                    'Loading video...',
+                    style: TextStyle(color: Colors.white70),
+                  ),
                 ],
               ),
             ),
@@ -299,61 +307,65 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 child: GestureDetector(
                   onTap: _toggleControls,
                   child: Stack(
-                children: [
-                  // 1. Video Layer - Centered and respects aspect ratio
-                  Center(
-                    child: AspectRatio(
-                      aspectRatio: controller.value.aspectRatio,
-                      child: VideoPlayer(controller),
-                    ),
-                  ),
-
-                  // 2. Controls & Metadata Overlay
-                  AnimatedOpacity(
-                    opacity: _showControls ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 300),
-                    child: IgnorePointer(
-                      ignoring: !_showControls,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.black.withOpacity(0.6),
-                              Colors.transparent,
-                              Colors.transparent,
-                              Colors.black.withOpacity(0.8),
-                            ],
-                            stops: const [0.0, 0.2, 0.8, 1.0],
-                          ),
+                    children: [
+                      // 1. Video Layer - Centered and respects aspect ratio
+                      Center(
+                        child: AspectRatio(
+                          aspectRatio: controller.value.aspectRatio,
+                          child: VideoPlayer(controller),
                         ),
-                        child: SafeArea(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              // Top bar
-                              _buildTopBar(player),
-                              
-                              const Spacer(),
+                      ),
 
-                              // Controls and Metadata (Non-overlapping if possible)
-                              _buildBottomUI(player),
-                            ],
+                      // 2. Controls & Metadata Overlay
+                      AnimatedOpacity(
+                        opacity: _showControls ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 300),
+                        child: IgnorePointer(
+                          ignoring: !_showControls,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.6),
+                                  Colors.transparent,
+                                  Colors.transparent,
+                                  Colors.black.withOpacity(0.8),
+                                ],
+                                stops: const [0.0, 0.2, 0.8, 1.0],
+                              ),
+                            ),
+                            child: SafeArea(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Top bar
+                                  _buildTopBar(player),
+
+                                  const Spacer(),
+
+                                  // Controls and Metadata (Non-overlapping if possible)
+                                  _buildBottomUI(player),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  // 3. Mini loading indicator
-                  if (player.isLoading)
-                    const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                ],
+                      // 3. Mini loading indicator
+                      if (player.isLoading)
+                        const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
-          ),
           ),
         );
       },
@@ -369,9 +381,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           IconButton(
             onPressed: _goBack,
             icon: Icon(
-              _isLandscape ? Icons.arrow_back_rounded : Icons.keyboard_arrow_down_rounded, 
-              color: Colors.white, 
-              size: _isLandscape ? 24 : 32
+              _isLandscape
+                  ? Icons.arrow_back_rounded
+                  : Icons.keyboard_arrow_down_rounded,
+              color: Colors.white,
+              size: _isLandscape ? 24 : 32,
             ),
           ),
           if (!_isLandscape)
@@ -380,11 +394,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 children: [
                   const Text(
                     'PLAYING FROM PLAYLIST',
-                    style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600, letterSpacing: 1.0, fontSize: 10),
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.0,
+                      fontSize: 10,
+                    ),
                   ),
                   Text(
                     player.currentMedia?.title ?? 'Unknown',
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -400,23 +423,26 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Widget _buildBottomUI(PlayerProvider player) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 16),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.lg,
+        vertical: 16,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!_isLandscape) ...[
             // Switch to audio button
-             _buildSwitchToAudioButton(player),
+            _buildSwitchToAudioButton(player),
             const SizedBox(height: 20),
             // Metadata
             _buildMetadata(player),
             const SizedBox(height: 10),
           ],
-          
+
           // Progress bar
           _buildProgressBar(player),
-          
+
           const SizedBox(height: 10),
 
           // Primary Controls (Play/Pause, Skip)
@@ -433,19 +459,20 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
 
   Widget _buildSwitchToAudioButton(PlayerProvider player) {
     final linkedMedia = player.currentMedia?.linkedMedia;
-    final hasLinkedAudio = linkedMedia != null && linkedMedia.mediaType == MediaType.audio;
-    
+    final hasLinkedAudio =
+        linkedMedia != null && linkedMedia.mediaType == MediaType.audio;
+
     // Only show button if linked audio exists
     if (!hasLinkedAudio) {
       return const SizedBox.shrink();
     }
-    
+
     return Center(
       child: GestureDetector(
         onTap: () {
           // Capture current position before switching
           final currentPosition = player.position;
-          
+
           // Create MediaItem from LinkedMediaInfo and play it
           final audioItem = MediaItem(
             id: linkedMedia.id,
@@ -467,10 +494,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.15),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: Colors.white.withOpacity(0.25),
-              width: 1,
-            ),
+            border: Border.all(color: Colors.white.withOpacity(0.25), width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -481,7 +505,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                   color: AppColors.primary.withOpacity(0.9),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.music_note_rounded, size: 14, color: Colors.white),
+                child: const Icon(
+                  Icons.music_note_rounded,
+                  size: 14,
+                  color: Colors.white,
+                ),
               ),
               const SizedBox(width: 8),
               const Text(
@@ -509,13 +537,22 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             children: [
               Text(
                 player.currentMedia?.title ?? 'Unknown',
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.5,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
                 player.currentMedia?.fullArtistString ?? 'Unknown Artist',
-                style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.w500),
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -526,36 +563,41 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         Consumer<ArtistService>(
           builder: (context, artistService, _) {
             final media = player.currentMedia;
-            if (media == null || media.artistId == null) return const SizedBox.shrink();
-            
-            // We need to know if we are following this artist. 
+            if (media == null || media.artistId == null)
+              return const SizedBox.shrink();
+
+            // We need to know if we are following this artist.
             // The MediaItem doesn't have 'following' status usually.
             // We might need to fetch it or check against followed artists list.
             // For now, let's just show a generic add button that toggles follow if we can.
             // But better: Check if artist is in LibraryService.artists
-            
+
             final library = context.watch<LibraryService>();
-            final isFollowing = library.artists.any((a) => a.id == media.artistId);
-            
+            final isFollowing = library.artists.any(
+              (a) => a.id == media.artistId,
+            );
+
             return IconButton(
               onPressed: () async {
-                 // Toggle follow
-                 if (media.artistId != null) {
-                   await artistService.toggleFollow(media.artistId!);
-                   // Refresh library to update isFollowing state context
-                   // context.read<LibraryService>().getArtists(); // properly done in toggleFollow usually?
-                   // Actually toggleFollow in ArtistService returns the artist but doesn't update LibraryService list directly unless we call it.
-                   // Let's call refresh
-                   await context.read<LibraryService>().getArtists();
-                 }
+                // Toggle follow
+                if (media.artistId != null) {
+                  await artistService.toggleFollow(media.artistId!);
+                  // Refresh library to update isFollowing state context
+                  // context.read<LibraryService>().getArtists(); // properly done in toggleFollow usually?
+                  // Actually toggleFollow in ArtistService returns the artist but doesn't update LibraryService list directly unless we call it.
+                  // Let's call refresh
+                  await context.read<LibraryService>().getArtists();
+                }
               },
               icon: Icon(
-                isFollowing ? Icons.check_circle : Icons.add_circle_outline_rounded,
+                isFollowing
+                    ? Icons.check_circle
+                    : Icons.add_circle_outline_rounded,
                 color: isFollowing ? AppColors.primary : Colors.white,
-                size: 26
+                size: 26,
               ),
             );
-          }
+          },
         ),
       ],
     );
@@ -576,15 +618,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
-          icon: const Icon(Icons.shuffle_rounded, color: Colors.white60, size: 22), 
-          onPressed: () {}
+          icon: const Icon(
+            Icons.shuffle_rounded,
+            color: Colors.white60,
+            size: 22,
+          ),
+          onPressed: () {},
         ),
         Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
-              icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 38), 
-              onPressed: () => player.previous()
+              icon: const Icon(
+                Icons.skip_previous_rounded,
+                color: Colors.white,
+                size: 38,
+              ),
+              onPressed: () => player.previous(),
             ),
             const SizedBox(width: 8),
             GestureDetector(
@@ -592,30 +642,39 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
               child: Container(
                 width: 60,
                 height: 60,
-                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                ),
                 child: Icon(
-                  player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded, 
-                  size: 38, 
-                  color: Colors.black
+                  player.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  size: 38,
+                  color: Colors.black,
                 ),
               ),
             ),
             const SizedBox(width: 8),
             IconButton(
-              icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 38), 
-              onPressed: () => player.next()
+              icon: const Icon(
+                Icons.skip_next_rounded,
+                color: Colors.white,
+                size: 38,
+              ),
+              onPressed: () => player.next(),
             ),
           ],
         ),
         IconButton(
           icon: Icon(
-            (kIsWeb ? _isFullscreen : _isLandscape) 
-              ? Icons.fullscreen_exit_rounded 
-              : Icons.fullscreen_rounded, 
-            color: Colors.white, 
-            size: 26
-          ), 
-          onPressed: _toggleFullscreen
+            (kIsWeb ? _isFullscreen : _isLandscape)
+                ? Icons.fullscreen_exit_rounded
+                : Icons.fullscreen_rounded,
+            color: Colors.white,
+            size: 26,
+          ),
+          onPressed: _toggleFullscreen,
         ),
       ],
     );

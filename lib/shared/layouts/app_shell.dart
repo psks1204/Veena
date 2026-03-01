@@ -11,7 +11,7 @@ import '../widgets/web_header.dart';
 import '../../features/playlist/screens/playlist_detail_screen.dart';
 
 /// Responsive App Shell with Nested Navigation
-/// 
+///
 /// Uses nested navigators per tab so navigation (nav bar + mini player)
 /// stays visible on ALL screens - just like Spotify.
 class AppShell extends StatefulWidget {
@@ -93,15 +93,14 @@ class _AppShellState extends State<AppShell> {
 
   // Cached navigator widgets - created once and reused
   late final List<Widget> _navigatorWidgets;
-  
+
   // Keys for nested navigators to allow accessing them from outside (e.g. sidebar)
   final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
 
   // Web-specific state
   bool _isNowPlayingOpen = false;
-  bool _isQueueTabOpen = false;  // Track if Queue tab is selected in NowPlayingPanel
-
-
+  bool _isQueueTabOpen =
+      false; // Track if Queue tab is selected in NowPlayingPanel
 
   // Track previous playing state to detect starts
   bool _wasPlaying = false;
@@ -169,7 +168,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) async {
@@ -181,7 +180,8 @@ class _AppShellState extends State<AppShell> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final isDesktop = constraints.maxWidth >= 1200;
-          final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
+          final isTablet =
+              constraints.maxWidth >= 600 && constraints.maxWidth < 1200;
 
           if (isDesktop) {
             return _buildDesktopLayout(isDark);
@@ -209,10 +209,7 @@ class _AppShellState extends State<AppShell> {
       body: Stack(
         children: [
           // Main Content with nested navigators
-          SafeArea(
-            bottom: false,
-            child: _buildContent(),
-          ),
+          SafeArea(bottom: false, child: _buildContent()),
 
           // Floating Player & Nav
           Positioned(
@@ -232,8 +229,9 @@ class _AppShellState extends State<AppShell> {
                     onTap: widget.miniPlayerData!.onTap,
                     onPlayPause: widget.miniPlayerData!.onPlayPause,
                     onNext: widget.miniPlayerData!.onNext,
+                    onClose: widget.miniPlayerData!.onClose,
                   ),
-                  
+
                 FloatingNavBar(
                   currentIndex: widget.currentIndex,
                   onTap: widget.onDestinationSelected,
@@ -269,8 +267,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildTabletLayout(bool isDark) {
-    final surfaceColor = isDark ? AppColors.darkSurface : AppColors.lightSurface;
-    
+    final surfaceColor = isDark
+        ? AppColors.darkSurface
+        : AppColors.lightSurface;
+
     return Scaffold(
       body: Row(
         children: [
@@ -282,16 +282,16 @@ class _AppShellState extends State<AppShell> {
             backgroundColor: surfaceColor,
             labelType: NavigationRailLabelType.all,
           ),
-          
+
           // Divider
           VerticalDivider(
             thickness: 1,
             width: 1,
-            color: isDark 
-                ? Colors.white.withOpacity(0.05) 
+            color: isDark
+                ? Colors.white.withOpacity(0.05)
                 : Colors.black.withOpacity(0.05),
           ),
-          
+
           // Content with nested navigators
           Expanded(
             child: SafeArea(
@@ -309,6 +309,7 @@ class _AppShellState extends State<AppShell> {
                       onTap: widget.miniPlayerData!.onTap,
                       onPlayPause: widget.miniPlayerData!.onPlayPause,
                       onNext: widget.miniPlayerData!.onNext,
+                      onClose: widget.miniPlayerData!.onClose,
                     ),
                 ],
               ),
@@ -323,7 +324,7 @@ class _AppShellState extends State<AppShell> {
     return Consumer<PlayerProvider>(
       builder: (context, player, _) {
         final hasMedia = player.hasMedia;
-        
+
         return Scaffold(
           backgroundColor: isDark ? const Color(0xFF000000) : AppColors.lightBg,
           body: Column(
@@ -337,15 +338,19 @@ class _AppShellState extends State<AppShell> {
                       child: Container(
                         margin: const EdgeInsets.fromLTRB(8, 8, 8, 8),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
+                          color: isDark
+                              ? const Color(0xFF121212)
+                              : AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: isDark ? null : [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          boxShadow: isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                         ),
                         child: Column(
                           children: [
@@ -354,7 +359,7 @@ class _AppShellState extends State<AppShell> {
                               currentTabIndex: widget.currentIndex,
                               onNavigateTo: widget.onDestinationSelected,
                             ),
-                            
+
                             // Content with nested navigators
                             Expanded(
                               child: ClipRRect(
@@ -368,21 +373,25 @@ class _AppShellState extends State<AppShell> {
                         ),
                       ),
                     ),
-                    
+
                     // Right Now Playing Panel (only when open and has media)
                     if (_isNowPlayingOpen && hasMedia)
                       Container(
                         margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
                         decoration: BoxDecoration(
-                          color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
+                          color: isDark
+                              ? const Color(0xFF121212)
+                              : AppColors.lightSurface,
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: isDark ? null : [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.05),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                          boxShadow: isDark
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.05),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                         ),
                         child: NowPlayingPanel(
                           onClose: () {
@@ -396,7 +405,7 @@ class _AppShellState extends State<AppShell> {
                   ],
                 ),
               ),
-              
+
               // Bottom Player Bar
               DesktopPlayerBar(
                 isNowPlayingOpen: _isNowPlayingOpen,
@@ -424,6 +433,7 @@ class MiniPlayerData {
     this.onTap,
     this.onPlayPause,
     this.onNext,
+    this.onClose,
   });
 
   final String trackTitle;
@@ -434,4 +444,5 @@ class MiniPlayerData {
   final VoidCallback? onTap;
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
+  final VoidCallback? onClose;
 }

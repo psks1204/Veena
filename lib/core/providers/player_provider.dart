@@ -7,6 +7,7 @@ import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
 import '../../../main.dart' show audioHandler;
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Repeat mode for playback
 enum RepeatMode { off, all, one }
@@ -135,6 +136,7 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
 
+      _updateWakelock();
       notifyListeners();
     });
 
@@ -438,6 +440,7 @@ class PlayerProvider extends ChangeNotifier {
         _onTrackCompleted();
       }
 
+      _updateWakelock();
       _updateLyricIndex();
       notifyListeners();
     }
@@ -523,6 +526,7 @@ class PlayerProvider extends ChangeNotifier {
     _isPlaying = false;
     _position = Duration.zero;
     _currentLyrics = null;
+    _updateWakelock();
     notifyListeners();
   }
 
@@ -532,6 +536,7 @@ class PlayerProvider extends ChangeNotifier {
     _queue = [];
     _currentIndex = -1;
     _currentMedia = null;
+    _updateWakelock();
     notifyListeners();
   }
 
@@ -631,11 +636,24 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
+  void _updateWakelock() {
+    try {
+      if (_isPlaying && isVideo) {
+        WakelockPlus.enable();
+      } else {
+        WakelockPlus.disable();
+      }
+    } catch (e) {
+      debugPrint('[PlayerProvider] Wakelock error: $e');
+    }
+  }
+
   @override
   void dispose() {
     _videoController?.removeListener(_onVideoUpdate);
     _videoController?.dispose();
     _lyricIndexController.close();
+    WakelockPlus.disable();
     super.dispose();
   }
 }

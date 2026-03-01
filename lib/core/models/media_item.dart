@@ -1,5 +1,5 @@
 /// Media Item Model
-/// 
+///
 /// Represents a media item from the API (video or audio content).
 /// Includes nested artist and album information.
 
@@ -21,7 +21,9 @@ class ArtistInfo {
 
   factory ArtistInfo.fromJson(Map<String, dynamic> json) {
     return ArtistInfo(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? 'Unknown Artist',
       genre: json['genre'] as String?,
       imageUrl: json['imageUrl'] as String?,
@@ -54,7 +56,9 @@ class AlbumInfo {
 
   factory AlbumInfo.fromJson(Map<String, dynamic> json) {
     return AlbumInfo(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? 'Unknown Album',
       description: json['description'] as String?,
       coverImageUrl: json['coverImageUrl'] as String?,
@@ -94,7 +98,7 @@ class LinkedMediaInfo {
       mediaType: MediaType.fromString(json['mediaType'] as String? ?? 'AUDIO'),
       thumbnailUrl: json['thumbnailUrl'] as String?,
       hlsUrl: json['hlsUrl'] as String?,
-      artist: json['artist'] != null 
+      artist: json['artist'] != null
           ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
           : null,
     );
@@ -106,10 +110,7 @@ class LikeResponse {
   final bool liked;
   final int likeCount;
 
-  const LikeResponse({
-    required this.liked,
-    required this.likeCount,
-  });
+  const LikeResponse({required this.liked, required this.likeCount});
 
   factory LikeResponse.fromJson(Map<String, dynamic> json) {
     return LikeResponse(
@@ -137,7 +138,9 @@ class CreditInfo {
 
   factory CreditInfo.fromJson(Map<String, dynamic> json) {
     return CreditInfo(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? 'Unknown',
       bio: json['bio'] as String?,
       imageUrl: json['imageUrl'] as String?,
@@ -168,13 +171,19 @@ class MediaItem {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? linkedMediaId;
+  final bool liked;
   final ArtistInfo? artist;
   final List<ArtistInfo> subArtists;
   final String? composerName;
   final String? lyricistName;
+  final String? producerName;
+  final String? directorName;
   final CreditInfo? composer;
   final CreditInfo? lyricist;
+  final CreditInfo? producer;
+  final CreditInfo? director;
   final AlbumInfo? album;
+  final String? releaseDate;
   final LinkedMediaInfo? linkedMedia;
 
   const MediaItem({
@@ -190,13 +199,19 @@ class MediaItem {
     required this.createdAt,
     required this.updatedAt,
     this.linkedMediaId,
+    this.liked = false,
     this.artist,
     this.subArtists = const [],
     this.composerName,
     this.lyricistName,
+    this.producerName,
+    this.directorName,
     this.composer,
     this.lyricist,
+    this.producer,
+    this.director,
     this.album,
+    this.releaseDate,
     this.linkedMedia,
   });
 
@@ -207,33 +222,48 @@ class MediaItem {
       description: json['description'] as String?,
       mediaType: MediaType.fromString(json['mediaType'] as String? ?? 'AUDIO'),
       status: MediaStatus.fromString(json['status'] as String? ?? 'PUBLISHED'),
-      visibility: MediaVisibility.fromString(json['visibility'] as String? ?? 'PUBLIC'),
+      visibility: MediaVisibility.fromString(
+        json['visibility'] as String? ?? 'PUBLIC',
+      ),
       hlsUrl: json['hlsUrl'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
       lyricsUrl: json['lyricsUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       linkedMediaId: json['linkedMediaId'] as String?,
-      artist: json['artist'] != null 
+      liked: json['liked'] as bool? ?? false,
+      artist: json['artist'] != null
           ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
           : null,
-      subArtists: (json['subArtists'] as List<dynamic>?)
+      subArtists:
+          (json['subArtists'] as List<dynamic>?)
               ?.map((e) => ArtistInfo.fromJson(e as Map<String, dynamic>))
-              .toList() ?? 
+              .toList() ??
           [],
       composerName: json['composerName'] as String?,
       lyricistName: json['lyricistName'] as String?,
+      producerName: json['producerName'] as String?,
+      directorName: json['directorName'] as String?,
       composer: json['composer'] != null
           ? CreditInfo.fromJson(json['composer'] as Map<String, dynamic>)
           : null,
       lyricist: json['lyricist'] != null
           ? CreditInfo.fromJson(json['lyricist'] as Map<String, dynamic>)
           : null,
-      album: json['album'] != null 
+      producer: json['producer'] != null
+          ? CreditInfo.fromJson(json['producer'] as Map<String, dynamic>)
+          : null,
+      director: json['director'] != null
+          ? CreditInfo.fromJson(json['director'] as Map<String, dynamic>)
+          : null,
+      album: json['album'] != null
           ? AlbumInfo.fromJson(json['album'] as Map<String, dynamic>)
           : null,
-      linkedMedia: json['linkedMedia'] != null 
-          ? LinkedMediaInfo.fromJson(json['linkedMedia'] as Map<String, dynamic>)
+      releaseDate: json['releaseDate'] as String?,
+      linkedMedia: json['linkedMedia'] != null
+          ? LinkedMediaInfo.fromJson(
+              json['linkedMedia'] as Map<String, dynamic>,
+            )
           : null,
     );
   }
@@ -251,27 +281,33 @@ class MediaItem {
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
     'linkedMediaId': linkedMediaId,
+    'liked': liked,
     'artist': artist?.toJson(),
     'subArtists': subArtists.map((e) => e.toJson()).toList(),
     'composerName': composerName,
     'lyricistName': lyricistName,
+    'producerName': producerName,
+    'directorName': directorName,
     'composer': composer?.toJson(),
     'lyricist': lyricist?.toJson(),
+    'producer': producer?.toJson(),
+    'director': director?.toJson(),
     'album': album?.toJson(),
+    'releaseDate': releaseDate,
   };
 
   /// Helper to get artist name
   String get artistName => artist?.name ?? description ?? '';
-  
+
   /// Helper to get full artist string (Main + Sub)
   String get fullArtistString {
     if (subArtists.isEmpty) return artistName;
     return '$artistName feat. ${subArtists.map((e) => e.name).join(", ")}';
   }
-  
+
   /// Helper to get album name
   String? get albumName => album?.name;
-  
+
   /// Helper to get album cover (falls back to thumbnail)
   String? get albumCoverUrl => album?.coverImageUrl ?? thumbnailUrl;
 
@@ -315,7 +351,7 @@ enum MediaStatus {
     final normalized = value.toUpperCase();
     if (normalized == 'READY') return MediaStatus.published;
     if (normalized == 'PENDING') return MediaStatus.draft;
-    
+
     return MediaStatus.values.firstWhere(
       (e) => e.value == normalized,
       orElse: () => MediaStatus.draft,
@@ -374,13 +410,14 @@ class PagedResponse<T> {
       content: contentList,
       totalPages: json['totalPages'] as int? ?? 1,
       totalElements: json['totalElements'] as int? ?? contentList.length,
-      pageNumber: pageable?['pageNumber'] as int? ?? json['number'] as int? ?? 0,
+      pageNumber:
+          pageable?['pageNumber'] as int? ?? json['number'] as int? ?? 0,
       pageSize: pageable?['pageSize'] as int? ?? json['size'] as int? ?? 20,
       isFirst: json['first'] as bool? ?? true,
       isLast: json['last'] as bool? ?? true,
     );
   }
-  
+
   /// Check if there are more pages
   bool get hasMore => !isLast;
 }

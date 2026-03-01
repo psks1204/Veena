@@ -11,7 +11,7 @@ class Playlist {
   final String? coverUrl;
   final int trackCount;
   final DateTime? createdAt;
-  
+
   Playlist({
     required this.id,
     required this.name,
@@ -20,7 +20,7 @@ class Playlist {
     this.trackCount = 0,
     this.createdAt,
   });
-  
+
   factory Playlist.fromJson(Map<String, dynamic> json) {
     return Playlist(
       id: json['id'] ?? '',
@@ -28,14 +28,12 @@ class Playlist {
       description: json['description'],
       coverUrl: json['coverUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? json['tracks']?.length ?? 0,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt']) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
           : null,
     );
   }
 }
-
-
 
 /// Album Model
 class Album {
@@ -46,7 +44,7 @@ class Album {
   final int trackCount;
   final String? description;
   final DateTime? createdAt;
-  
+
   Album({
     required this.id,
     required this.title,
@@ -56,30 +54,31 @@ class Album {
     this.description,
     this.createdAt,
   });
-  
+
   factory Album.fromJson(Map<String, dynamic> json) {
     return Album(
       id: (json['id'] ?? '').toString(),
       title: json['title'] ?? json['name'] ?? 'Untitled',
       artistName: json['artistName'] ?? json['artist'] ?? 'Unknown',
-      coverUrl: json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
+      coverUrl:
+          json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? 0,
       description: json['description'] as String?,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt']) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'])
           : null,
     );
   }
 }
 
 /// Library Service
-/// 
+///
 /// Manages user's personal library: playlists, favorites, artists, albums.
 class LibraryService extends ChangeNotifier {
   final ApiService _api;
-  
+
   LibraryService(this._api);
-  
+
   List<Playlist> _playlists = [];
   List<Playlist> _featuredPlaylists = [];
   List<MediaItem> _favorites = [];
@@ -87,7 +86,7 @@ class LibraryService extends ChangeNotifier {
   List<Album> _albums = [];
   bool _isLoading = false;
   String? _error;
-  
+
   List<Playlist> get playlists => _playlists;
   List<Playlist> get featuredPlaylists => _featuredPlaylists;
   List<MediaItem> get favorites => _favorites;
@@ -95,23 +94,23 @@ class LibraryService extends ChangeNotifier {
   List<Album> get albums => _albums;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  
+
   /// Fetch complete library overview
   Future<void> fetchLibrary() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     try {
       // Fetch user library data and all albums concurrently
       final results = await Future.wait([
         _api.get('/user/library'),
         _api.get('/albums'),
       ]);
-      
+
       final data = results[0];
       final albumsData = results[1];
-      
+
       if (data != null) {
         if (data['playlists'] != null) {
           _playlists = (data['playlists'] as List)
@@ -129,15 +128,13 @@ class LibraryService extends ChangeNotifier {
         //       .toList();
         // }
       }
-      
+
       // Parse albums from /albums endpoint (GET all albums)
       if (albumsData != null && albumsData is List) {
-        _albums = albumsData
-            .map((item) => Album.fromJson(item))
-            .toList();
+        _albums = albumsData.map((item) => Album.fromJson(item)).toList();
         debugPrint('[LibraryService] Loaded ${_albums.length} albums');
       }
-      
+
       // Fetch artists separately (followed artists)
       try {
         await getArtists();
@@ -154,9 +151,9 @@ class LibraryService extends ChangeNotifier {
       debugPrint('[LibraryService] fetchLibrary error: $e');
     }
   }
-  
+
   // ==================== PLAYLISTS ====================
-  
+
   /// Get all user's playlists
   Future<List<Playlist>> getPlaylists() async {
     try {
@@ -171,15 +168,19 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Get featured playlists
   /// GET /api/user/library/playlists/featured
   Future<List<Playlist>> getFeaturedPlaylists() async {
     try {
       final data = await _api.get('/user/library/playlists/featured');
       if (data != null && data is List) {
-        _featuredPlaylists = data.map((item) => Playlist.fromJson(item)).toList();
-        debugPrint('[LibraryService] Loaded ${_featuredPlaylists.length} featured playlists');
+        _featuredPlaylists = data
+            .map((item) => Playlist.fromJson(item))
+            .toList();
+        debugPrint(
+          '[LibraryService] Loaded ${_featuredPlaylists.length} featured playlists',
+        );
         notifyListeners();
       }
       return _featuredPlaylists;
@@ -188,15 +189,18 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Create a new playlist
   Future<Playlist?> createPlaylist(String name, {String? description}) async {
     try {
-      final data = await _api.post('/user/library/playlists', body: {
-        'name': name,
-        if (description != null) 'description': description,
-      });
-      
+      final data = await _api.post(
+        '/user/library/playlists',
+        body: {
+          'name': name,
+          if (description != null) 'description': description,
+        },
+      );
+
       if (data != null) {
         final playlist = Playlist.fromJson(data);
         _playlists.insert(0, playlist);
@@ -208,7 +212,7 @@ class LibraryService extends ChangeNotifier {
     }
     return null;
   }
-  
+
   /// Delete a playlist
   Future<bool> deletePlaylist(String playlistId) async {
     try {
@@ -221,7 +225,7 @@ class LibraryService extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Get tracks in a playlist
   Future<List<MediaItem>> getPlaylistTracks(String playlistId) async {
     try {
@@ -234,22 +238,21 @@ class LibraryService extends ChangeNotifier {
     }
     return [];
   }
-  
+
   /// Add track to playlist
   Future<bool> addToPlaylist(String playlistId, String mediaId) async {
     try {
-      await _api.post('/user/library/playlists/$playlistId/tracks', body: {
-        'mediaId': mediaId,
-      });
+      await _api.post(
+        '/user/library/playlists/$playlistId/tracks',
+        body: {'mediaId': mediaId},
+      );
       return true;
     } catch (e) {
       debugPrint('Add to playlist error: $e');
       return false;
     }
   }
-  
-  // ==================== FAVORITES ====================
-  
+
   /// Get all favorites/liked tracks
   Future<List<MediaItem>> getFavorites() async {
     try {
@@ -264,9 +267,23 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
+  /// Manually add a favorite locally
+  void addFavoriteLocal(MediaItem item) {
+    if (!_favorites.any((m) => m.id == item.id)) {
+      _favorites.insert(0, item);
+      notifyListeners();
+    }
+  }
+
+  /// Manually remove a favorite locally
+  void removeFavoriteLocal(String mediaId) {
+    _favorites.removeWhere((item) => item.id == mediaId);
+    notifyListeners();
+  }
+
   // ==================== ARTISTS ====================
-  
+
   /// Get followed artists
   /// Get followed artists
   /// GET /api/artists/following/page
@@ -274,7 +291,10 @@ class LibraryService extends ChangeNotifier {
     try {
       // Using the new pagination endpoint but fetching first page for now
       // Ideally this should use ArtistService, but keeping logic here for now to avoid circular dependencies if simple
-      final data = await _api.get('/artists/following/page', queryParams: {'page': '0', 'size': '50'});
+      final data = await _api.get(
+        '/artists/following/page',
+        queryParams: {'page': '0', 'size': '50'},
+      );
       if (data != null && data['content'] != null) {
         final content = data['content'] as List;
         _artists = content.map((item) => Artist.fromJson(item)).toList();
@@ -286,9 +306,9 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   // ==================== ALBUMS ====================
-  
+
   /// Get all albums
   /// GET /api/albums
   Future<List<Album>> getAlbums() async {
@@ -305,7 +325,7 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Remove track from playlist
   /// DELETE /api/user/library/playlists/{id}/tracks/{mediaId}
   Future<bool> removeFromPlaylist(String playlistId, String mediaId) async {
@@ -318,7 +338,7 @@ class LibraryService extends ChangeNotifier {
       return false;
     }
   }
-  
+
   /// Get all artists (not user-specific)
   /// GET /api/user/library/artists/all
   Future<List<Artist>> getAllArtists() async {
@@ -333,7 +353,7 @@ class LibraryService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Get tracks by artist
   /// GET /api/user/library/artists/{id}/tracks
   Future<List<MediaItem>> getArtistTracks(String artistId) async {
@@ -349,4 +369,3 @@ class LibraryService extends ChangeNotifier {
     }
   }
 }
-

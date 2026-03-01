@@ -82,6 +82,7 @@ dependencies:
   audio_session: ^0.1.25
   geolocator: ^13.0.1
   url_launcher: ^6.3.2
+  wakelock_plus: ^1.4.0
 
 dev_dependencies:
   flutter_test:

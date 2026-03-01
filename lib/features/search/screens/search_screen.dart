@@ -9,6 +9,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../../core/services/library_service.dart';
 
 /// Search Screen
 ///
@@ -95,7 +96,17 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _toggleLike(MediaItem item) async {
     final mediaService = context.read<MediaService>();
-    await mediaService.toggleLike(item.id);
+    final libraryService = context.read<LibraryService>();
+
+    await mediaService.toggleLike(item.id, initial: item.liked);
+
+    // Update local state for immediate UI reflection
+    if (mediaService.isLiked(item.id, initial: item.liked)) {
+      libraryService.addFavoriteLocal(item);
+    } else {
+      libraryService.removeFavoriteLocal(item.id);
+    }
+
     setState(() {});
   }
 
@@ -279,7 +290,10 @@ class _SearchScreenState extends State<SearchScreen> {
                       subtitle: item.description ?? '',
                       imageUrl: item.thumbnailUrl ?? '',
                       mediaType: item.mediaType,
-                      isLiked: mediaService.isLiked(item.id),
+                      isLiked: mediaService.isLiked(
+                        item.id,
+                        initial: item.liked,
+                      ),
                       onTap: () => _playMedia(item),
                       onLikeTap: () => _toggleLike(item),
                     ),
@@ -308,7 +322,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   subtitle: item.description ?? '',
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
-                  isLiked: mediaService.isLiked(item.id),
+                  isLiked: mediaService.isLiked(item.id, initial: item.liked),
                   onTap: () => _playMedia(item),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {

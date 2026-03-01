@@ -16,6 +16,7 @@ class MiniPlayer extends StatelessWidget {
     this.onPlayPause,
     this.onNext,
     this.onFavorite,
+    this.onClose,
   });
 
   final String trackTitle;
@@ -27,6 +28,7 @@ class MiniPlayer extends StatelessWidget {
   final VoidCallback? onPlayPause;
   final VoidCallback? onNext;
   final VoidCallback? onFavorite;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +152,17 @@ class MiniPlayer extends StatelessWidget {
                             size: 28,
                           ),
                         ),
+                        if (!isPlaying && onClose != null)
+                          IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: onClose,
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: iconColor,
+                              size: 28,
+                            ),
+                          ),
                         const SizedBox(width: 8),
                       ],
                     ),

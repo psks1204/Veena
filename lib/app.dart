@@ -254,6 +254,9 @@ class _AppRouterState extends State<_AppRouter> {
                         player.togglePlayPause();
                       },
                       onNext: () {},
+                      onClose: () {
+                        player.clearQueue();
+                      },
                     )
                   : null,
               screens: _buildScreens(context),
