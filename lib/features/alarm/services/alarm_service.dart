@@ -13,7 +13,7 @@ import '../models/alarm_model.dart';
 class AlarmService {
   static const String _alarmsKey = 'veena_alarms';
   static const MethodChannel _channel = MethodChannel(
-    'com.dgfly.veena/alarm_player',
+    'com.veena.music/alarm_player',
   );
 
   final SharedPreferences _prefs;

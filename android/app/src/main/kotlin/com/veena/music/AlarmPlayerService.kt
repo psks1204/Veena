@@ -1,4 +1,4 @@
-package com.dgfly.veena
+package com.veena.music
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -18,8 +18,8 @@ import androidx.core.app.NotificationCompat
 /**
  * Native Android foreground service for reliable alarm audio playback.
  *
- * Uses Android's built-in MediaPlayer with USAGE_ALARM audio attributes
- * to bypass Samsung/OEM battery optimization that kills background Flutter isolates.
+ * Uses Android's built-in MediaPlayer with USAGE_ALARM audio attributes to bypass Samsung/OEM
+ * battery optimization that kills background Flutter isolates.
  *
  * This service:
  * - Runs as a foreground service (protected from being killed)
@@ -34,7 +34,7 @@ class AlarmPlayerService : Service() {
         const val TAG = "AlarmPlayerService"
         const val CHANNEL_ID = "veena_alarm_playback_channel"
         const val NOTIFICATION_ID = 9999
-        const val ACTION_STOP = "com.dgfly.veena.STOP_ALARM"
+        const val ACTION_STOP = "com.veena.music.STOP_ALARM"
 
         const val EXTRA_MEDIA_URL = "media_url"
         const val EXTRA_MEDIA_TITLE = "media_title"
@@ -43,10 +43,10 @@ class AlarmPlayerService : Service() {
         private const val MAX_PLAY_DURATION_MS = 5 * 60 * 1000L // 5 minutes
 
         fun createStartIntent(
-            context: Context,
-            mediaUrl: String,
-            mediaTitle: String,
-            artistName: String
+                context: Context,
+                mediaUrl: String,
+                mediaTitle: String,
+                artistName: String
         ): Intent {
             return Intent(context, AlarmPlayerService::class.java).apply {
                 putExtra(EXTRA_MEDIA_URL, mediaUrl)
@@ -56,9 +56,7 @@ class AlarmPlayerService : Service() {
         }
 
         fun createStopIntent(context: Context): Intent {
-            return Intent(context, AlarmPlayerService::class.java).apply {
-                action = ACTION_STOP
-            }
+            return Intent(context, AlarmPlayerService::class.java).apply { action = ACTION_STOP }
         }
     }
 
@@ -102,10 +100,13 @@ class AlarmPlayerService : Service() {
         startPlayback(mediaUrl, mediaTitle, artistName)
 
         // Schedule auto-stop after 5 minutes
-        autoStopHandler.postDelayed({
-            Log.d(TAG, "Auto-stop triggered after 5 minutes")
-            stopAlarm()
-        }, MAX_PLAY_DURATION_MS)
+        autoStopHandler.postDelayed(
+                {
+                    Log.d(TAG, "Auto-stop triggered after 5 minutes")
+                    stopAlarm()
+                },
+                MAX_PLAY_DURATION_MS
+        )
 
         return START_NOT_STICKY
     }
@@ -115,32 +116,34 @@ class AlarmPlayerService : Service() {
         releaseMediaPlayer()
 
         try {
-            mediaPlayer = MediaPlayer().apply {
-                // Set audio attributes for ALARM usage — plays even in DND/silent
-                val audioAttrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-                setAudioAttributes(audioAttrs)
+            mediaPlayer =
+                    MediaPlayer().apply {
+                        // Set audio attributes for ALARM usage — plays even in DND/silent
+                        val audioAttrs =
+                                AudioAttributes.Builder()
+                                        .setUsage(AudioAttributes.USAGE_ALARM)
+                                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                        .build()
+                        setAudioAttributes(audioAttrs)
 
-                setDataSource(mediaUrl)
-                isLooping = true
-                setVolume(1.0f, 1.0f)
+                        setDataSource(mediaUrl)
+                        isLooping = true
+                        setVolume(1.0f, 1.0f)
 
-                setOnPreparedListener { mp ->
-                    Log.d(TAG, "MediaPlayer prepared, starting playback")
-                    mp.start()
-                }
+                        setOnPreparedListener { mp ->
+                            Log.d(TAG, "MediaPlayer prepared, starting playback")
+                            mp.start()
+                        }
 
-                setOnErrorListener { _, what, extra ->
-                    Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
-                    stopAlarm()
-                    true
-                }
+                        setOnErrorListener { _, what, extra ->
+                            Log.e(TAG, "MediaPlayer error: what=$what extra=$extra")
+                            stopAlarm()
+                            true
+                        }
 
-                // Use async prepare for network URLs
-                prepareAsync()
-            }
+                        // Use async prepare for network URLs
+                        prepareAsync()
+                    }
 
             Log.d(TAG, "MediaPlayer preparing: $mediaUrl")
         } catch (e: Exception) {
@@ -151,61 +154,67 @@ class AlarmPlayerService : Service() {
 
     private fun buildNotification(title: String, artist: String): Notification {
         // Stop action intent
-        val stopIntent = Intent(this, AlarmPlayerService::class.java).apply {
-            action = ACTION_STOP
-        }
-        val stopPendingIntent = PendingIntent.getService(
-            this, 0, stopIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+        val stopIntent = Intent(this, AlarmPlayerService::class.java).apply { action = ACTION_STOP }
+        val stopPendingIntent =
+                PendingIntent.getService(
+                        this,
+                        0,
+                        stopIntent,
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
 
         // Tap intent — opens app
         val tapIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val tapPendingIntent = if (tapIntent != null) {
-            PendingIntent.getActivity(
-                this, 1, tapIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-        } else null
+        val tapPendingIntent =
+                if (tapIntent != null) {
+                    PendingIntent.getActivity(
+                            this,
+                            1,
+                            tapIntent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                    )
+                } else null
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("⏰ $title")
-            .setContentText("$artist — Tap Stop to dismiss")
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(tapPendingIntent)
-            .addAction(
-                android.R.drawable.ic_menu_close_clear_cancel,
-                "Stop",
-                stopPendingIntent
-            )
-            .build()
+                .setContentTitle("⏰ $title")
+                .setContentText("$artist — Tap Stop to dismiss")
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setContentIntent(tapPendingIntent)
+                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopPendingIntent)
+                .build()
     }
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                "Alarm Playback",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Shows when an alarm is playing"
-                setBypassDnd(true)
-                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
-                setShowBadge(true)
+            val channel =
+                    NotificationChannel(
+                                    CHANNEL_ID,
+                                    "Alarm Playback",
+                                    NotificationManager.IMPORTANCE_HIGH
+                            )
+                            .apply {
+                                description = "Shows when an alarm is playing"
+                                setBypassDnd(true)
+                                lockscreenVisibility = Notification.VISIBILITY_PUBLIC
+                                setShowBadge(true)
 
-                // Set alarm audio attributes on the channel itself
-                val audioAttrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .build()
-                setSound(null, audioAttrs) // No notification sound — we play our own
-                enableVibration(true)
-            }
+                                // Set alarm audio attributes on the channel itself
+                                val audioAttrs =
+                                        AudioAttributes.Builder()
+                                                .setUsage(AudioAttributes.USAGE_ALARM)
+                                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                                .build()
+                                setSound(
+                                        null,
+                                        audioAttrs
+                                ) // No notification sound — we play our own
+                                enableVibration(true)
+                            }
 
             val manager = getSystemService(NotificationManager::class.java)
             manager.createNotificationChannel(channel)
@@ -214,12 +223,11 @@ class AlarmPlayerService : Service() {
 
     private fun acquireWakeLock() {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.PARTIAL_WAKE_LOCK,
-            "veena:alarm_wakelock"
-        ).apply {
-            acquire(MAX_PLAY_DURATION_MS) // Auto-release after max duration
-        }
+        wakeLock =
+                powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "veena:alarm_wakelock")
+                        .apply {
+                            acquire(MAX_PLAY_DURATION_MS) // Auto-release after max duration
+                        }
         Log.d(TAG, "WakeLock acquired")
     }
 
@@ -246,9 +254,7 @@ class AlarmPlayerService : Service() {
 
     private fun releaseWakeLock() {
         try {
-            wakeLock?.let {
-                if (it.isHeld) it.release()
-            }
+            wakeLock?.let { if (it.isHeld) it.release() }
         } catch (e: Exception) {
             Log.e(TAG, "Error releasing WakeLock", e)
         }

@@ -147,7 +147,7 @@ class UpdateRequiredPage extends StatelessWidget {
                     onPressed: () {
                       // TODO: Replace with actual Play Store / App Store URL
                       openUrl(
-                        'https://play.google.com/store/apps/details?id=com.dgfly.veena',
+                        'https://play.google.com/store/apps/details?id=com.veena.music',
                       );
                     },
                     icon: const Icon(Icons.download_rounded),

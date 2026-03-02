@@ -1,4 +1,4 @@
-package com.dgfly.veena
+package com.veena.music
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,12 +7,11 @@ import android.os.Build
 import android.util.Log
 
 /**
- * BroadcastReceiver that intercepts alarm triggers and starts
- * the AlarmPlayerService foreground service directly.
+ * BroadcastReceiver that intercepts alarm triggers and starts the AlarmPlayerService foreground
+ * service directly.
  *
- * This is registered from the Dart side when scheduling an alarm.
- * When the alarm fires, Android invokes this receiver which then
- * starts the foreground service for reliable audio playback.
+ * This is registered from the Dart side when scheduling an alarm. When the alarm fires, Android
+ * invokes this receiver which then starts the foreground service for reliable audio playback.
  */
 class AlarmReceiver : BroadcastReceiver() {
 
@@ -35,9 +34,8 @@ class AlarmReceiver : BroadcastReceiver() {
             return
         }
 
-        val serviceIntent = AlarmPlayerService.createStartIntent(
-            context, mediaUrl, mediaTitle, artistName
-        )
+        val serviceIntent =
+                AlarmPlayerService.createStartIntent(context, mediaUrl, mediaTitle, artistName)
 
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
