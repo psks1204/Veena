@@ -20,11 +20,21 @@ class AlbumSummary {
   });
 
   factory AlbumSummary.fromJson(Map<String, dynamic> json) {
+    // Extract artist name: prefer nested artist object, fall back to artistName
+    String name = 'Unknown Artist';
+    if (json['artist'] != null && json['artist'] is Map) {
+      name = json['artist']['name'] as String? ?? 'Unknown Artist';
+    } else {
+      name = json['artistName'] as String? ?? 
+             json['artist'] as String? ?? 
+             'Unknown Artist';
+    }
+
     return AlbumSummary(
       id: json['id']?.toString() ?? '0',
-      title: json['title'] as String? ?? json['name'] as String? ?? 'Untitled Album',
-      artistName: json['artistName'] as String? ?? 'Unknown Artist',
-      coverUrl: json['coverUrl'] as String? ?? json['coverImageUrl'] as String?,
+      title: json['name'] as String? ?? json['title'] as String? ?? 'Untitled Album',
+      artistName: name,
+      coverUrl: json['coverImageUrl'] as String? ?? json['coverUrl'] as String?,
       trackCount: json['trackCount'] as int? ?? 0,
     );
   }
@@ -33,8 +43,9 @@ class AlbumSummary {
 /// Album Detail - includes tracks
 /// Matches GET /api/albums/{id} response
 class AlbumDetail {
-  final int id;  // Detail endpoint returns int ID
+  final int id; // Detail endpoint returns int ID
   final String name;
+  final String artistName;
   final String? description;
   final String? coverImageUrl;
   final int trackCount;
@@ -44,6 +55,7 @@ class AlbumDetail {
   const AlbumDetail({
     required this.id,
     required this.name,
+    required this.artistName,
     this.description,
     this.coverImageUrl,
     this.trackCount = 0,
@@ -53,14 +65,30 @@ class AlbumDetail {
 
   factory AlbumDetail.fromJson(Map<String, dynamic> json) {
     final tracksList = json['tracks'] as List? ?? [];
+
+    // Extract artist name: prefer nested artist object, fall back to artistName
+    String name = 'Unknown Artist';
+    if (json['artist'] != null && json['artist'] is Map) {
+      name = json['artist']['name'] as String? ?? 'Unknown Artist';
+    } else {
+      name = json['artistName'] as String? ?? 
+             json['artist'] as String? ?? 
+             'Unknown Artist';
+    }
+
     return AlbumDetail(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id'].toString()) ?? 0,
-      name: json['name'] as String? ?? json['title'] as String? ?? 'Untitled Album',
+      id: json['id'] is int
+          ? json['id']
+          : int.tryParse(json['id'].toString()) ?? 0,
+      name:
+          json['name'] as String? ?? json['title'] as String? ?? 'Untitled Album',
+      artistName: name,
       description: json['description'] as String?,
-      coverImageUrl: json['coverImageUrl'] as String? ?? json['coverUrl'] as String?,
+      coverImageUrl:
+          json['coverImageUrl'] as String? ?? json['coverUrl'] as String?,
       trackCount: json['trackCount'] as int? ?? tracksList.length,
-      createdAt: json['createdAt'] != null 
-          ? DateTime.tryParse(json['createdAt'] as String) 
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String)
           : null,
       tracks: tracksList
           .map((e) => MediaItem.fromJson(e as Map<String, dynamic>))

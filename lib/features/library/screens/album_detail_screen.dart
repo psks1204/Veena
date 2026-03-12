@@ -129,7 +129,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> with SingleTicker
 
   // Get display values (prefer API data, fall back to passed props)
   String get _displayTitle => _album?.name ?? widget.title ?? 'Album';
-  String get _displayArtist => widget.artist ?? 'Artist';
+  String get _displayArtist => _album?.artistName ?? widget.artist ?? 'Artist';
   String get _displayCover => _album?.coverImageUrl ?? widget.coverUrl ?? 'https://picsum.photos/400';
   int get _trackCount => _album?.tracks.length ?? 0;
 
