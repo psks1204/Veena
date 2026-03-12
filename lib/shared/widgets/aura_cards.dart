@@ -289,6 +289,8 @@ class AuraTrackTile extends StatelessWidget {
   final bool isLiked;
   final String? imageUrl;
   final int? index;
+  final int? playedCount;
+  final int? likeCount;
 
   const AuraTrackTile({
     super.key,
@@ -302,6 +304,8 @@ class AuraTrackTile extends StatelessWidget {
     this.isLiked = false,
     this.imageUrl,
     this.index,
+    this.playedCount,
+    this.likeCount,
   });
 
   @override
@@ -389,6 +393,55 @@ class AuraTrackTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  if ((playedCount != null && playedCount! > 0) || (likeCount != null && likeCount! > 0))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          if (playedCount != null && playedCount! > 0) ...[
+                            Icon(
+                              Icons.play_arrow_rounded,
+                              size: 12,
+                              color: (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              _formatPlayCount(playedCount!),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.7),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                          if (playedCount != null && playedCount! > 0 && likeCount != null && likeCount! > 0)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 6),
+                              child: Text(
+                                '·',
+                                style: TextStyle(
+                                  color: (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.5),
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
+                          if (likeCount != null && likeCount! > 0) ...[
+                            Icon(
+                              Icons.favorite_rounded,
+                              size: 11,
+                              color: (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.7),
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              _formatPlayCount(likeCount!),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary).withOpacity(0.7),
+                                fontSize: 11,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -423,5 +476,15 @@ class AuraTrackTile extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  /// Formats play count to readable string (e.g., 1.2K, 3.5M)
+  static String _formatPlayCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
   }
 }

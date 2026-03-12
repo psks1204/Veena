@@ -9,12 +9,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/services/audio_handler.dart';
 import 'core/services/push_notification_service.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
 
 /// Global audio handler - initialized once at app startup
 late AudioHandler audioHandler;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize time zones for local notifications
+  tz.initializeTimeZones();
+  if (!kIsWeb) {
+    try {
+      final timeZone = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZone.toString()));
+    } catch (_) {
+      // Fallback
+    }
+  }
 
   // Initialize Firebase (only on mobile - web requires separate config)
   if (!kIsWeb) {

@@ -184,9 +184,9 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
           final latestReleases = dashboard.latestReleases;
           final popularTracks = dashboard.popularTracks;
 
-          // Split by type
-          final videos = latestReleases.where((m) => m.isVideo).toList();
-          final audios = latestReleases.where((m) => m.isAudio).toList();
+          // Audio and video come from dedicated API calls (no client-side filtering)
+          final videos = dashboard.videos;
+          final audios = dashboard.audios;
 
           return RefreshIndicator(
             color: AppColors.primary,
@@ -532,6 +532,8 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
                   title: item.title,
                   subtitle: item.artistName,
                   imageUrl: item.thumbnailUrl,
+                  playedCount: item.playedCount > 0 ? item.playedCount : null,
+                  likeCount: item.likeCount > 0 ? item.likeCount : null,
                   onTap: () => _onPlayAttempt(items, index),
                 ),
               );

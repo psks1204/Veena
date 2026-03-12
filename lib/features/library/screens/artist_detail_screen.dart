@@ -46,9 +46,20 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
     }
   }
 
+  /// Formats large numbers (e.g., 1234 -> "1.2K", 1234567 -> "1.2M")
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     
     return Scaffold(
       body: CustomScrollView(
@@ -114,8 +125,6 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        _buildFollowButton(),
                       ],
                     ),
                   ),
@@ -123,6 +132,105 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
               ),
             ),
           ),
+
+          // Stats row + Follow button
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+                vertical: AppSpacing.md,
+              ),
+              child: Column(
+                children: [
+                  // Stats row
+                  Row(
+                    children: [
+                      _buildStatItem(
+                        context,
+                        label: 'Followers',
+                        value: _formatCount(_artist.followerCount),
+                        icon: Icons.people_outline_rounded,
+                      ),
+                      const SizedBox(width: AppSpacing.xl),
+                      if (_artist.totalPlays > 0)
+                        _buildStatItem(
+                          context,
+                          label: 'Total Plays',
+                          value: _formatCount(_artist.totalPlays),
+                          icon: Icons.play_circle_outline_rounded,
+                        ),
+                      const Spacer(),
+                      _buildFollowButton(),
+                    ],
+                  ),
+                  // Bio
+                  if (_artist.bio != null && _artist.bio!.isNotEmpty) ...[
+                    const SizedBox(height: AppSpacing.md),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        _artist.bio!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isDark ? Colors.white70 : Colors.black54,
+                          height: 1.4,
+                        ),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                  // Genre / Country
+                  if (_artist.genre != null || _artist.country != null) ...[
+                    const SizedBox(height: AppSpacing.sm),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Wrap(
+                        spacing: AppSpacing.sm,
+                        children: [
+                          if (_artist.genre != null)
+                            Chip(
+                              label: Text(_artist.genre!),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                              side: BorderSide.none,
+                              labelStyle: theme.textTheme.bodySmall,
+                            ),
+                          if (_artist.country != null)
+                            Chip(
+                              avatar: const Icon(Icons.location_on_outlined, size: 14),
+                              label: Text(_artist.country!),
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                              side: BorderSide.none,
+                              labelStyle: theme.textTheme.bodySmall,
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+          // Section title for tracks
+          if (!_isLoading && _tracks.isNotEmpty)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Text(
+                  'Popular',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
           
           if (_isLoading)
             const SliverFillRemaining(
@@ -156,6 +264,45 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
     );
   }
 
+  Widget _buildStatItem(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              value,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: isDark ? Colors.white54 : Colors.black45,
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildFollowButton() {
     final isFollowing = _artist.following;
     
@@ -180,7 +327,10 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
         name: _artist.name,
         imageUrl: _artist.imageUrl,
         genre: _artist.genre,
+        country: _artist.country,
+        bio: _artist.bio,
         followerCount: _artist.followerCount + (_artist.following ? -1 : 1),
+        totalPlays: _artist.totalPlays,
         following: !_artist.following,
         verified: _artist.verified,
       );

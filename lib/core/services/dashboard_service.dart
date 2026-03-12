@@ -14,12 +14,16 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> _latestReleases = [];
   List<MediaItem> _popularTracks = [];
   List<MediaItem> _recentlyPlayed = [];
+  List<MediaItem> _videos = [];
+  List<MediaItem> _audios = [];
   bool _isLoading = false;
   String? _error;
   
   List<MediaItem> get latestReleases => _latestReleases;
   List<MediaItem> get popularTracks => _popularTracks;
   List<MediaItem> get recentlyPlayed => _recentlyPlayed;
+  List<MediaItem> get videos => _videos;
+  List<MediaItem> get audios => _audios;
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -56,15 +60,54 @@ class DashboardService extends ChangeNotifier {
         }
       }
 
-      // Fetch artists concurrently (from library/all endpoint or where appropriate)
-      try {
-        final artistsData = await _api.get('/user/library/artists/all');
-        if (artistsData != null && artistsData is List) {
-          _artists = artistsData.map((item) => Artist.fromJson(item)).toList();
-        }
-      } catch (e) {
-        debugPrint('Dashboard artists fetch error: $e');
-      }
+      // Fetch artists, videos, and audios concurrently
+      await Future.wait([
+        // Artists
+        (() async {
+          try {
+            final artistsData = await _api.get('/user/library/artists/all');
+            if (artistsData != null && artistsData is List) {
+              _artists = artistsData.map((item) => Artist.fromJson(item)).toList();
+            }
+          } catch (e) {
+            debugPrint('Dashboard artists fetch error: $e');
+          }
+        })(),
+        // Videos (dedicated fetch via /media?type=VIDEO)
+        (() async {
+          try {
+            final videoData = await _api.get('/media', queryParams: {
+              'type': 'VIDEO',
+              'page': '0',
+              'size': '20',
+            });
+            if (videoData != null && videoData['content'] != null) {
+              _videos = (videoData['content'] as List)
+                  .map((item) => MediaItem.fromJson(item))
+                  .toList();
+            }
+          } catch (e) {
+            debugPrint('Dashboard videos fetch error: $e');
+          }
+        })(),
+        // Audios (dedicated fetch via /media?type=AUDIO)
+        (() async {
+          try {
+            final audioData = await _api.get('/media', queryParams: {
+              'type': 'AUDIO',
+              'page': '0',
+              'size': '20',
+            });
+            if (audioData != null && audioData['content'] != null) {
+              _audios = (audioData['content'] as List)
+                  .map((item) => MediaItem.fromJson(item))
+                  .toList();
+            }
+          } catch (e) {
+            debugPrint('Dashboard audios fetch error: $e');
+          }
+        })(),
+      ]);
       
       _isLoading = false;
       notifyListeners();

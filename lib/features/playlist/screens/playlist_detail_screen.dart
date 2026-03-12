@@ -319,6 +319,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                             duration: '',
                             imageUrl: track.thumbnailUrl,
                             isPlaying: isPlaying,
+                            playedCount: track.playedCount > 0 ? track.playedCount : null,
+                            likeCount: track.likeCount > 0 ? track.likeCount : null,
                             onTap: () => _playTrack(track, trackIndex: index),
                             onMoreTap: () {
                               showModalBottomSheet(

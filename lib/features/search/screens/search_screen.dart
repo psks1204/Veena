@@ -4,12 +4,16 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/artist.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../core/services/library_service.dart';
+import '../../../core/navigation/app_navigation.dart';
+import '../../library/screens/artist_detail_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 /// Search Screen
 ///
@@ -30,6 +34,7 @@ class _SearchScreenState extends State<SearchScreen> {
   Timer? _debounceTimer;
 
   List<MediaItem> _searchResults = [];
+  List<Artist> _searchArtists = [];
   bool _isSearching = false;
   bool _hasSearched = false;
 
@@ -49,6 +54,7 @@ class _SearchScreenState extends State<SearchScreen> {
         _isSearching = false;
         _hasSearched = false;
         _searchResults = [];
+        _searchArtists = [];
       });
       return;
     }
@@ -67,6 +73,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
       setState(() {
         _searchResults = results;
+        _searchArtists = mediaService.searchArtists;
         _isSearching = false;
         _hasSearched = true;
       });
@@ -81,10 +88,8 @@ class _SearchScreenState extends State<SearchScreen> {
 
   void _playMedia(MediaItem item) {
     final player = context.read<PlayerProvider>();
-    final mediaService = context.read<MediaService>();
 
     player.play(item);
-    // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
 
     if (item.isVideo) {
       Navigator.of(
@@ -117,6 +122,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _isSearching = false;
       _hasSearched = false;
       _searchResults = [];
+      _searchArtists = [];
     });
   }
 
@@ -215,8 +221,11 @@ class _SearchScreenState extends State<SearchScreen> {
   Widget _buildSearchResults(ThemeData theme) {
     final mediaService = context.watch<MediaService>();
     final player = context.watch<PlayerProvider>();
+    final isDark = theme.brightness == Brightness.dark;
 
-    if (_searchResults.isEmpty) {
+    final totalResults = _searchResults.length + _searchArtists.length;
+
+    if (totalResults == 0) {
       return SliverFillRemaining(
         child: Center(
           child: Column(
@@ -260,10 +269,35 @@ class _SearchScreenState extends State<SearchScreen> {
         delegate: SliverChildListDelegate([
           // Results count
           Text(
-            '${_searchResults.length} results',
+            '$totalResults results',
             style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
           ),
           const SizedBox(height: AppSpacing.lg),
+
+          // Artists section
+          if (_searchArtists.isNotEmpty) ...[
+            Text(
+              'Artists',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: 160,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _searchArtists.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final artist = _searchArtists[index];
+                  return _buildArtistSearchCard(context, artist, isDark, theme);
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
 
           // Videos section
           if (videos.isNotEmpty) ...[
@@ -287,7 +321,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     width: 160,
                     child: AuraAlbumCard(
                       title: item.title,
-                      subtitle: item.description ?? '',
+                      subtitle: item.artistName,
                       imageUrl: item.thumbnailUrl ?? '',
                       mediaType: item.mediaType,
                       isLiked: mediaService.isLiked(
@@ -319,10 +353,12 @@ class _SearchScreenState extends State<SearchScreen> {
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: AuraTrackTile(
                   title: item.title,
-                  subtitle: item.description ?? '',
+                  subtitle: item.artistName,
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
                   isLiked: mediaService.isLiked(item.id, initial: item.liked),
+                  playedCount: item.playedCount > 0 ? item.playedCount : null,
+                  likeCount: item.likeCount > 0 ? item.likeCount : null,
                   onTap: () => _playMedia(item),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {
@@ -338,6 +374,112 @@ class _SearchScreenState extends State<SearchScreen> {
             }),
           ],
         ]),
+      ),
+    );
+  }
+
+  Widget _buildArtistSearchCard(
+    BuildContext context,
+    Artist artist,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        AppNavigation.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ArtistDetailScreen(artist: artist),
+          ),
+        );
+      },
+      child: SizedBox(
+        width: 120,
+        child: Column(
+          children: [
+            // Circular artist image
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: artist.imageUrl != null && artist.imageUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: artist.imageUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Center(
+                            child: Text(
+                              artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
+                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                            ),
+                          ),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: Center(
+                            child: Text(
+                              artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
+                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Container(
+                        color: isDark ? Colors.grey[800] : Colors.grey[200],
+                        child: Center(
+                          child: Text(
+                            artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
+                            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                          ),
+                        ),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Name
+            Text(
+              artist.name,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            // Label
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (artist.verified)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(
+                      Icons.verified,
+                      size: 14,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                Text(
+                  'Artist',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: isDark ? Colors.grey[400] : Colors.grey[600],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -16,6 +16,8 @@ import '../../../core/services/library_service.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/lyrics_card.dart';
 import 'lyrics_fullscreen_screen.dart';
+import '../../../core/models/artist.dart';
+import '../../library/screens/artist_detail_screen.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
 ///
@@ -707,29 +709,69 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     final artistName = media.artistName ?? 'Unknown Artist';
     final artistImage = media.artist?.imageUrl ?? media.thumbnailUrl;
 
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Artist image with gradient overlay
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(12),
-                ),
-                child: AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: artistImage != null
-                      ? Image.network(
-                          artistImage,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
+    return GestureDetector(
+      onTap: () {
+        Artist? theArtist;
+        if (media.artist != null) {
+          theArtist = Artist(
+            id: media.artist!.id.toString(),
+            name: media.artist!.name,
+            imageUrl: media.artist!.imageUrl,
+            verified: media.artist!.verified,
+          );
+        } else if (media.artistId != null) {
+          theArtist = Artist(
+            id: media.artistId!,
+            name: artistName,
+            imageUrl: artistImage,
+          );
+        }
+
+        if (theArtist != null) {
+          final validArtist = theArtist;
+          _handleClose();
+          AppNavigation.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ArtistDetailScreen(artist: validArtist),
+            ),
+          );
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Artist image with gradient overlay
+            Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(12),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: artistImage != null
+                        ? Image.network(
+                            artistImage,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Container(
+                              color: Colors.grey[900],
+                              child: const Center(
+                                child: Icon(
+                                  Icons.person,
+                                  color: Colors.white38,
+                                  size: 48,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Container(
                             color: Colors.grey[900],
                             child: const Center(
                               child: Icon(
@@ -739,131 +781,122 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                               ),
                             ),
                           ),
-                        )
-                      : Container(
-                          color: Colors.grey[900],
-                          child: const Center(
-                            child: Icon(
-                              Icons.person,
-                              color: Colors.white38,
-                              size: 48,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-              // "About the artist" label with gradient
-              Positioned(
-                top: 16,
-                left: 16,
-                child: Text(
-                  'About the artist',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
                   ),
                 ),
-              ),
-            ],
-          ),
-          // Artist info
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              artistName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          // Verified badge (if artist is verified)
-                          if (media.artist?.verified == true)
-                            Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Icon(
-                                Icons.check,
-                                color: Colors.white,
-                                size: 10,
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        media.artist?.genre ?? 'Artist',
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 13,
-                        ),
-                      ),
-                    ],
+                // "About the artist" label with gradient
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Text(
+                    'About the artist',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                // Follow button
-                Consumer<ArtistService>(
-                  builder: (context, artistService, _) {
-                    if (media.artistId == null) return const SizedBox.shrink();
-                    final library = context.watch<LibraryService>();
-                    final isFollowing = library.artists.any(
-                      (a) => a.id == media.artistId,
-                    );
-
-                    return GestureDetector(
-                      onTap: () async {
-                        await artistService.toggleFollow(media.artistId!);
-                        await context.read<LibraryService>().getArtists();
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isFollowing
-                              ? Colors.transparent
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: isFollowing
-                                ? Colors.white
-                                : Colors.transparent,
-                          ),
-                        ),
-                        child: Text(
-                          isFollowing ? 'Following' : 'Follow',
-                          style: TextStyle(
-                            color: isFollowing ? Colors.white : Colors.black,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ],
             ),
-          ),
-        ],
+            // Artist info
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                artistName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            // Verified badge (if artist is verified)
+                            if (media.artist?.verified == true)
+                              Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 10,
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          media.artist?.genre ?? 'Artist',
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.6),
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Follow button
+                  Consumer<ArtistService>(
+                    builder: (context, artistService, _) {
+                      if (media.artistId == null)
+                        return const SizedBox.shrink();
+                      final library = context.watch<LibraryService>();
+                      final isFollowing = library.artists.any(
+                        (a) => a.id == media.artistId,
+                      );
+
+                      return GestureDetector(
+                        onTap: () async {
+                          await artistService.toggleFollow(media.artistId!);
+                          await context.read<LibraryService>().getArtists();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isFollowing
+                                ? Colors.transparent
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isFollowing
+                                  ? Colors.white
+                                  : Colors.transparent,
+                            ),
+                          ),
+                          child: Text(
+                            isFollowing ? 'Following' : 'Follow',
+                            style: TextStyle(
+                              color: isFollowing ? Colors.white : Colors.black,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

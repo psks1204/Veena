@@ -6,7 +6,7 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Veena - Premium Music Streaming">
+  <meta name="description" content="Veena Music - Pioneer of Rajasthani Music">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <!-- iOS meta tags & icons -->
@@ -169,19 +169,60 @@
 <body>
   <!-- Aura Splash Screen -->
   <div id="splash">
-    <div class="logo-container">
-      <img src="icons/app_logo.png" alt="Veena Logo" style="width: 100px; height: 100px; object-fit: contain;">
+    <div class="logo-container" id="splash-logo-container">
+      <img id="splash-logo" src="assets/images/logo_light.png" alt="Veena Logo"
+        style="width: 100px; height: 100px; object-fit: contain;">
     </div>
     <div class="brand-name">VEENA</div>
     <div class="tagline">
       <span class="tagline-line"></span>
-      SOUND STUDIO
+      MUSIC OF RAJASTHAN
       <span class="tagline-line"></span>
     </div>
     <div class="breathing-dot"></div>
   </div>
 
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Dynamically switch splash logo and background based on system theme
+    (function () {
+      const isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const logoElement = document.getElementById('splash-logo');
+      const containerElement = document.getElementById('splash-logo-container');
+      const splashBg = document.getElementById('splash');
+
+      var brandName = document.querySelector('.brand-name');
+      var tagline = document.querySelector('.tagline');
+      var taglineLines = document.querySelectorAll('.tagline-line');
+
+      function applyTheme(dark) {
+        if (dark) {
+          logoElement.src = 'assets/images/logo_dark.png';
+          containerElement.style.background = '#1E1E1E';
+          splashBg.style.backgroundColor = '#121214';
+          brandName.style.color = 'white';
+          tagline.style.color = 'rgba(255, 255, 255, 0.38)';
+          taglineLines.forEach(function(l) { l.style.background = 'rgba(255, 255, 255, 0.24)'; });
+        } else {
+          logoElement.src = 'assets/images/logo_light.png';
+          containerElement.style.background = '#FFFFFF';
+          splashBg.style.backgroundColor = '#F8F9FA';
+          brandName.style.color = '#2D2D2D';
+          tagline.style.color = 'rgba(0, 0, 0, 0.38)';
+          taglineLines.forEach(function(l) { l.style.background = 'rgba(0, 0, 0, 0.12)'; });
+        }
+      }
+
+      applyTheme(isDark);
+
+      // Listen for theme changes while splash is active
+      window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+        if (!document.getElementById('splash').classList.contains('hidden')) {
+          applyTheme(event.matches);
+        }
+      });
+    })();
+  </script>
   <script>
     // Hide splash when Flutter is ready
     window.addEventListener('flutter-first-frame', function () {

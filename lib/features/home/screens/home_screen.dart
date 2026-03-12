@@ -19,9 +19,12 @@ import '../../library/screens/artist_detail_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
+import '../../library/screens/artists_browse_screen.dart';
 import '../../playlist/screens/playlist_detail_screen.dart';
 import '../widgets/featured_carousel.dart';
-import 'section_view_screen.dart';
+import 'paginated_section_screen.dart';
+import 'simple_section_screen.dart';
+import 'featured_playlists_browse_screen.dart';
 
 import '../../../shared/widgets/app_footer.dart';
 import '../../../core/services/birthday_service.dart';
@@ -176,9 +179,9 @@ class _HomeScreenState extends State<HomeScreen> {
           final popularTracks = dashboard.popularTracks;
           final recentlyPlayed = dashboard.recentlyPlayed;
 
-          // Split by type
-          final videos = latestReleases.where((m) => m.isVideo).toList();
-          final audios = latestReleases.where((m) => m.isAudio).toList();
+          // Audio and video come from dedicated API calls (no client-side filtering)
+          final audios = dashboard.audios;
+          final videos = dashboard.videos;
 
           return RefreshIndicator(
             color: AppColors.primary,
@@ -204,10 +207,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (recentlyPlayed.isNotEmpty) ...[
                     _buildSection(
                       context,
-                      title: 'Continue Listening',
+                      title: 'Recently Played',
                       icon: Icons.history_rounded,
                       items: recentlyPlayed,
                       isHorizontal: true,
+                      onSeeAll: () {
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SimpleSectionScreen(
+                              title: 'Recently Played',
+                              items: recentlyPlayed,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
 
@@ -220,6 +234,31 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: BirthdayBanner(userName: user.displayName),
                     ),
 
+                  // Latest Releases
+                  if (latestReleases.isNotEmpty) ...[
+                    _buildSection(
+                      context,
+                      title: 'Latest Releases',
+                      icon: Icons.new_releases_rounded,
+                      items: latestReleases,
+                      isHorizontal: true,
+                      showBadge: true,
+                      onSeeAll: () {
+                        final mediaService = context.read<MediaService>();
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaginatedSectionScreen(
+                              title: 'Latest Releases',
+                              fetchPagedItems: (page, size) =>
+                                  mediaService.fetchLatestReleases(page: page, size: size),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+
                   // Popular/Trending
                   if (popularTracks.isNotEmpty) ...[
                     _buildSection(
@@ -228,6 +267,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       icon: Icons.trending_up_rounded,
                       items: popularTracks,
                       isHorizontal: true,
+                      onSeeAll: () {
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SimpleSectionScreen(
+                              title: 'Trending Now',
+                              items: popularTracks,
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
 
@@ -299,6 +349,7 @@ class _HomeScreenState extends State<HomeScreen> {
     required List<MediaItem> items,
     bool isHorizontal = false,
     bool showBadge = false,
+    VoidCallback? onSeeAll,
   }) {
     final mediaService = context.watch<MediaService>();
 
@@ -309,14 +360,7 @@ class _HomeScreenState extends State<HomeScreen> {
           SectionHeader(
             title: title,
             actionLabel: 'See all',
-            onActionTap: () {
-              AppNavigation.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => SectionViewScreen(title: title, items: items),
-                ),
-              );
-            },
+            onActionTap: onSeeAll,
             padding: const EdgeInsets.only(
               left: AppSpacing.screenPadding,
               right: AppSpacing.screenPadding,
@@ -381,11 +425,19 @@ class _HomeScreenState extends State<HomeScreen> {
               title: title,
               actionLabel: 'See all',
               onActionTap: () {
+                final mediaService = context.read<MediaService>();
                 AppNavigation.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        SectionViewScreen(title: title, items: items),
+                    builder: (_) => PaginatedSectionScreen(
+                      title: title,
+                      fetchPagedItems: (page, size) =>
+                          mediaService.fetchMedia(
+                            page: page,
+                            size: size,
+                            mediaType: 'VIDEO',
+                          ),
+                    ),
                   ),
                 );
               },
@@ -440,11 +492,19 @@ class _HomeScreenState extends State<HomeScreen> {
               title: title,
               actionLabel: 'See all',
               onActionTap: () {
+                final mediaService = context.read<MediaService>();
                 AppNavigation.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) =>
-                        SectionViewScreen(title: title, items: items),
+                    builder: (_) => PaginatedSectionScreen(
+                      title: title,
+                      fetchPagedItems: (page, size) =>
+                          mediaService.fetchMedia(
+                            page: page,
+                            size: size,
+                            mediaType: 'AUDIO',
+                          ),
+                    ),
                   ),
                 );
               },
@@ -470,6 +530,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   imageUrl: item.thumbnailUrl,
                   isPlaying: isPlaying,
                   isLiked: mediaService.isLiked(item.id, initial: item.liked),
+                  playedCount: item.playedCount > 0 ? item.playedCount : null,
+                  likeCount: item.likeCount > 0 ? item.likeCount : null,
                   onTap: () => _playMedia(items, index),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {
@@ -555,41 +617,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // Section Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenPadding,
-                  AppSpacing.lg,
-                  AppSpacing.screenPadding,
-                  AppSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primary.withOpacity(0.6),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
+                padding: const EdgeInsets.only(top: AppSpacing.lg),
+                child: SectionHeader(
+                  title: 'Featured Playlists',
+                  actionLabel: 'See all',
+                  onActionTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FeaturedPlaylistsBrowseScreen(),
                       ),
-                      child: const Icon(
-                        Icons.playlist_play_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Featured Playlists',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
 
@@ -726,41 +765,18 @@ class _HomeScreenState extends State<HomeScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.screenPadding,
-              AppSpacing.lg,
-              AppSpacing.screenPadding,
-              AppSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        AppColors.primary,
-                        AppColors.primary.withOpacity(0.6),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: SectionHeader(
+              title: 'Artists',
+              actionLabel: 'See all',
+              onActionTap: () {
+                AppNavigation.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ArtistsBrowseScreen(),
                   ),
-                  child: const Icon(
-                    Icons.person_rounded,
-                    color: Colors.white,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    'Artists',
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
+                );
+              },
             ),
           ),
           SizedBox(
@@ -808,12 +824,19 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: isDark ? Colors.grey[800] : Colors.grey[200],
                           ),
                           child: artist.imageUrl == null
-                              ? Icon(
-                                  Icons.person,
-                                  size: 48,
-                                  color: isDark
-                                      ? Colors.grey[600]
-                                      : Colors.grey[400],
+                              ? Center(
+                                  child: Text(
+                                    artist.name.isNotEmpty
+                                        ? artist.name[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                      fontSize: 40,
+                                      fontWeight: FontWeight.bold,
+                                      color: isDark
+                                          ? Colors.grey[400]
+                                          : Colors.grey[500],
+                                    ),
+                                  ),
                                 )
                               : null,
                         ),
@@ -857,68 +880,18 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               // Section Header
               Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.screenPadding,
-                  AppSpacing.lg,
-                  AppSpacing.screenPadding,
-                  AppSpacing.md,
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            AppColors.primary,
-                            AppColors.primary.withOpacity(0.6),
-                          ],
-                        ),
-                        borderRadius: BorderRadius.circular(8),
+                padding: const EdgeInsets.only(top: AppSpacing.lg),
+                child: SectionHeader(
+                  title: 'Albums',
+                  actionLabel: 'See all',
+                  onActionTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AlbumsBrowseScreen(),
                       ),
-                      child: const Icon(
-                        Icons.album_rounded,
-                        color: Colors.white,
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Albums',
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        AppNavigation.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const AlbumsBrowseScreen(),
-                          ),
-                        );
-                      },
-                      child: Row(
-                        children: [
-                          Text(
-                            'See All',
-                            style: TextStyle(
-                              color: AppColors.primary,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_ios,
-                            size: 14,
-                            color: AppColors.primary,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                    );
+                  },
                 ),
               ),
 

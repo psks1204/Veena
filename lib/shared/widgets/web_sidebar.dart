@@ -4,7 +4,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/services/library_service.dart';
 
 /// Spotify-style Web Sidebar
-/// 
+///
 /// Collapsible left sidebar with Your Library, playlists, and artists.
 class WebSidebar extends StatefulWidget {
   const WebSidebar({
@@ -50,17 +50,18 @@ class _WebSidebarState extends State<WebSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     if (widget.isCollapsed) {
-      return _buildCollapsedSidebar();
+      return _buildCollapsedSidebar(isDark);
     }
-    return _buildExpandedSidebar();
+    return _buildExpandedSidebar(isDark);
   }
 
   /// Collapsed sidebar - just icons
-  Widget _buildCollapsedSidebar() {
+  Widget _buildCollapsedSidebar(bool isDark) {
     return Container(
       width: 72,
-      color: const Color(0xFF121212),
+      color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
       child: Column(
         children: [
           const SizedBox(height: 16),
@@ -74,25 +75,34 @@ class _WebSidebarState extends State<WebSidebar> {
             ),
             padding: const EdgeInsets.all(4),
             child: Image.asset(
-              'assets/images/app_logo.png',
+              isDark
+                  ? 'assets/images/logo_dark.png'
+                  : 'assets/images/logo_light.png',
               fit: BoxFit.contain,
             ),
           ),
           const SizedBox(height: 24),
-          
+
           // Library Icon (only one needed)
           IconButton(
             onPressed: widget.onToggleCollapse, // Expand when clicked
-            icon: const Icon(Icons.library_music_rounded, color: Colors.white54, size: 28),
+            icon: Icon(
+              Icons.library_music_rounded,
+              color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+              size: 28,
+            ),
             tooltip: 'Expand Library',
           ),
-          
+
           const Spacer(),
-          
+
           // Expand button
           IconButton(
             onPressed: widget.onToggleCollapse,
-            icon: const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+            icon: Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+            ),
             tooltip: 'Expand',
           ),
           const SizedBox(height: 16),
@@ -102,21 +112,23 @@ class _WebSidebarState extends State<WebSidebar> {
   }
 
   /// Expanded sidebar - full content
-  Widget _buildExpandedSidebar() {
+  Widget _buildExpandedSidebar(bool isDark) {
     return Container(
       width: 280,
-      color: const Color(0xFF121212),
+      color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
-          
+
           // Library Section (Full Height)
           Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: isDark
+                    ? const Color(0xFF1E1E1E)
+                    : AppColors.lightSurfaceVariant,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Column(
@@ -128,39 +140,51 @@ class _WebSidebarState extends State<WebSidebar> {
                       children: [
                         Icon(
                           Icons.library_music,
-                          color: Colors.white,
+                          color: isDark
+                              ? Colors.white
+                              : AppColors.lightTextPrimary,
                           size: 24,
                         ),
                         const SizedBox(width: 12),
-                        const Text(
+                        Text(
                           'Your Library',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.lightTextPrimary,
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const Spacer(),
-                        _buildLibraryAction(Icons.add_rounded, 'Create playlist', () {}),
+                        _buildLibraryAction(
+                          Icons.add_rounded,
+                          'Create playlist',
+                          isDark,
+                          () {},
+                        ),
                         const SizedBox(width: 8),
                         if (widget.onToggleCollapse != null)
-                          _buildLibraryAction(Icons.arrow_back_rounded, 'Collapse', widget.onToggleCollapse!),
+                          _buildLibraryAction(
+                            Icons.arrow_back_rounded,
+                            'Collapse',
+                            isDark,
+                            widget.onToggleCollapse!,
+                          ),
                       ],
                     ),
                   ),
-                  
+
                   // Filters
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: Row(
-                      children: [
-                        _buildFilterPill('Playlists')
-                      ],
+                      children: [_buildFilterPill('Playlists', isDark)],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 16),
-                  
+
                   // Library content (Scrollable)
                   Expanded(
                     child: Consumer<LibraryService>(
@@ -173,14 +197,19 @@ class _WebSidebarState extends State<WebSidebar> {
               ),
             ),
           ),
-          
+
           const SizedBox(height: 8),
         ],
       ),
     );
   }
 
-  Widget _buildNavItem(IconData activeIcon, IconData inactiveIcon, String label, int index) {
+  Widget _buildNavItem(
+    IconData activeIcon,
+    IconData inactiveIcon,
+    String label,
+    int index,
+  ) {
     final isActive = widget.currentTabIndex == index;
     return Material(
       color: Colors.transparent,
@@ -212,10 +241,19 @@ class _WebSidebarState extends State<WebSidebar> {
     );
   }
 
-  Widget _buildLibraryAction(IconData icon, String tooltip, VoidCallback onTap) {
+  Widget _buildLibraryAction(
+    IconData icon,
+    String tooltip,
+    bool isDark,
+    VoidCallback onTap,
+  ) {
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon, color: Colors.white54, size: 20),
+      icon: Icon(
+        icon,
+        color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+        size: 20,
+      ),
       splashRadius: 20,
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -223,20 +261,26 @@ class _WebSidebarState extends State<WebSidebar> {
     );
   }
 
-  Widget _buildFilterPill(String label) {
+  Widget _buildFilterPill(String label, bool isDark) {
     final isActive = _activeFilter == label;
     return GestureDetector(
       onTap: () => setState(() => _activeFilter = label),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.white.withOpacity(0.07),
+          color: isActive
+              ? (isDark ? Colors.white : Colors.black)
+              : (isDark
+                    ? Colors.white.withOpacity(0.07)
+                    : Colors.black.withOpacity(0.05)),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.black : Colors.white,
+            color: isActive
+                ? (isDark ? Colors.black : Colors.white)
+                : (isDark ? Colors.white : Colors.black),
             fontSize: 13,
             fontWeight: FontWeight.w500,
           ),
@@ -246,14 +290,15 @@ class _WebSidebarState extends State<WebSidebar> {
   }
 
   Widget _buildLibraryContent(LibraryService library) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // if (_activeFilter == 'Playlists') {
-      return _buildPlaylistsList(library);
+    return _buildPlaylistsList(library, isDark);
     // } else {
     //   return _buildArtistsList(library);
     // }
   }
 
-  Widget _buildPlaylistsList(LibraryService library) {
+  Widget _buildPlaylistsList(LibraryService library, bool isDark) {
     if (library.isLoading && library.playlists.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -270,6 +315,7 @@ class _WebSidebarState extends State<WebSidebar> {
         // Always show Liked Songs first
         if (query.isEmpty || 'liked songs'.contains(query))
           _buildLibraryItem(
+            isDark: isDark,
             imageUrl: null,
             title: 'Liked Songs',
             subtitle: 'Playlist • ${library.favorites.length} songs',
@@ -280,28 +326,35 @@ class _WebSidebarState extends State<WebSidebar> {
               widget.onTabSelected(2);
             },
           ),
-        
+
         // User playlists
-        ...playlists.map((playlist) => _buildLibraryItem(
-          imageUrl: playlist.coverUrl,
-          title: playlist.name,
-          subtitle: 'Playlist • ${playlist.trackCount} songs',
-          onTap: () {
-            // Switch to Library tab (same as Liked Songs)
-            widget.onTabSelected(2);
-          },
-        )),
+        ...playlists.map(
+          (playlist) => _buildLibraryItem(
+            isDark: isDark,
+            imageUrl: playlist.coverUrl,
+            title: playlist.name,
+            subtitle: 'Playlist • ${playlist.trackCount} songs',
+            onTap: () {
+              // Switch to Library tab (same as Liked Songs)
+              widget.onTabSelected(2);
+            },
+          ),
+        ),
 
         // Placeholder if empty
         if (playlists.isEmpty && library.playlists.isEmpty)
-           Padding(
-             padding: const EdgeInsets.all(16.0),
-             child: Text(
-               'Create your first playlist!',
-               style: TextStyle(color: Colors.white.withOpacity(0.5)),
-               textAlign: TextAlign.center,
-             ),
-           ),
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Create your first playlist!',
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withOpacity(0.5)
+                    : AppColors.lightTextSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
       ],
     );
   }
@@ -311,11 +364,18 @@ class _WebSidebarState extends State<WebSidebar> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.person_outline_rounded, color: Colors.white.withOpacity(0.3), size: 40),
+          Icon(
+            Icons.person_outline_rounded,
+            color: Colors.white.withOpacity(0.3),
+            size: 40,
+          ),
           const SizedBox(height: 12),
           Text(
             'Follow artists to see them here',
-            style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13),
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -323,6 +383,7 @@ class _WebSidebarState extends State<WebSidebar> {
   }
 
   Widget _buildLibraryItem({
+    required bool isDark,
     String? imageUrl,
     required String title,
     required String subtitle,
@@ -335,7 +396,9 @@ class _WebSidebarState extends State<WebSidebar> {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
-        hoverColor: Colors.white.withOpacity(0.08),
+        hoverColor: isDark
+            ? Colors.white.withOpacity(0.08)
+            : Colors.black.withOpacity(0.05),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           child: Row(
@@ -356,7 +419,9 @@ class _WebSidebarState extends State<WebSidebar> {
                           end: Alignment.bottomRight,
                         )
                       : null,
-                  color: imageUrl == null && icon == null ? Colors.grey[800] : null,
+                  color: imageUrl == null && icon == null
+                      ? Colors.grey[800]
+                      : null,
                   image: imageUrl != null && imageUrl.isNotEmpty
                       ? DecorationImage(
                           image: NetworkImage(imageUrl),
@@ -364,11 +429,15 @@ class _WebSidebarState extends State<WebSidebar> {
                         )
                       : null,
                 ),
-                child: icon != null 
+                child: icon != null
                     ? Icon(icon, color: Colors.white, size: 22)
                     : (imageUrl == null || imageUrl.isEmpty
-                        ? const Icon(Icons.music_note_rounded, color: Colors.white54, size: 22)
-                        : null),
+                          ? const Icon(
+                              Icons.music_note_rounded,
+                              color: Colors.white54,
+                              size: 22,
+                            )
+                          : null),
               ),
               const SizedBox(width: 12),
               // Info
@@ -378,8 +447,10 @@ class _WebSidebarState extends State<WebSidebar> {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: isDark
+                            ? Colors.white
+                            : AppColors.lightTextPrimary,
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                       ),
@@ -390,7 +461,9 @@ class _WebSidebarState extends State<WebSidebar> {
                     Text(
                       subtitle,
                       style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
+                        color: isDark
+                            ? Colors.white.withOpacity(0.6)
+                            : AppColors.lightTextSecondary,
                         fontSize: 12,
                       ),
                       maxLines: 1,

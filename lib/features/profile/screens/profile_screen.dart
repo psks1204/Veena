@@ -29,31 +29,30 @@ class ProfileScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Profile',
-          style: theme.textTheme.headlineMedium,
-        ),
+        title: Text('Profile', style: theme.textTheme.headlineMedium),
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.screenPadding),
         children: [
           // Profile header
-          _ProfileHeader(onEditTap: () {
-            AppNavigation.push(
-              context,
-              MaterialPageRoute(builder: (_) => const EditProfileScreen()),
-            );
-          }),
-          
+          _ProfileHeader(
+            onEditTap: () {
+              AppNavigation.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+              );
+            },
+          ),
+
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Theme section
           _SectionTitle(title: 'Appearance'),
           const SizedBox(height: AppSpacing.sm),
           _ThemeToggle(),
-          
+
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Settings section
           _SectionTitle(title: 'Settings'),
           const SizedBox(height: AppSpacing.sm),
@@ -66,7 +65,9 @@ class ProfileScreen extends StatelessWidget {
                   onTap: () {
                     AppNavigation.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const AlarmListScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const AlarmListScreen(),
+                      ),
                     );
                   },
                 ),
@@ -78,9 +79,9 @@ class ProfileScreen extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: AppSpacing.xl),
-          
+
           // About section
           _SectionTitle(title: 'About'),
           const SizedBox(height: AppSpacing.sm),
@@ -124,16 +125,18 @@ class ProfileScreen extends StatelessWidget {
                 onTap: () {
                   AppNavigation.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const PrivacyPolicyScreen(),
+                    ),
                   );
                 },
                 showDivider: false,
               ),
             ],
           ),
-          
+
           const SizedBox(height: AppSpacing.xl),
-          
+
           // Sign out
           SizedBox(
             width: double.infinity,
@@ -141,32 +144,27 @@ class ProfileScreen extends StatelessWidget {
               onPressed: onSignOut,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                side: BorderSide(
-                  color: colorScheme.onSurface.withOpacity(0.2),
-                ),
+                side: BorderSide(color: colorScheme.onSurface.withOpacity(0.2)),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
                 ),
               ),
-              child: Text(
-                'Log out',
-                style: theme.textTheme.labelLarge,
-              ),
+              child: Text('Log out', style: theme.textTheme.labelLarge),
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.lg),
-          
+
           // Version
           Center(
             child: Text(
-              'Version 1.0.0',
+              'Version 2.0.0',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.4),
               ),
             ),
           ),
-          
+
           // Extra padding to ensure content is visible above mini player + nav bar
           const SizedBox(height: 140),
         ],
@@ -189,22 +187,22 @@ class _ProfileHeader extends StatelessWidget {
 
     // Use ProfileProvider data first, fallback to AuthService
     final profile = profileProvider.profile;
-    
+
     final pName = profile?.name;
-    final userName = (pName != null && pName.isNotEmpty) 
-        ? pName 
+    final userName = (pName != null && pName.isNotEmpty)
+        ? pName
         : (authService.userName ?? 'User');
-        
+
     final pEmail = profile?.email;
     final userEmail = (pEmail != null && pEmail.isNotEmpty)
         ? pEmail
         : (authService.userEmail ?? 'user@example.com');
-        
+
     final pPhoto = profile?.photoUrl;
     final userPicture = (pPhoto != null && pPhoto.isNotEmpty)
         ? pPhoto
         : authService.userPicture;
-        
+
     // Initials logic
     String userInitials = 'U';
     if (userName != 'User') {
@@ -256,9 +254,9 @@ class _ProfileHeader extends StatelessWidget {
                 )
               : null,
         ),
-        
+
         const SizedBox(height: AppSpacing.md),
-        
+
         // Name
         Text(
           userName,
@@ -266,9 +264,9 @@ class _ProfileHeader extends StatelessWidget {
             fontWeight: FontWeight.bold,
           ),
         ),
-        
+
         const SizedBox(height: AppSpacing.xs),
-        
+
         // Email
         Text(
           userEmail,
@@ -276,9 +274,9 @@ class _ProfileHeader extends StatelessWidget {
             color: colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
-        
+
         const SizedBox(height: AppSpacing.md),
-        
+
         // Edit profile button
         OutlinedButton(
           onPressed: onEditTap,
@@ -287,17 +285,12 @@ class _ProfileHeader extends StatelessWidget {
               horizontal: AppSpacing.lg,
               vertical: AppSpacing.sm,
             ),
-            side: BorderSide(
-              color: colorScheme.onSurface.withOpacity(0.3),
-            ),
+            side: BorderSide(color: colorScheme.onSurface.withOpacity(0.3)),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
             ),
           ),
-          child: Text(
-            'Edit profile',
-            style: theme.textTheme.labelMedium,
-          ),
+          child: Text('Edit profile', style: theme.textTheme.labelMedium),
         ),
       ],
     );
@@ -313,9 +306,9 @@ class _SectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-      ),
+      style: Theme.of(
+        context,
+      ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -336,8 +329,8 @@ class _ThemeToggle extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            themeProvider.isDarkMode 
-                ? Icons.dark_mode_rounded 
+            themeProvider.isDarkMode
+                ? Icons.dark_mode_rounded
                 : Icons.light_mode_rounded,
             color: colorScheme.onSurface.withOpacity(0.6),
           ),
@@ -346,10 +339,7 @@ class _ThemeToggle extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Dark Mode',
-                  style: theme.textTheme.titleSmall,
-                ),
+                Text('Dark Mode', style: theme.textTheme.titleSmall),
                 Text(
                   themeProvider.isDarkMode ? 'On' : 'Off',
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -384,9 +374,7 @@ class _SettingsCard extends StatelessWidget {
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       ),
-      child: Column(
-        children: children,
-      ),
+      child: Column(children: children),
     );
   }
 }
@@ -413,10 +401,7 @@ class _SettingsTile extends StatelessWidget {
       children: [
         ListTile(
           onTap: onTap,
-          leading: Icon(
-            icon,
-            color: colorScheme.onSurface.withOpacity(0.6),
-          ),
+          leading: Icon(icon, color: colorScheme.onSurface.withOpacity(0.6)),
           title: Text(title),
           trailing: Icon(
             Icons.chevron_right_rounded,

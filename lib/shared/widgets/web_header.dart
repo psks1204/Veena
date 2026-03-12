@@ -5,7 +5,7 @@ import '../../features/auth/services/auth_service.dart';
 import '../../core/providers/profile_provider.dart';
 
 /// Spotify-style Web Header Bar
-/// 
+///
 /// Top header with navigation links (Home, Search, Library) and user profile.
 class WebHeader extends StatefulWidget {
   const WebHeader({
@@ -63,10 +63,7 @@ class _WebHeaderState extends State<WebHeader> {
             targetAnchor: Alignment.bottomRight,
             followerAnchor: Alignment.topRight,
             offset: const Offset(0, 8),
-            child: Material(
-              color: Colors.transparent,
-              child: _buildUserMenu(),
-            ),
+            child: Material(color: Colors.transparent, child: _buildUserMenu()),
           ),
         ],
       ),
@@ -81,8 +78,8 @@ class _WebHeaderState extends State<WebHeader> {
       height: 72,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
-         color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
-         borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
+        color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
       ),
       child: Row(
         children: [
@@ -97,7 +94,9 @@ class _WebHeaderState extends State<WebHeader> {
                 height: 56,
                 padding: const EdgeInsets.all(4),
                 child: Image.asset(
-                  'assets/images/app_logo.png',
+                  isDark
+                      ? 'assets/images/logo_dark.png'
+                      : 'assets/images/logo_light.png',
                   fit: BoxFit.contain,
                 ),
               ),
@@ -110,9 +109,9 @@ class _WebHeaderState extends State<WebHeader> {
           _buildNavLink(1, 'Search', Icons.search_rounded, isDark),
           const SizedBox(width: 8),
           _buildNavLink(2, 'Your Library', Icons.library_music_rounded, isDark),
-          
+
           const Spacer(),
-          
+
           // Right side actions
           _buildRightActions(isDark),
         ],
@@ -123,9 +122,11 @@ class _WebHeaderState extends State<WebHeader> {
   Widget _buildNavLink(int index, String label, IconData icon, bool isDark) {
     final isActive = widget.currentTabIndex == index;
     final baseColor = isDark ? Colors.white : AppColors.lightTextPrimary;
-    final inactiveColor = isDark ? Colors.white54 : AppColors.lightTextSecondary;
+    final inactiveColor = isDark
+        ? Colors.white54
+        : AppColors.lightTextSecondary;
     final color = isActive ? baseColor : inactiveColor;
-    
+
     return TextButton.icon(
       onPressed: () => widget.onNavigateTo(index),
       style: TextButton.styleFrom(
@@ -151,10 +152,10 @@ class _WebHeaderState extends State<WebHeader> {
 
     // Fallback logic
     final pName = profile?.name;
-    final userName = (pName != null && pName.isNotEmpty) 
-        ? pName 
+    final userName = (pName != null && pName.isNotEmpty)
+        ? pName
         : (authService.userName ?? 'User');
-    
+
     final pPhoto = profile?.photoUrl;
     final userPicture = (pPhoto != null && pPhoto.isNotEmpty)
         ? pPhoto
@@ -187,7 +188,7 @@ class _WebHeaderState extends State<WebHeader> {
           splashRadius: 24,
         ),
         const SizedBox(width: 24),
-        
+
         // User Profile Dropdown
         CompositedTransformTarget(
           link: _layerLink,
@@ -242,7 +243,9 @@ class _WebHeaderState extends State<WebHeader> {
                     ),
                     const SizedBox(width: 8),
                     Icon(
-                      _showUserMenu ? Icons.arrow_drop_up : Icons.arrow_drop_down,
+                      _showUserMenu
+                          ? Icons.arrow_drop_up
+                          : Icons.arrow_drop_down,
                       color: textColor,
                     ),
                     const SizedBox(width: 4),
@@ -261,7 +264,9 @@ class _WebHeaderState extends State<WebHeader> {
     final backgroundColor = isDark ? const Color(0xFF282828) : Colors.white;
     final textColor = isDark ? Colors.white : AppColors.lightTextPrimary;
     final iconColor = isDark ? Colors.white70 : AppColors.lightTextSecondary;
-    final hoverColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05);
+    final hoverColor = isDark
+        ? Colors.white.withOpacity(0.1)
+        : Colors.black.withOpacity(0.05);
 
     return Container(
       width: 200,
@@ -290,7 +295,12 @@ class _WebHeaderState extends State<WebHeader> {
             iconColor: iconColor,
             hoverColor: hoverColor,
           ),
-          Divider(color: isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.1), height: 1),
+          Divider(
+            color: isDark
+                ? Colors.white.withOpacity(0.1)
+                : Colors.black.withOpacity(0.1),
+            height: 1,
+          ),
           _buildMenuItem(
             icon: Icons.logout_rounded,
             label: 'Log out',
@@ -326,16 +336,14 @@ class _WebHeaderState extends State<WebHeader> {
             children: [
               Icon(icon, color: iconColor, size: 20),
               const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: textColor,
-                  fontSize: 14,
-                ),
-              ),
+              Text(label, style: TextStyle(color: textColor, fontSize: 14)),
               const Spacer(),
               if (label == 'Profile')
-                Icon(Icons.open_in_new_rounded, color: iconColor.withOpacity(0.7), size: 16),
+                Icon(
+                  Icons.open_in_new_rounded,
+                  color: iconColor.withOpacity(0.7),
+                  size: 16,
+                ),
             ],
           ),
         ),
@@ -350,10 +358,17 @@ class _WebHeaderState extends State<WebHeader> {
       builder: (context) => AlertDialog(
         backgroundColor: isDark ? const Color(0xFF282828) : Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        title: Text('Log out?', style: TextStyle(color: isDark ? Colors.white : AppColors.lightTextPrimary)),
+        title: Text(
+          'Log out?',
+          style: TextStyle(
+            color: isDark ? Colors.white : AppColors.lightTextPrimary,
+          ),
+        ),
         content: Text(
           'Are you sure you want to log out?',
-          style: TextStyle(color: isDark ? Colors.white70 : AppColors.lightTextSecondary),
+          style: TextStyle(
+            color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
+          ),
         ),
         actions: [
           TextButton(

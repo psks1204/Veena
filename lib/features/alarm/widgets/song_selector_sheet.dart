@@ -195,6 +195,8 @@ class _SongSelectorSheetState extends State<SongSelectorSheet> {
                           title: song.title,
                           subtitle: song.artistName,
                           imageUrl: song.thumbnailUrl,
+                          playedCount: song.playedCount > 0 ? song.playedCount : null,
+                          likeCount: song.likeCount > 0 ? song.likeCount : null,
                           isPlaying: false,
                           onTap: () {
                             Navigator.pop(context, song);

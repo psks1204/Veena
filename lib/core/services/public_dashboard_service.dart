@@ -12,11 +12,15 @@ import 'api_service.dart';
 class PublicDashboardService extends ChangeNotifier {
   List<MediaItem> _latestReleases = [];
   List<MediaItem> _popularTracks = [];
+  List<MediaItem> _videos = [];
+  List<MediaItem> _audios = [];
   bool _isLoading = false;
   String? _error;
 
   List<MediaItem> get latestReleases => _latestReleases;
   List<MediaItem> get popularTracks => _popularTracks;
+  List<MediaItem> get videos => _videos;
+  List<MediaItem> get audios => _audios;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -55,6 +59,42 @@ class PublicDashboardService extends ChangeNotifier {
       } else {
         _error = 'Failed to load content (${response.statusCode})';
       }
+
+      // Fetch videos and audios concurrently via public /media endpoint
+      await Future.wait([
+        (() async {
+          try {
+            final videoUri = Uri.parse('${ApiService.baseUrl}/media?type=VIDEO&page=0&size=20');
+            final videoResp = await http.get(videoUri, headers: {'Content-Type': 'application/json'});
+            if (videoResp.statusCode >= 200 && videoResp.statusCode < 300) {
+              final videoData = jsonDecode(videoResp.body);
+              if (videoData != null && videoData['content'] != null) {
+                _videos = (videoData['content'] as List)
+                    .map((item) => MediaItem.fromJson(item))
+                    .toList();
+              }
+            }
+          } catch (e) {
+            debugPrint('Public videos fetch error: $e');
+          }
+        })(),
+        (() async {
+          try {
+            final audioUri = Uri.parse('${ApiService.baseUrl}/media?type=AUDIO&page=0&size=20');
+            final audioResp = await http.get(audioUri, headers: {'Content-Type': 'application/json'});
+            if (audioResp.statusCode >= 200 && audioResp.statusCode < 300) {
+              final audioData = jsonDecode(audioResp.body);
+              if (audioData != null && audioData['content'] != null) {
+                _audios = (audioData['content'] as List)
+                    .map((item) => MediaItem.fromJson(item))
+                    .toList();
+              }
+            }
+          } catch (e) {
+            debugPrint('Public audios fetch error: $e');
+          }
+        })(),
+      ]);
 
       _isLoading = false;
       notifyListeners();

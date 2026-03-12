@@ -7,9 +7,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:437692829825:android:c5eeafe93eef1110f4bd80",
+        "mobilesdk_app_id": "1:437692829825:android:6f9cc26f2cfac97bf4bd80",
         "android_client_info": {
-          "package_name": "com.dgfly.veena"
+          "package_name": "com.veena.music"
         }
       },
       "oauth_client": [],

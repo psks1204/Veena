@@ -8,15 +8,19 @@ class ArtistInfo {
   final int id;
   final String name;
   final String? genre;
+  final String? bio;
   final String? imageUrl;
   final bool verified;
+  final int followerCount;
 
   const ArtistInfo({
     required this.id,
     required this.name,
     this.genre,
+    this.bio,
     this.imageUrl,
     this.verified = false,
+    this.followerCount = 0,
   });
 
   factory ArtistInfo.fromJson(Map<String, dynamic> json) {
@@ -26,8 +30,10 @@ class ArtistInfo {
           : int.tryParse(json['id'].toString()) ?? 0,
       name: json['name'] as String? ?? 'Unknown Artist',
       genre: json['genre'] as String?,
+      bio: json['bio'] as String?,
       imageUrl: json['imageUrl'] as String?,
       verified: json['verified'] as bool? ?? false,
+      followerCount: json['followerCount'] as int? ?? 0,
     );
   }
 
@@ -35,8 +41,10 @@ class ArtistInfo {
     'id': id,
     'name': name,
     'genre': genre,
+    'bio': bio,
     'imageUrl': imageUrl,
     'verified': verified,
+    'followerCount': followerCount,
   };
 }
 
@@ -172,6 +180,8 @@ class MediaItem {
   final DateTime updatedAt;
   final String? linkedMediaId;
   final bool liked;
+  final int likeCount;
+  final int playedCount;
   final ArtistInfo? artist;
   final List<ArtistInfo> subArtists;
   final String? composerName;
@@ -200,6 +210,8 @@ class MediaItem {
     required this.updatedAt,
     this.linkedMediaId,
     this.liked = false,
+    this.likeCount = 0,
+    this.playedCount = 0,
     this.artist,
     this.subArtists = const [],
     this.composerName,
@@ -232,6 +244,8 @@ class MediaItem {
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       linkedMediaId: json['linkedMediaId'] as String?,
       liked: json['liked'] as bool? ?? false,
+      likeCount: json['likeCount'] as int? ?? 0,
+      playedCount: json['playedCount'] as int? ?? 0,
       artist: json['artist'] != null
           ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
           : null,
@@ -282,6 +296,8 @@ class MediaItem {
     'updatedAt': updatedAt.toIso8601String(),
     'linkedMediaId': linkedMediaId,
     'liked': liked,
+    'likeCount': likeCount,
+    'playedCount': playedCount,
     'artist': artist?.toJson(),
     'subArtists': subArtists.map((e) => e.toJson()).toList(),
     'composerName': composerName,

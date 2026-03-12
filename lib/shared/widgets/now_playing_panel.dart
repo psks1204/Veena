@@ -4,24 +4,25 @@ import 'package:video_player/video_player.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/models/media_item.dart';
-import '../../core/utils/fullscreen_web.dart' if (dart.library.io) '../../core/utils/fullscreen_stub.dart' as fullscreen;
+import '../../core/models/artist.dart';
+import '../../core/utils/fullscreen_web.dart'
+    if (dart.library.io) '../../core/utils/fullscreen_stub.dart'
+    as fullscreen;
 import 'web_video_fullscreen.dart';
 import 'lyrics_card.dart';
 import '../../core/services/artist_service.dart';
 import '../../core/services/library_service.dart';
+import '../../features/library/screens/artist_detail_screen.dart';
 
 /// Spotify-style Now Playing Panel
-/// 
+///
 /// Right-side panel showing current track artwork, info, queue, and inline video.
 class NowPlayingPanel extends StatefulWidget {
-  const NowPlayingPanel({
-    super.key,
-    this.onClose,
-    this.onTabChanged,
-  });
+  const NowPlayingPanel({super.key, this.onClose, this.onTabChanged});
 
   final VoidCallback? onClose;
-  final ValueChanged<bool>? onTabChanged;  // Called with true when Queue tab opens
+  final ValueChanged<bool>?
+  onTabChanged; // Called with true when Queue tab opens
 
   @override
   State<NowPlayingPanel> createState() => _NowPlayingPanelState();
@@ -29,7 +30,7 @@ class NowPlayingPanel extends StatefulWidget {
 
 class _NowPlayingPanelState extends State<NowPlayingPanel> {
   // 0 = Track Details, 1 = Queue
-  int _tabIndex = 0; 
+  int _tabIndex = 0;
 
   @override
   void initState() {
@@ -57,7 +58,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? const Color(0xFF121212) : AppColors.lightSurface;
+    final backgroundColor = isDark
+        ? const Color(0xFF121212)
+        : AppColors.lightSurface;
 
     return Consumer<PlayerProvider>(
       builder: (context, player, _) {
@@ -74,14 +77,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             children: [
               // Header
               _buildHeader(media, isDark),
-              
+
               // Tabs (Details / Queue)
               _buildTabs(isDark),
 
               // Content
               Expanded(
-                child: _tabIndex == 0 
-                    ? _buildDetailsView(player, media, isDark) 
+                child: _tabIndex == 0
+                    ? _buildDetailsView(player, media, isDark)
                     : _buildQueueView(player, isDark),
               ),
             ],
@@ -99,11 +102,20 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.music_note_rounded, color: isDark ? Colors.white.withOpacity(0.2) : Colors.black12, size: 64),
+            Icon(
+              Icons.music_note_rounded,
+              color: isDark ? Colors.white.withOpacity(0.2) : Colors.black12,
+              size: 64,
+            ),
             const SizedBox(height: 16),
             Text(
               'Play something to see it here',
-              style: TextStyle(color: isDark ? Colors.white.withOpacity(0.5) : AppColors.lightTextSecondary, fontSize: 14),
+              style: TextStyle(
+                color: isDark
+                    ? Colors.white.withOpacity(0.5)
+                    : AppColors.lightTextSecondary,
+                fontSize: 14,
+              ),
             ),
           ],
         ),
@@ -129,7 +141,11 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           const Spacer(),
           IconButton(
             onPressed: widget.onClose,
-            icon: Icon(Icons.close_rounded, color: isDark ? Colors.white54 : AppColors.lightTextSecondary, size: 20),
+            icon: Icon(
+              Icons.close_rounded,
+              color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+              size: 20,
+            ),
             splashRadius: 18,
           ),
         ],
@@ -152,10 +168,10 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               onTap: () {
                 final player = context.read<PlayerProvider>();
                 final wasPlaying = player.isPlaying;
-                
+
                 setState(() => _tabIndex = 0);
                 widget.onTabChanged?.call(false);
-                
+
                 if (wasPlaying && player.videoController != null) {
                   Future.delayed(const Duration(milliseconds: 150), () {
                     if (mounted && !player.videoController!.value.isPlaying) {
@@ -167,19 +183,31 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 0 ? (isDark ? const Color(0xFF3E3E3E) : Colors.white) : Colors.transparent,
+                  color: _tabIndex == 0
+                      ? (isDark ? const Color(0xFF3E3E3E) : Colors.white)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
-                  boxShadow: _tabIndex == 0 && !isDark ? [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))
-                  ] : null,
+                  boxShadow: _tabIndex == 0 && !isDark
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Center(
                   child: Text(
                     'Details',
                     style: TextStyle(
-                      color: isDark ? Colors.white : (_tabIndex == 0 ? AppColors.lightTextPrimary : AppColors.lightTextSecondary), 
-                      fontSize: 12, 
-                      fontWeight: FontWeight.w600
+                      color: isDark
+                          ? Colors.white
+                          : (_tabIndex == 0
+                                ? AppColors.lightTextPrimary
+                                : AppColors.lightTextSecondary),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -191,10 +219,10 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               onTap: () {
                 final player = context.read<PlayerProvider>();
                 final wasPlaying = player.isPlaying;
-                
+
                 setState(() => _tabIndex = 1);
                 widget.onTabChanged?.call(true);
-                
+
                 if (wasPlaying && player.videoController != null) {
                   Future.delayed(const Duration(milliseconds: 150), () {
                     if (mounted && !player.videoController!.value.isPlaying) {
@@ -206,19 +234,31 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 decoration: BoxDecoration(
-                  color: _tabIndex == 1 ? (isDark ? const Color(0xFF3E3E3E) : Colors.white) : Colors.transparent,
+                  color: _tabIndex == 1
+                      ? (isDark ? const Color(0xFF3E3E3E) : Colors.white)
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
-                   boxShadow: _tabIndex == 1 && !isDark ? [
-                    BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))
-                  ] : null,
+                  boxShadow: _tabIndex == 1 && !isDark
+                      ? [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 2,
+                            offset: const Offset(0, 1),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: Center(
                   child: Text(
                     'Queue',
                     style: TextStyle(
-                      color: isDark ? Colors.white : (_tabIndex == 1 ? AppColors.lightTextPrimary : AppColors.lightTextSecondary), 
-                      fontSize: 12, 
-                      fontWeight: FontWeight.w600
+                      color: isDark
+                          ? Colors.white
+                          : (_tabIndex == 1
+                                ? AppColors.lightTextPrimary
+                                : AppColors.lightTextSecondary),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -230,7 +270,11 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildDetailsView(PlayerProvider player, MediaItem media, bool isDark) {
+  Widget _buildDetailsView(
+    PlayerProvider player,
+    MediaItem media,
+    bool isDark,
+  ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -238,36 +282,41 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         children: [
           // Artwork or Video Player
           _buildMediaContent(player, media),
-          
+
           const SizedBox(height: 16),
-          
+
           // Switch Button
           if (media.linkedMedia != null)
             _buildSwitchButton(player, media, isDark),
 
-          if (media.linkedMedia != null)
-            const SizedBox(height: 16),
-          
+          if (media.linkedMedia != null) const SizedBox(height: 16),
+
           // Lyrics Card
           if (player.currentLyrics != null)
             LyricsCard(
               lyrics: player.currentLyrics!,
               activeIndex: player.activeLyricIndex,
             ),
-          
-          if (player.currentLyrics != null)
-            const SizedBox(height: 20),
+
+          if (player.currentLyrics != null) const SizedBox(height: 20),
 
           // Track Info
           Text(
             media.title,
-            style: TextStyle(color: isDark ? Colors.white : AppColors.lightTextPrimary, fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: isDark ? Colors.white : AppColors.lightTextPrimary,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           Text(
             media.artistName ?? 'Unknown Artist',
-            style: TextStyle(color: isDark ? Colors.white70 : AppColors.lightTextSecondary, fontSize: 16),
+            style: TextStyle(
+              color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
+              fontSize: 16,
+            ),
           ),
-          
+
           const SizedBox(height: 24),
 
           // Artist Section
@@ -284,9 +333,10 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     // On Flutter Web, multiple VideoPlayers with same controller cause DOM conflicts
     final isFullscreen = WebVideoFullscreen.isFullscreenActive;
     final hasVideoController = media.isVideo && player.videoController != null;
-    final isVideoInitialized = hasVideoController && player.videoController!.value.isInitialized;
+    final isVideoInitialized =
+        hasVideoController && player.videoController!.value.isInitialized;
     final isQueueSelected = _tabIndex == 1; // 1 = Queue
-    
+
     // Show video player ONLY when: video initialized + Details tab + not fullscreen
     if (isVideoInitialized && !isFullscreen && !isQueueSelected) {
       return AspectRatio(
@@ -295,7 +345,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           alignment: Alignment.center,
           children: [
             VideoPlayer(player.videoController!),
-            
+
             // Play/Pause Overlay
             _buildVideoControls(player),
 
@@ -304,7 +354,11 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               top: 8,
               right: 8,
               child: IconButton(
-                icon: const Icon(Icons.fullscreen_rounded, color: Colors.white, size: 24),
+                icon: const Icon(
+                  Icons.fullscreen_rounded,
+                  color: Colors.white,
+                  size: 24,
+                ),
                 onPressed: () => _toggleFullscreen(player),
                 tooltip: 'Full screen',
               ),
@@ -313,7 +367,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         ),
       );
     }
-    
+
     // Show placeholder when Queue tab is open (video is in player bar)
     if (isVideoInitialized && isQueueSelected && !isFullscreen) {
       return AspectRatio(
@@ -322,7 +376,8 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: Colors.black54,
-            image: (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
+            image:
+                (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
                 ? DecorationImage(
                     image: NetworkImage(media.thumbnailUrl!),
                     fit: BoxFit.cover,
@@ -338,16 +393,17 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
         ),
       );
     }
-    
+
     // Show loading indicator when video is being initialized
     if (hasVideoController && !isVideoInitialized && !isFullscreen) {
       return AspectRatio(
-        aspectRatio: 16 / 9,  // Default aspect ratio while loading
+        aspectRatio: 16 / 9, // Default aspect ratio while loading
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
             color: Colors.black,
-            image: (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
+            image:
+                (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty)
                 ? DecorationImage(
                     image: NetworkImage(media.thumbnailUrl!),
                     fit: BoxFit.cover,
@@ -355,14 +411,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                 : null,
           ),
           child: const Center(
-            child: CircularProgressIndicator(
-              color: Colors.white,
-            ),
+            child: CircularProgressIndicator(color: Colors.white),
           ),
         ),
       );
     }
-    
+
     // Artwork (shown when audio or when fullscreen is active)
     return AspectRatio(
       aspectRatio: 1,
@@ -401,12 +455,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     if (player.queue.isEmpty) {
       return Center(
         child: Text(
-          'Queue is empty', 
-          style: TextStyle(color: isDark ? Colors.white54 : AppColors.lightTextSecondary)
+          'Queue is empty',
+          style: TextStyle(
+            color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+          ),
         ),
       );
     }
-    
+
     return ListView.builder(
       itemCount: player.queue.length,
       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -420,17 +476,25 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             height: 40,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(4),
-              image: (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty)
-                  ? DecorationImage(image: NetworkImage(item.thumbnailUrl!), fit: BoxFit.cover)
+              image:
+                  (item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty)
+                  ? DecorationImage(
+                      image: NetworkImage(item.thumbnailUrl!),
+                      fit: BoxFit.cover,
+                    )
                   : null,
               color: isDark ? Colors.grey[800] : Colors.grey[300],
             ),
-            child: isCurrent ? const Icon(Icons.equalizer, color: AppColors.primary) : null,
+            child: isCurrent
+                ? const Icon(Icons.equalizer, color: AppColors.primary)
+                : null,
           ),
           title: Text(
             item.title,
             style: TextStyle(
-              color: isCurrent ? AppColors.primary : (isDark ? Colors.white : AppColors.lightTextPrimary),
+              color: isCurrent
+                  ? AppColors.primary
+                  : (isDark ? Colors.white : AppColors.lightTextPrimary),
               fontSize: 14,
               fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
             ),
@@ -439,7 +503,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           ),
           subtitle: Text(
             item.artistName ?? 'Unknown',
-            style: TextStyle(color: isDark ? Colors.white.withOpacity(0.7) : AppColors.lightTextSecondary, fontSize: 12),
+            style: TextStyle(
+              color: isDark
+                  ? Colors.white.withOpacity(0.7)
+                  : AppColors.lightTextSecondary,
+              fontSize: 12,
+            ),
             maxLines: 1,
           ),
           onTap: () {
@@ -450,10 +519,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     );
   }
 
-  Widget _buildSwitchButton(PlayerProvider player, MediaItem media, bool isDark) {
+  Widget _buildSwitchButton(
+    PlayerProvider player,
+    MediaItem media,
+    bool isDark,
+  ) {
     final isVideo = media.isVideo;
     final linked = media.linkedMedia!;
-    
+
     return GestureDetector(
       onTap: () {
         // ... switch logic ...
@@ -466,20 +539,18 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           status: MediaStatus.published,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-          artist: linked.artist != null ? ArtistInfo(
-            id: linked.artist!.id,
-            name: linked.artist!.name,
-          ) : null,
+          artist: linked.artist != null
+              ? ArtistInfo(id: linked.artist!.id, name: linked.artist!.name)
+              : null,
           linkedMedia: LinkedMediaInfo(
             id: media.id,
             title: media.title,
             mediaType: media.mediaType,
             thumbnailUrl: media.thumbnailUrl,
             hlsUrl: media.hlsUrl,
-            artist: media.artist != null ? ArtistInfo(
-              id: media.artist!.id,
-              name: media.artist!.name,
-            ) : null,
+            artist: media.artist != null
+                ? ArtistInfo(id: media.artist!.id, name: media.artist!.name)
+                : null,
           ),
         );
 
@@ -489,7 +560,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF282828) : AppColors.lightSurfaceVariant,
+          color: isDark
+              ? const Color(0xFF282828)
+              : AppColors.lightSurfaceVariant,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -506,12 +579,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF121212) : AppColors.lightSurface,
+                color: isDark
+                    ? const Color(0xFF121212)
+                    : AppColors.lightSurface,
                 shape: BoxShape.circle,
               ),
               child: Icon(
-                isVideo ? Icons.music_note_rounded : Icons.videocam_rounded, 
-                color: isDark ? Colors.white : AppColors.lightTextPrimary, 
+                isVideo ? Icons.music_note_rounded : Icons.videocam_rounded,
+                color: isDark ? Colors.white : AppColors.lightTextPrimary,
                 size: 20,
               ),
             ),
@@ -546,24 +621,57 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
-                child: Icon(Icons.person, color: isDark ? Colors.white : Colors.grey[600]),
+                child: Icon(
+                  Icons.person,
+                  color: isDark ? Colors.white : Colors.grey[600],
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      media.artistName ?? 'Unknown',
-                      style: TextStyle(color: isDark ? Colors.white : AppColors.lightTextPrimary, fontWeight: FontWeight.bold),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: GestureDetector(
+                    onTap: () {
+                      if (media.artistId != null && media.artistName != null) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ArtistDetailScreen(
+                              artist: Artist(
+                                id: media.artistId!,
+                                name: media.artistName!,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                    },
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          media.artistName ?? 'Unknown',
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.white
+                                : AppColors.lightTextPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '1.2M listeners',
+                          style: TextStyle(
+                            color: isDark
+                                ? Colors.white54
+                                : AppColors.lightTextSecondary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
                     ),
-                    Text(
-                      '1.2M listeners',
-                      style: TextStyle(color: isDark ? Colors.white54 : AppColors.lightTextSecondary, fontSize: 12),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -571,23 +679,40 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                 Consumer<ArtistService>(
                   builder: (context, artistService, _) {
                     final library = context.watch<LibraryService>();
-                    final isFollowing = library.artists.any((a) => a.id == media.artistId);
-                    
+                    final isFollowing = library.artists.any(
+                      (a) => a.id == media.artistId,
+                    );
+
                     return OutlinedButton(
                       onPressed: () async {
                         await artistService.toggleFollow(media.artistId!);
                         await context.read<LibraryService>().getArtists();
                       },
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isDark ? Colors.white : AppColors.lightTextPrimary,
-                        backgroundColor: isFollowing ? Colors.transparent : (isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.05)),
-                        side: BorderSide(color: isFollowing ? (isDark ? Colors.white38 : Colors.black26) : Colors.transparent),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                        foregroundColor: isDark
+                            ? Colors.white
+                            : AppColors.lightTextPrimary,
+                        backgroundColor: isFollowing
+                            ? Colors.transparent
+                            : (isDark
+                                  ? Colors.white.withOpacity(0.1)
+                                  : Colors.black.withOpacity(0.05)),
+                        side: BorderSide(
+                          color: isFollowing
+                              ? (isDark ? Colors.white38 : Colors.black26)
+                              : Colors.transparent,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 0,
+                        ),
                       ),
                       child: Text(isFollowing ? 'Following' : 'Follow'),
                     );
-                  }
+                  },
                 ),
             ],
           ),
@@ -614,7 +739,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  player.isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  player.isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
                   color: Colors.white,
                   size: 48,
                 ),

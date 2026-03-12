@@ -8,8 +8,11 @@ import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/aura_cards.dart';
 
-/// Callback to fetch items for a specific page
+/// Callback to fetch items for a specific page (legacy)
 typedef FetchItemsCallback = Future<List<MediaItem>> Function(int page, int limit);
+
+/// Callback to fetch a page of items – returns a PagedResponse for proper hasMore detection
+typedef FetchPagedItemsCallback = Future<PagedResponse<MediaItem>> Function(int page, int size);
 
 /// Paginated Section Screen
 /// 
@@ -17,15 +20,20 @@ typedef FetchItemsCallback = Future<List<MediaItem>> Function(int page, int limi
 /// Used for "See All" sections to load content progressively.
 class PaginatedSectionScreen extends StatefulWidget {
   final String title;
-  final FetchItemsCallback fetchItems;
+  /// New paged callback (preferred). Returns PagedResponse for proper hasMore detection.
+  final FetchPagedItemsCallback? fetchPagedItems;
+  /// Legacy callback for backward compatibility. Uses result count heuristic.
+  final FetchItemsCallback? fetchItems;
   final int pageSize;
 
   const PaginatedSectionScreen({
     super.key,
     required this.title,
-    required this.fetchItems,
+    this.fetchPagedItems,
+    this.fetchItems,
     this.pageSize = 20,
-  });
+  }) : assert(fetchPagedItems != null || fetchItems != null,
+           'Either fetchPagedItems or fetchItems must be provided');
 
   @override
   State<PaginatedSectionScreen> createState() => _PaginatedSectionScreenState();
@@ -37,7 +45,7 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
   
   bool _isLoading = false;
   bool _hasMore = true;
-  int _currentPage = 1;
+  int _currentPage = 0;
   String? _error;
 
   @override
@@ -69,18 +77,33 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
     });
 
     try {
-      final newItems = await widget.fetchItems(_currentPage, widget.pageSize);
-      
-      if (!mounted) return;
+      if (widget.fetchPagedItems != null) {
+        // Use the paged callback for proper hasMore detection
+        final response = await widget.fetchPagedItems!(_currentPage, widget.pageSize);
+        
+        if (!mounted) return;
 
-      setState(() {
-        _items.addAll(newItems);
-        _currentPage++;
-        _isLoading = false;
-        if (newItems.length < widget.pageSize) {
-          _hasMore = false;
-        }
-      });
+        setState(() {
+          _items.addAll(response.content);
+          _currentPage++;
+          _isLoading = false;
+          _hasMore = response.hasMore;
+        });
+      } else if (widget.fetchItems != null) {
+        // Legacy callback fallback – estimate hasMore from result count
+        final newItems = await widget.fetchItems!(_currentPage, widget.pageSize);
+        
+        if (!mounted) return;
+
+        setState(() {
+          _items.addAll(newItems);
+          _currentPage++;
+          _isLoading = false;
+          if (newItems.length < widget.pageSize) {
+            _hasMore = false;
+          }
+        });
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -225,8 +248,10 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
                         subtitle: item.artistName,
                         imageUrl: item.thumbnailUrl,
                         isPlaying: isPlaying,
+                        playedCount: item.playedCount > 0 ? item.playedCount : null,
+                        likeCount: item.likeCount > 0 ? item.likeCount : null,
                         onTap: () => _playMedia(context, item, index),
-                        onLikeTap: () {}, // Handled internally by tile or service if needed
+                        onLikeTap: () {},
                         onMoreTap: () {
                            showModalBottomSheet(
                               context: context,

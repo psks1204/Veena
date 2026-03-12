@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../utils/open_url.dart';
+import '../../core/services/credits_service.dart';
 
 /// App Footer Widget
 ///
@@ -150,6 +151,60 @@ class AppFooter extends StatelessWidget {
           ),
 
           const SizedBox(height: 8),
+
+          // ── Dynamic Credits ──
+          FutureBuilder<Map<String, String>?>(
+            future: CreditsService().getCredits(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.done &&
+                  snapshot.hasData) {
+                final credits = snapshot.data!;
+                final name = credits['name'];
+                final url = credits['url'];
+
+                if (name != null && name.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          'Crafted By ',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextSecondary.withOpacity(0.8)
+                                : AppColors.lightTextSecondary.withOpacity(0.8),
+                            fontSize: 12,
+                            letterSpacing: 0.2,
+                          ),
+                        ),
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: GestureDetector(
+                            onTap: () {
+                              if (url != null && url.isNotEmpty) {
+                                _openLink(url);
+                              }
+                            },
+                            child: Text(
+                              name,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: AppColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+              }
+              return const SizedBox.shrink();
+            },
+          ),
 
           // ── Copyright ──
           Text(

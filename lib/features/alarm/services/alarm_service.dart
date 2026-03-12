@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/timezone.dart' as tz;
 import '../models/alarm_model.dart';
 
 /// AlarmService — schedules and manages alarms using native Android AlarmManager
@@ -89,33 +92,86 @@ class AlarmService {
     final alarmId = alarm.id.hashCode;
     final triggerAtMillis = scheduledDate.millisecondsSinceEpoch;
 
-    try {
-      await _channel.invokeMethod('scheduleNativeAlarm', {
-        'alarmId': alarmId,
-        'triggerAtMillis': triggerAtMillis,
-        'mediaUrl': alarm.mediaUrl ?? '',
-        'mediaTitle': alarm.mediaTitle ?? 'Alarm',
-        'artistName': alarm.artistName ?? 'Veena',
-      });
-      debugPrint('[AlarmService] Alarm $alarmId scheduled for $scheduledDate');
-    } catch (e) {
-      debugPrint('[AlarmService] Error scheduling alarm: $e');
-      rethrow;
+    if (Platform.isIOS) {
+      // iOS Fallback using local notifications
+      try {
+        final plugin = FlutterLocalNotificationsPlugin();
+
+        final notificationDetails = const NotificationDetails(
+          iOS: DarwinNotificationDetails(
+            presentAlert: true,
+            presentBadge: true,
+            presentSound: true,
+            interruptionLevel: InterruptionLevel.timeSensitive,
+          ),
+        );
+
+        await plugin.zonedSchedule(
+          alarmId,
+          alarm.mediaTitle ?? 'Veena Alarm',
+          alarm.artistName ?? 'Time to wake up!',
+          tz.TZDateTime.from(scheduledDate, tz.local),
+          notificationDetails,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: 'veena_alarm',
+        );
+        debugPrint(
+          '[AlarmService] iOS Local Notification scheduled for $scheduledDate',
+        );
+      } catch (e) {
+        debugPrint('[AlarmService] Error scheduling iOS alarm: $e');
+        rethrow;
+      }
+    } else {
+      // Android Native Alarm
+      try {
+        await _channel.invokeMethod('scheduleNativeAlarm', {
+          'alarmId': alarmId,
+          'triggerAtMillis': triggerAtMillis,
+          'mediaUrl': alarm.mediaUrl ?? '',
+          'mediaTitle': alarm.mediaTitle ?? 'Alarm',
+          'artistName': alarm.artistName ?? 'Veena',
+        });
+        debugPrint(
+          '[AlarmService] Android Alarm $alarmId scheduled for $scheduledDate',
+        );
+      } catch (e) {
+        debugPrint('[AlarmService] Error scheduling Android alarm: $e');
+        rethrow;
+      }
     }
   }
 
   Future<void> _cancelAlarm(Alarm alarm) async {
     final alarmId = alarm.id.hashCode;
-    try {
-      await _channel.invokeMethod('cancelNativeAlarm', {'alarmId': alarmId});
-      debugPrint('[AlarmService] Alarm $alarmId cancelled');
-    } catch (e) {
-      debugPrint('[AlarmService] Error cancelling alarm: $e');
+    if (Platform.isIOS) {
+      try {
+        final plugin = FlutterLocalNotificationsPlugin();
+        await plugin.cancel(alarmId);
+        debugPrint('[AlarmService] iOS Local Notification $alarmId cancelled');
+      } catch (e) {
+        debugPrint('[AlarmService] Error cancelling iOS alarm: $e');
+      }
+    } else {
+      try {
+        await _channel.invokeMethod('cancelNativeAlarm', {'alarmId': alarmId});
+        debugPrint('[AlarmService] Android Alarm $alarmId cancelled');
+      } catch (e) {
+        debugPrint('[AlarmService] Error cancelling Android alarm: $e');
+      }
     }
   }
 
   /// Stop a currently playing alarm (call from UI)
   static Future<void> stopNativeAlarm() async {
+    if (Platform.isIOS) {
+      // Local notifications don't usually need a 'stop' call if they just fire once,
+      // but we can clear active notifications just in case.
+      return;
+    }
+
     try {
       await _channel.invokeMethod('stopAlarm');
       debugPrint('[AlarmService] Native alarm stopped');

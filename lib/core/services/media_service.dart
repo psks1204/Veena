@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
+import '../models/artist.dart';
 
 /// Media Service
 ///
@@ -11,6 +12,7 @@ class MediaService extends ChangeNotifier {
   MediaService(this._api);
 
   List<MediaItem> _searchResults = [];
+  List<Artist> _searchArtists = [];
   List<MediaItem> _allMedia = [];
   Set<String> _likedMediaIds = {};
   Set<String> _unlikedMediaIds = {};
@@ -25,6 +27,7 @@ class MediaService extends ChangeNotifier {
   bool _hasMoreSearchResults = false;
 
   List<MediaItem> get searchResults => _searchResults;
+  List<Artist> get searchArtists => _searchArtists;
   List<MediaItem> get allMedia => _allMedia;
   bool get isLoading => _isLoading;
   bool get isSearching => _isSearching;
@@ -43,10 +46,12 @@ class MediaService extends ChangeNotifier {
 
   // ==================== SEARCH ====================
 
-  /// Search for tracks, artists, or albums
+  /// Search for tracks and artists
+  /// New API returns: { media: { ...paged... }, artists: [...] }
   Future<List<MediaItem>> search(String query) async {
     if (query.trim().isEmpty) {
       _searchResults = [];
+      _searchArtists = [];
       _hasMoreSearchResults = false;
       notifyListeners();
       return [];
@@ -62,19 +67,48 @@ class MediaService extends ChangeNotifier {
         queryParams: {'query': query, 'page': '0', 'size': '20'},
       );
 
-      // Handle paginated response (API returns Page<MediaResponse>)
-      if (data != null && data['content'] != null) {
+      debugPrint('======= RAW SEARCH API RESPONSE =======');
+      debugPrint(data.toString());
+      debugPrint('=======================================');
+
+      if (data != null && data['media'] != null) {
+        // New response format: { media: { ...paged... }, artists: [...] }
+        final mediaData = data['media'];
+        if (mediaData['content'] != null) {
+          _searchResults = (mediaData['content'] as List)
+              .map((item) => MediaItem.fromJson(item))
+              .toList();
+          _searchTotalPages = mediaData['totalPages'] as int? ?? 1;
+          _hasMoreSearchResults = !(mediaData['last'] as bool? ?? true);
+        } else {
+          _searchResults = [];
+          _hasMoreSearchResults = false;
+        }
+
+        // Parse artists
+        if (data['artists'] != null && data['artists'] is List) {
+          _searchArtists = (data['artists'] as List)
+              .map((item) => Artist.fromJson(item))
+              .toList();
+        } else {
+          _searchArtists = [];
+        }
+      } else if (data != null && data['content'] != null) {
+        // Fallback: old paginated response (just media)
         _searchResults = (data['content'] as List)
             .map((item) => MediaItem.fromJson(item))
             .toList();
         _searchTotalPages = data['totalPages'] as int? ?? 1;
         _hasMoreSearchResults = !(data['last'] as bool? ?? true);
+        _searchArtists = [];
       } else if (data != null && data is List) {
         // Fallback for direct list response
         _searchResults = data.map((item) => MediaItem.fromJson(item)).toList();
         _hasMoreSearchResults = false;
+        _searchArtists = [];
       } else {
         _searchResults = [];
+        _searchArtists = [];
         _hasMoreSearchResults = false;
       }
 
@@ -175,6 +209,7 @@ class MediaService extends ChangeNotifier {
   /// Clear search results
   void clearSearch() {
     _searchResults = [];
+    _searchArtists = [];
     _searchPage = 0;
     _hasMoreSearchResults = false;
     notifyListeners();
@@ -313,7 +348,7 @@ class MediaService extends ChangeNotifier {
       final queryParams = {
         'page': page.toString(),
         'size': size.toString(),
-        if (mediaType != null) 'mediaType': mediaType,
+        if (mediaType != null) 'type': mediaType,
         if (sort != null) 'sort': sort,
       };
 
@@ -348,4 +383,53 @@ class MediaService extends ChangeNotifier {
       rethrow;
     }
   }
+
+  // ==================== LATEST RELEASES ====================
+
+  /// Fetch latest releases from the dedicated paginated API
+  /// Used by "See all" screens for Latest Releases, Videos, and Audio sections
+  Future<PagedResponse<MediaItem>> fetchLatestReleases({
+    int page = 0,
+    int size = 20,
+    String? mediaType,
+  }) async {
+    try {
+      final queryParams = {
+        'page': page.toString(),
+        'size': size.toString(),
+        if (mediaType != null) 'type': mediaType,
+      };
+
+      final data = await _api.get('/media/latest-releases', queryParams: queryParams);
+
+      if (data != null && data['content'] != null) {
+        return PagedResponse<MediaItem>.fromJson(
+          data,
+          (item) => MediaItem.fromJson(item),
+        );
+      }
+
+      return PagedResponse<MediaItem>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
+    } catch (e) {
+      debugPrint('Latest releases fetch error: $e');
+      return PagedResponse<MediaItem>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
+    }
+  }
 }
+

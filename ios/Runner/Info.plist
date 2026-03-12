@@ -47,7 +47,18 @@
 		<true/>
 		<key>NSLocationWhenInUseUsageDescription</key>
 		<string>This app needs access to location when open to update your profile.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>This app needs access to the camera to take a profile picture.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>This app needs access to the photo library to choose a profile picture.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>This app needs access to the microphone for video/audio profile updates.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>audio</string>
+			<string>fetch</string>
+		</array>
 	</dict>
 </plist>
