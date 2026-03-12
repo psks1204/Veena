@@ -1,6 +1,10 @@
 Add-Type -AssemblyName System.Drawing
 
-$logoPath = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\assets\images\app_logo.png"
+$logoLight = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\assets\images\logo_light.png"
+$logoDark  = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\assets\images\logo_dark.png"
+$brandingLight = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\assets\images\branding_light.png"
+$brandingDark  = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\assets\images\branding_dark.png"
+
 $resDir = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\android\app\src\main\res"
 $iosDir = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\ios\Runner\Assets.xcassets"
 $webDir = "c:\Users\psks1\OneDrive\Desktop\Android Apps\Veena\web"
@@ -43,10 +47,10 @@ foreach ($density in $androidIcons.Keys) {
     $size = $androidIcons[$density]
     $dir = "$resDir\mipmap-$density"
     if (Test-Path "$dir\ic_launcher.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$dir\ic_launcher.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoLight -DestPath "$dir\ic_launcher.png" -Width $size -Height $size
     }
     if (Test-Path "$dir\launcher_icon.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$dir\launcher_icon.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoLight -DestPath "$dir\launcher_icon.png" -Width $size -Height $size
     }
 }
 
@@ -69,25 +73,25 @@ foreach ($density in $splashSizes.Keys) {
     # Day mode
     $dayDir = "$resDir\drawable-$density"
     if (Test-Path "$dayDir\splash.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$dayDir\splash.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoLight -DestPath "$dayDir\splash.png" -Width $size -Height $size
     }
     if (Test-Path "$dayDir\android12splash.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$dayDir\android12splash.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoLight -DestPath "$dayDir\android12splash.png" -Width $size -Height $size
     }
     if (Test-Path "$dayDir\branding.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$dayDir\branding.png" -Width ([int]($size * 0.4)) -Height ([int]($size * 0.12))
+        Resize-Image -SourcePath $brandingLight -DestPath "$dayDir\branding.png" -Width ([int]($size * 0.4)) -Height ([int]($size * 0.12))
     }
 
     # Night mode
     $nightDir = "$resDir\drawable-night-$density"
     if (Test-Path "$nightDir\splash.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$nightDir\splash.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoDark -DestPath "$nightDir\splash.png" -Width $size -Height $size
     }
     if (Test-Path "$nightDir\android12splash.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$nightDir\android12splash.png" -Width $size -Height $size
+        Resize-Image -SourcePath $logoDark -DestPath "$nightDir\android12splash.png" -Width $size -Height $size
     }
     if (Test-Path "$nightDir\branding.png") {
-        Resize-Image -SourcePath $logoPath -DestPath "$nightDir\branding.png" -Width ([int]($size * 0.4)) -Height ([int]($size * 0.12))
+        Resize-Image -SourcePath $brandingDark -DestPath "$nightDir\branding.png" -Width ([int]($size * 0.4)) -Height ([int]($size * 0.12))
     }
 }
 
@@ -124,7 +128,7 @@ $appIconDir = "$iosDir\AppIcon.appiconset"
 foreach ($icon in $iosIcons) {
     $dest = "$appIconDir\$($icon.Name)"
     if (Test-Path $dest) {
-        Resize-Image -SourcePath $logoPath -DestPath $dest -Width $icon.Size -Height $icon.Size
+        Resize-Image -SourcePath $logoLight -DestPath $dest -Width $icon.Size -Height $icon.Size
     }
 }
 
@@ -146,7 +150,8 @@ $launchImages = @(
 foreach ($img in $launchImages) {
     $dest = "$launchImageDir\$($img.Name)"
     if (Test-Path $dest) {
-        Resize-Image -SourcePath $logoPath -DestPath $dest -Width $img.Size -Height $img.Size
+        $src = if ($img.Name -match "Dark") { $logoDark } else { $logoLight }
+        Resize-Image -SourcePath $src -DestPath $dest -Width $img.Size -Height $img.Size
     }
 }
 
@@ -163,7 +168,8 @@ $brandingImages = @(
 foreach ($img in $brandingImages) {
     $dest = "$brandingDir\$($img.Name)"
     if (Test-Path $dest) {
-        Resize-Image -SourcePath $logoPath -DestPath $dest -Width $img.W -Height $img.H
+        $src = if ($img.Name -match "Dark") { $brandingDark } else { $brandingLight }
+        Resize-Image -SourcePath $src -DestPath $dest -Width $img.W -Height $img.H
     }
 }
 
@@ -201,7 +207,7 @@ $webIcons = @(
 foreach ($icon in $webIcons) {
     $dest = "$($icon.Dir)\$($icon.Name)"
     if (Test-Path $dest) {
-        Resize-Image -SourcePath $logoPath -DestPath $dest -Width $icon.Size -Height $icon.Size
+        Resize-Image -SourcePath $logoLight -DestPath $dest -Width $icon.Size -Height $icon.Size
     }
 }
 

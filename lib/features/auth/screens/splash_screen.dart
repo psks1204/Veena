@@ -107,7 +107,7 @@ class _SplashScreenState extends State<SplashScreen>
                       width: 160,
                       height: 160,
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                         borderRadius: BorderRadius.circular(32),
                         boxShadow: [
                           BoxShadow(
@@ -119,7 +119,9 @@ class _SplashScreenState extends State<SplashScreen>
                       ),
                       padding: const EdgeInsets.all(16),
                       child: Image.asset(
-                        'assets/images/app_logo.png',
+                        isDark
+                            ? 'assets/images/logo_dark.png'
+                            : 'assets/images/logo_light.png',
                         fit: BoxFit.contain,
                       ),
                     ),

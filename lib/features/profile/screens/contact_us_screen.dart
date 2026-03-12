@@ -45,7 +45,7 @@ class ContactUsScreen extends StatelessWidget {
                 ),
                 padding: const EdgeInsets.all(12),
                 child: Image.asset(
-                  'assets/images/app_logo.png',
+                  'assets/images/logo_light.png',
                   fit: BoxFit.contain,
                 ),
               ),

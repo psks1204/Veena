@@ -158,7 +158,7 @@ class ProfileScreen extends StatelessWidget {
           // Version
           Center(
             child: Text(
-              'Version 2.0.0',
+              'Version 2.0.1',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.4),
               ),

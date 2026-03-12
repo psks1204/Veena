@@ -170,7 +170,7 @@
   <!-- Aura Splash Screen -->
   <div id="splash">
     <div class="logo-container" id="splash-logo-container">
-      <img id="splash-logo" src="assets/images/logo_light.png" alt="Veena Logo"
+      <img id="splash-logo" src="logo_light.png" alt="Veena Logo"
         style="width: 100px; height: 100px; object-fit: contain;">
     </div>
     <div class="brand-name">VEENA</div>
@@ -197,14 +197,14 @@
 
       function applyTheme(dark) {
         if (dark) {
-          logoElement.src = 'assets/images/logo_dark.png';
+          logoElement.src = 'logo_dark.png';
           containerElement.style.background = '#1E1E1E';
           splashBg.style.backgroundColor = '#121214';
           brandName.style.color = 'white';
           tagline.style.color = 'rgba(255, 255, 255, 0.38)';
           taglineLines.forEach(function(l) { l.style.background = 'rgba(255, 255, 255, 0.24)'; });
         } else {
-          logoElement.src = 'assets/images/logo_light.png';
+          logoElement.src = 'logo_light.png';
           containerElement.style.background = '#FFFFFF';
           splashBg.style.backgroundColor = '#F8F9FA';
           brandName.style.color = '#2D2D2D';

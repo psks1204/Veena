@@ -67,17 +67,24 @@ class _WebSidebarState extends State<WebSidebar> {
           const SizedBox(height: 16),
           // Logo
           Container(
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             decoration: BoxDecoration(
-              color: Colors.transparent,
-              borderRadius: BorderRadius.circular(8),
+              color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             padding: const EdgeInsets.all(4),
             child: Image.asset(
               isDark
-                  ? 'assets/images/logo_dark.png'
-                  : 'assets/images/logo_light.png',
+                  ? 'assets/images/branding_dark.png'
+                  : 'assets/images/branding_light.png',
               fit: BoxFit.contain,
             ),
           ),
@@ -120,8 +127,35 @@ class _WebSidebarState extends State<WebSidebar> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 24),
+          // Logo in expanded sidebar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              width: 140,
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                isDark
+                    ? 'assets/images/branding_dark.png'
+                    : 'assets/images/branding_light.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
 
-          // Library Section (Full Height)
           Expanded(
             child: Container(
               margin: const EdgeInsets.symmetric(horizontal: 12),

@@ -112,7 +112,7 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Padding(
                         padding: const EdgeInsets.all(12.0),
                         child: Image.asset(
-                          isDark ? 'assets/images/logo_dark.png' : 'assets/images/logo_light.png',
+                          'assets/images/logo_light.png',
                           fit: BoxFit.contain,
                         ),
                       ),

@@ -21,7 +21,7 @@ class AppSettingsService extends ChangeNotifier {
   AppSettingsService(this._api);
 
   /// Current app version — must match pubspec.yaml version
-  static const String currentAppVersion = '2.0.0';
+  static const String currentAppVersion = '2.0.1';
 
   /// Fetch settings from the authenticated API
   Future<void> fetchSettings() async {
@@ -34,7 +34,7 @@ class AppSettingsService extends ChangeNotifier {
 
       if (data != null) {
         _maintenanceMode = data['maintenanceMode'] ?? false;
-        _minimumAppVersion = data['minimumAppVersion'] ?? '2.0.0';
+        _minimumAppVersion = data['minimumAppVersion'] ?? '2.0.1';
         debugPrint('🔧 maintenanceMode: $_maintenanceMode');
         debugPrint(
           '📱 minimumAppVersion: $_minimumAppVersion (current: $currentAppVersion)',
@@ -48,7 +48,7 @@ class AppSettingsService extends ChangeNotifier {
       debugPrint('❌ Settings fetch error: $e');
       // Don't block the app on settings error — default to safe values
       _maintenanceMode = false;
-      _minimumAppVersion = '2.0.0';
+      _minimumAppVersion = '2.0.1';
       _isLoading = false;
       _hasLoaded = true;
       notifyListeners();

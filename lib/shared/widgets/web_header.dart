@@ -84,21 +84,31 @@ class _WebHeaderState extends State<WebHeader> {
       child: Row(
         children: [
           // Home Logo Button
-          Container(
-            margin: const EdgeInsets.only(right: 32),
-            child: InkWell(
-              onTap: () => widget.onNavigateTo(0), // Go to Home
-              borderRadius: BorderRadius.circular(32),
-              child: Container(
-                width: 56,
-                height: 56,
-                padding: const EdgeInsets.all(4),
-                child: Image.asset(
-                  isDark
-                      ? 'assets/images/logo_dark.png'
-                      : 'assets/images/logo_light.png',
-                  fit: BoxFit.contain,
-                ),
+          InkWell(
+            onTap: () => widget.onNavigateTo(0), // Go to Home
+            borderRadius: BorderRadius.circular(12),
+            child: Container(
+              margin: const EdgeInsets.only(right: 32),
+              width: 140,
+              height: 44,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(isDark ? 0.2 : 0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                isDark
+                    ? 'assets/images/branding_dark.png'
+                    : 'assets/images/branding_light.png',
+                fit: BoxFit.contain,
+                alignment: Alignment.center,
               ),
             ),
           ),
