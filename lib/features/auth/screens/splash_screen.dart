@@ -157,7 +157,7 @@ class _SplashScreenState extends State<SplashScreen>
                             horizontal: AppSpacing.md,
                           ),
                           child: Text(
-                            'MUSIC OF RAJASTHAN',
+                            'PIONEER OF RAJASTHAN MUSIC',
                             style: theme.textTheme.labelSmall?.copyWith(
                               letterSpacing: 4.0,
                               color: isDark ? Colors.white38 : Colors.black38,

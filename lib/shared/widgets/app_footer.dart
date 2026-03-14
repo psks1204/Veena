@@ -3,6 +3,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../utils/open_url.dart';
 import '../../core/services/credits_service.dart';
+import '../../features/profile/screens/about_us_screen.dart';
+import '../../features/profile/screens/contact_us_screen.dart';
+import '../../features/profile/screens/privacy_policy_screen.dart';
+import '../../features/profile/screens/terms_of_service_screen.dart';
 
 /// App Footer Widget
 ///
@@ -206,7 +210,11 @@ class AppFooter extends StatelessWidget {
             },
           ),
 
-          // ── Copyright ──
+          // ── Internal Links ──
+          const SizedBox(height: 16),
+          _FooterLinks(isDark: isDark),
+
+          const SizedBox(height: 24),
           Text(
             '© $year Veena. All rights reserved.',
             style: theme.textTheme.bodySmall?.copyWith(
@@ -315,6 +323,97 @@ class _SocialButtonState extends State<_SocialButton>
                                 : AppColors.lightTextSecondary),
                     ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FooterLinks extends StatelessWidget {
+  final bool isDark;
+
+  const _FooterLinks({required this.isDark});
+
+  void _navigateTo(BuildContext context, Widget screen) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final linkStyle = theme.textTheme.bodySmall?.copyWith(
+      color: isDark
+          ? AppColors.darkTextSecondary.withOpacity(0.7)
+          : AppColors.lightTextSecondary.withOpacity(0.7),
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+    );
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        _FooterLinkItem(
+          label: 'About Us',
+          onTap: () => _navigateTo(context, const AboutUsScreen()),
+          style: linkStyle,
+        ),
+        _FooterLinkItem(
+          label: 'Contact Us',
+          onTap: () => _navigateTo(context, const ContactUsScreen()),
+          style: linkStyle,
+        ),
+        _FooterLinkItem(
+          label: 'Terms',
+          onTap: () => _navigateTo(context, const TermsOfServiceScreen()),
+          style: linkStyle,
+        ),
+        _FooterLinkItem(
+          label: 'Privacy',
+          onTap: () => _navigateTo(context, const PrivacyPolicyScreen()),
+          style: linkStyle,
+        ),
+      ],
+    );
+  }
+}
+
+class _FooterLinkItem extends StatefulWidget {
+  final String label;
+  final VoidCallback onTap;
+  final TextStyle? style;
+
+  const _FooterLinkItem({
+    required this.label,
+    required this.onTap,
+    this.style,
+  });
+
+  @override
+  State<_FooterLinkItem> createState() => _FooterLinkItemState();
+}
+
+class _FooterLinkItemState extends State<_FooterLinkItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: Text(
+          widget.label,
+          style: widget.style?.copyWith(
+            color: _isHovered ? AppColors.primary : widget.style?.color,
+            decoration: _isHovered ? TextDecoration.underline : null,
           ),
         ),
       ),

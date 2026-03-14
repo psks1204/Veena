@@ -160,6 +160,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                           icon: Icons.play_circle_outline_rounded,
                         ),
                       const Spacer(),
+                      _buildPlayAllButton(),
+                      const SizedBox(width: AppSpacing.sm),
                       _buildFollowButton(),
                     ],
                   ),
@@ -248,7 +250,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                   return TrackTile(
                     mediaItem: track,
                     onTap: () {
-                       context.read<PlayerProvider>().play(track);
+                       context.read<PlayerProvider>().playQueue(_tracks, startIndex: index);
                     },
                   );
                 },
@@ -262,6 +264,24 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildPlayAllButton() {
+    return IconButton.filled(
+      onPressed: _playAll,
+      icon: const Icon(Icons.play_arrow_rounded),
+      style: IconButton.styleFrom(
+        backgroundColor: AppColors.primary,
+        foregroundColor: Colors.white,
+      ),
+      tooltip: 'Play All',
+    );
+  }
+
+  void _playAll() {
+    if (_tracks.isNotEmpty) {
+      context.read<PlayerProvider>().playQueue(_tracks, startIndex: 0);
+    }
   }
 
   Widget _buildStatItem(
@@ -304,7 +324,8 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
   }
 
   Widget _buildFollowButton() {
-    final isFollowing = _artist.following;
+    final library = context.watch<LibraryService>();
+    final isFollowing = library.artists.any((a) => a.id == _artist.id);
     
     return FilledButton.icon(
       onPressed: () => _toggleFollow(context),

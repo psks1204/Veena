@@ -23,13 +23,13 @@ class Playlist {
 
   factory Playlist.fromJson(Map<String, dynamic> json) {
     return Playlist(
-      id: json['id'] ?? '',
-      name: json['name'] ?? 'Untitled',
-      description: json['description'],
-      coverUrl: json['coverUrl'] ?? json['thumbnailUrl'],
+      id: (json['id'] ?? '').toString(),
+      name: json['name'] ?? json['title'] ?? 'Untitled',
+      description: json['description'] as String?,
+      coverUrl: json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? json['tracks']?.length ?? 0,
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'])
+          ? DateTime.tryParse(json['createdAt'].toString())
           : null,
     );
   }
@@ -56,16 +56,26 @@ class Album {
   });
 
   factory Album.fromJson(Map<String, dynamic> json) {
+    // Extract artist name: prefer nested artist object, fall back to artistName
+    String name = 'Unknown Artist';
+    if (json['artist'] != null && json['artist'] is Map) {
+      name = json['artist']['name'] as String? ?? 'Unknown Artist';
+    } else {
+      name = json['artistName'] as String? ?? 
+             json['artist'] as String? ?? 
+             'Unknown Artist';
+    }
+
     return Album(
       id: (json['id'] ?? '').toString(),
       title: json['title'] ?? json['name'] ?? 'Untitled',
-      artistName: json['artistName'] ?? json['artist'] ?? 'Unknown',
+      artistName: name,
       coverUrl:
           json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? 0,
       description: json['description'] as String?,
       createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'])
+          ? DateTime.tryParse(json['createdAt'].toString())
           : null,
     );
   }
@@ -122,11 +132,16 @@ class LibraryService extends ChangeNotifier {
               .map((item) => MediaItem.fromJson(item))
               .toList();
         }
-        // if (data['artists'] != null) {
-        //   _artists = (data['artists'] as List)
-        //       .map((item) => Artist.fromJson(item))
-        //       .toList();
-        // }
+        if (data['artists'] != null) {
+          _artists = (data['artists'] as List)
+              .map((item) => Artist.fromJson(item))
+              .toList();
+        }
+        if (data['albums'] != null) {
+          _albums = (data['albums'] as List)
+              .map((item) => Album.fromJson(item))
+              .toList();
+        }
       }
 
       // Parse albums from /albums endpoint (GET all albums)
@@ -135,11 +150,13 @@ class LibraryService extends ChangeNotifier {
         debugPrint('[LibraryService] Loaded ${_albums.length} albums');
       }
 
-      // Fetch artists separately (followed artists)
-      try {
-        await getArtists();
-      } catch (e) {
-        debugPrint('[LibraryService] Failed to load artists: $e');
+      // Fetch artists if still empty (fallback)
+      if (_artists.isEmpty) {
+        try {
+          await getArtists();
+        } catch (e) {
+          debugPrint('[LibraryService] Failed to load artists fallback: $e');
+        }
       }
 
       _isLoading = false;

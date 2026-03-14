@@ -12,6 +12,7 @@ import '../../alarm/screens/alarm_list_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'about_us_screen.dart';
 import 'contact_us_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// Profile Screen
 ///
@@ -111,10 +112,10 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.article_rounded,
                 title: 'Terms of Service',
                 onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Coming Soon'),
-                      duration: Duration(seconds: 2),
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const TermsOfServiceScreen(),
                     ),
                   );
                 },

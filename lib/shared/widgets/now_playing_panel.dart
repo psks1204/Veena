@@ -5,9 +5,6 @@ import '../../core/theme/app_colors.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/models/media_item.dart';
 import '../../core/models/artist.dart';
-import '../../core/utils/fullscreen_web.dart'
-    if (dart.library.io) '../../core/utils/fullscreen_stub.dart'
-    as fullscreen;
 import 'web_video_fullscreen.dart';
 import 'lyrics_card.dart';
 import '../../core/services/artist_service.dart';
@@ -53,6 +50,16 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
     if (mounted) {
       setState(() {});
     }
+  }
+
+  /// Formats large numbers (e.g., 1234 -> "1.2K", 1234567 -> "1.2M")
+  String _formatCount(int count) {
+    if (count >= 1000000) {
+      return '${(count / 1000000).toStringAsFixed(1)}M';
+    } else if (count >= 1000) {
+      return '${(count / 1000).toStringAsFixed(1)}K';
+    }
+    return count.toString();
   }
 
   @override
@@ -128,17 +135,18 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Text(
-            media.album?.name ?? media.title,
-            style: TextStyle(
-              color: isDark ? Colors.white : AppColors.lightTextPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
+          Expanded(
+            child: Text(
+              media.album?.name ?? media.title,
+              style: TextStyle(
+                color: isDark ? Colors.white : AppColors.lightTextPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
           ),
-          const Spacer(),
           IconButton(
             onPressed: widget.onClose,
             icon: Icon(
@@ -621,10 +629,19 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               CircleAvatar(
                 radius: 24,
                 backgroundColor: isDark ? Colors.grey[800] : Colors.grey[300],
-                child: Icon(
-                  Icons.person,
-                  color: isDark ? Colors.white : Colors.grey[600],
-                ),
+                backgroundImage:
+                    (media.artist?.imageUrl != null &&
+                        media.artist!.imageUrl!.isNotEmpty)
+                    ? NetworkImage(media.artist!.imageUrl!)
+                    : null,
+                child:
+                    (media.artist?.imageUrl == null ||
+                        media.artist!.imageUrl!.isEmpty)
+                    ? Icon(
+                        Icons.person,
+                        color: isDark ? Colors.white : Colors.grey[600],
+                      )
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -661,7 +678,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          '1.2M listeners',
+                          '${_formatCount(media.artist?.followerCount ?? 0)} Followers',
                           style: TextStyle(
                             color: isDark
                                 ? Colors.white54

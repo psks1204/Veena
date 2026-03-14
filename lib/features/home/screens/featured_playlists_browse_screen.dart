@@ -36,7 +36,7 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
                     'Featured Playlists',
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: isDark ? Colors.white : Colors.black87,
                     ),
                   ),
                   titlePadding: const EdgeInsets.only(left: 56, bottom: 16),
