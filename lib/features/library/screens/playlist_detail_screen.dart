@@ -192,194 +192,408 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Note: Don't use context.watch here - it causes rebuilds on every position update
+    final isWeb = MediaQuery.of(context).size.width >= 900;
     
     return Scaffold(
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 300,
-            pinned: true,
-            flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      AppColors.primary.withOpacity(0.6),
-                      theme.scaffoldBackgroundColor,
-                    ],
-                  ),
+      body: isWeb ? _buildWebLayout() : _buildMobileLayout(theme),
+    );
+  }
+
+  Widget _buildMobileLayout(ThemeData theme) {
+    return CustomScrollView(
+      slivers: [
+        SliverAppBar(
+          expandedHeight: 300,
+          pinned: true,
+          flexibleSpace: FlexibleSpaceBar(
+            background: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    AppColors.primary.withOpacity(0.6),
+                    theme.scaffoldBackgroundColor,
+                  ],
                 ),
-                child: Center(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const SizedBox(height: 40),
-                        Container(
-                          width: 160,
-                          height: 160,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black45, offset: Offset(0, 10))],
-                            image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
-                                ? DecorationImage(
-                                    image: NetworkImage(widget.playlist.coverUrl!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                            color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
-                                ? Colors.grey[800] 
-                                : null,
-                          ),
-                          child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
-                              ? const Icon(Icons.music_note, size: 60, color: Colors.white54)
+              ),
+              child: Center(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const SizedBox(height: 40),
+                      Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black45, offset: Offset(0, 10))],
+                          image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
+                              ? DecorationImage(
+                                  image: NetworkImage(widget.playlist.coverUrl!),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
+                              ? Colors.grey[800] 
                               : null,
                         ),
-                        const SizedBox(height: 24),
-                        Text(
-                          widget.playlist.name,
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                          textAlign: TextAlign.center,
+                        child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
+                            ? const Icon(Icons.music_note, size: 60, color: Colors.white54)
+                            : null,
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        widget.playlist.name,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
-                        if (widget.playlist.description != null)
-                          Padding(
-                            padding: const EdgeInsets.all(8.0),
-                            child: Text(
-                              widget.playlist.description!,
-                              style: const TextStyle(color: Colors.white70),
-                              textAlign: TextAlign.center,
-                            ),
+                        textAlign: TextAlign.center,
+                      ),
+                      if (widget.playlist.description != null)
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: Text(
+                            widget.playlist.description!,
+                            style: const TextStyle(color: Colors.white70),
+                            textAlign: TextAlign.center,
                           ),
-                      ],
-                    ),
+                        ),
+                    ],
                   ),
                 ),
               ),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                onPressed: _deletePlaylist,
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              onPressed: _deletePlaylist,
+            ),
+          ],
+        ),
+        
+        // Play All / Shuffle buttons
+        if (!_isLoading && _tracks.isNotEmpty)
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () => _playAll(shuffle: false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('Play All'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _playAll(shuffle: true),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: AppColors.primary),
+                        foregroundColor: AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      icon: const Icon(Icons.shuffle_rounded),
+                      label: const Text('Shuffle'),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
+          ),
+        
+        if (_isLoading)
+          const SliverFillRemaining(
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_tracks.isEmpty)
+          const SliverFillRemaining(
+            child: Center(child: Text('Empty Playlist')),
+          )
+        else
+          SliverReorderableList(
+            itemCount: _tracks.length,
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (oldIndex < newIndex) {
+                  newIndex -= 1;
+                }
+                final item = _tracks.removeAt(oldIndex);
+                _tracks.insert(newIndex, item);
+              });
+            },
+            itemBuilder: (context, index) {
+              final track = _tracks[index];
+              return Dismissible(
+                key: ValueKey(track.id),
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  color: Colors.red,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  child: const Icon(Icons.delete, color: Colors.white),
+                ),
+                onDismissed: (_) => _removeTrack(track),
+                child: Material(
+                  color: theme.scaffoldBackgroundColor, 
+                  child: Row(
+                    children: [
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: const Padding(
+                          padding: EdgeInsets.only(left: 16, right: 8, top: 16, bottom: 16),
+                          child: Icon(Icons.drag_indicator, color: Colors.grey),
+                        ),
+                      ),
+                      Expanded(
+                        child: Selector<PlayerProvider, String?>(
+                          selector: (_, player) => player.currentMedia?.id,
+                          builder: (context, currentPlayingId, _) => TrackTile(
+                            mediaItem: track,
+                            isPlaying: currentPlayingId == track.id,
+                            onTap: () => _playTrack(track, index),
+                            onMoreTap: () => _showTrackOptions(track),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           ),
           
-          // Play All / Shuffle buttons
-          if (!_isLoading && _tracks.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Row(
+           // Add padding at bottom
+           Selector<PlayerProvider, bool>(
+             selector: (_, player) => player.hasMedia,
+             builder: (context, hasMedia, _) => SliverToBoxAdapter(
+               child: SizedBox(height: hasMedia ? 160 : 80),
+             ),
+           ),
+      ],
+    );
+  }
+
+  Widget _buildWebLayout() {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final player = context.watch<PlayerProvider>();
+
+    return Stack(
+      children: [
+        // Ambient background
+        Positioned.fill(
+          child: Container(
+            color: isDark ? AppColors.darkBg : AppColors.lightBg,
+          ),
+        ),
+        
+        Row(
+          children: [
+            // Left Side: Artwork & Info
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.all(40),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () => _playAll(shuffle: false),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        icon: const Icon(Icons.play_arrow_rounded),
-                        label: const Text('Play All'),
+                    // Artwork
+                    Container(
+                      width: 280,
+                      height: 280,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black45,
+                            blurRadius: 30,
+                            offset: const Offset(0, 15),
+                          ),
+                        ],
+                        image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
+                            ? DecorationImage(
+                                image: NetworkImage(widget.playlist.coverUrl!),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                        color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
+                            ? Colors.grey[800] 
+                            : null,
                       ),
+                      child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
+                          ? const Icon(Icons.music_note, size: 80, color: Colors.white24)
+                          : null,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed: () => _playAll(shuffle: true),
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: AppColors.primary),
-                          foregroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        icon: const Icon(Icons.shuffle_rounded),
-                        label: const Text('Shuffle'),
+                    const SizedBox(height: 32),
+                    
+                    Text(
+                      widget.playlist.name,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: isDark ? Colors.white : Colors.black,
                       ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    if (widget.playlist.description != null)
+                      Text(
+                        widget.playlist.description!,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 3,
+                      ),
+                    
+                    const SizedBox(height: 24),
+                    
+                    // Stats
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildStatItem(Icons.playlist_play, '${_tracks.length} Tracks', isDark),
+                        const SizedBox(width: 24),
+                        _buildStatItem(Icons.account_circle, 'My Playlist', isDark),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 32),
+                    
+                    // Actions
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: false) : null,
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Play All'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        IconButton(
+                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: true) : null,
+                          icon: const Icon(Icons.shuffle_rounded),
+                          color: isDark ? Colors.white : Colors.black,
+                          tooltip: 'Shuffle',
+                          padding: const EdgeInsets.all(16),
+                        ),
+                        IconButton(
+                          onPressed: _deletePlaylist,
+                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          tooltip: 'Delete Playlist',
+                          padding: const EdgeInsets.all(16),
+                        ),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
-          
-          if (_isLoading)
-            const SliverFillRemaining(
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_tracks.isEmpty)
-            const SliverFillRemaining(
-              child: Center(child: Text('Empty Playlist')),
-            )
-          else
-            SliverReorderableList(
-              itemCount: _tracks.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  final item = _tracks.removeAt(oldIndex);
-                  _tracks.insert(newIndex, item);
-                });
-                // Note: Actual backend reordering not implemented as API doesn't support it yet
-              },
-              itemBuilder: (context, index) {
-                final track = _tracks[index];
-                return Dismissible(
-                  key: ValueKey(track.id),
-                  direction: DismissDirection.endToStart,
-                  background: Container(
-                    color: Colors.red,
-                    alignment: Alignment.centerRight,
-                    padding: const EdgeInsets.only(right: 20),
-                    child: const Icon(Icons.delete, color: Colors.white),
-                  ),
-                  onDismissed: (_) => _removeTrack(track),
-                  child: Material(
-                    color: theme.scaffoldBackgroundColor, // Needed for proper drag appearance
-                    child: Row(
-                      children: [
-                        // Drag Handle
-                        ReorderableDragStartListener(
-                          index: index,
-                          child: const Padding(
-                            padding: EdgeInsets.only(left: 16, right: 8, top: 16, bottom: 16),
-                            child: Icon(Icons.drag_indicator, color: Colors.grey),
-                          ),
-                        ),
-                        Expanded(
-                          child: Selector<PlayerProvider, String?>(
-                            selector: (_, player) => player.currentMedia?.id,
-                            builder: (context, currentPlayingId, _) => TrackTile(
-                              mediaItem: track,
-                              isPlaying: currentPlayingId == track.id,
-                              onTap: () => _playTrack(track, index),
-                              onMoreTap: () => _showTrackOptions(track),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
             
-             // Add padding at bottom for mini player + nav bar
-             Selector<PlayerProvider, bool>(
-               selector: (_, player) => player.hasMedia,
-               builder: (context, hasMedia, _) => SliverToBoxAdapter(
-                 child: SizedBox(height: hasMedia ? 180 : 100),
-               ),
-             ),
-        ],
-      ),
+            // Right Side: Tracks
+            Expanded(
+              flex: 3,
+              child: Container(
+                color: (isDark ? Colors.black : Colors.white).withOpacity(0.05),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(32, 60, 32, 16),
+                      child: Text(
+                        'PLAYLIST TRACKS',
+                        style: TextStyle(
+                          letterSpacing: 2,
+                          fontWeight: FontWeight.bold,
+                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    
+                    Expanded(
+                      child: _isLoading 
+                        ? const Center(child: CircularProgressIndicator())
+                        : _tracks.isEmpty
+                          ? const Center(child: Text('No tracks in this playlist'))
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              itemCount: _tracks.length,
+                              itemBuilder: (context, index) {
+                                final track = _tracks[index];
+                                final isPlaying = player.currentMedia?.id == track.id;
+                                
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: TrackTile(
+                                    mediaItem: track,
+                                    isPlaying: isPlaying,
+                                    onTap: () => _playTrack(track, index),
+                                    onMoreTap: () => _showTrackOptions(track),
+                                  ),
+                                );
+                              },
+                            ),
+                    ),
+                    
+                    SizedBox(height: player.hasMedia ? 120 : 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        
+        // App Bar / Back
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                BackButton(color: isDark ? Colors.white : Colors.black),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String label, bool isDark) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 16, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: TextStyle(
+            color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+            fontSize: 14,
+          ),
+        ),
+      ],
     );
   }
 }

@@ -63,6 +63,8 @@ class AlbumDetail {
     required this.tracks,
   });
 
+  String? get releaseDate => createdAt != null ? "${createdAt!.year}" : null;
+
   factory AlbumDetail.fromJson(Map<String, dynamic> json) {
     final tracksList = json['tracks'] as List? ?? [];
 
