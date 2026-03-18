@@ -321,6 +321,40 @@ class MediaItem {
     return '$artistName feat. ${subArtists.map((e) => e.name).join(", ")}';
   }
 
+  /// Helper to get all contributors/credits as a formatted string
+  String get allCreditsString {
+    List<String> parts = [];
+    
+    // Artists
+    parts.add(fullArtistString);
+    
+    // Lyricist
+    final lName = lyricist?.name ?? lyricistName;
+    if (lName != null && lName.isNotEmpty) {
+      parts.add('Lyricist: $lName');
+    }
+    
+    // Composer
+    final cName = composer?.name ?? composerName;
+    if (cName != null && cName.isNotEmpty) {
+      parts.add('Composer: $cName');
+    }
+    
+    // Producer
+    final pName = producer?.name ?? producerName;
+    if (pName != null && pName.isNotEmpty) {
+      parts.add('Producer: $pName');
+    }
+    
+    // Director
+    final dName = director?.name ?? directorName;
+    if (dName != null && dName.isNotEmpty) {
+      parts.add('Director: $dName');
+    }
+    
+    return parts.join(' • ');
+  }
+
   /// Helper to get album name
   String? get albumName => album?.name;
 

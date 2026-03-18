@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
 import '../models/artist.dart';
+import 'library_service.dart'; // For Playlist model
 
 /// Dashboard Service
 /// 
@@ -16,6 +17,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> _recentlyPlayed = [];
   List<MediaItem> _videos = [];
   List<MediaItem> _audios = [];
+  List<Playlist> _popularPlaylists = [];
   bool _isLoading = false;
   String? _error;
   
@@ -24,6 +26,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> get recentlyPlayed => _recentlyPlayed;
   List<MediaItem> get videos => _videos;
   List<MediaItem> get audios => _audios;
+  List<Playlist> get popularPlaylists => _popularPlaylists;
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -105,6 +108,14 @@ class DashboardService extends ChangeNotifier {
             }
           } catch (e) {
             debugPrint('Dashboard audios fetch error: $e');
+          }
+        })(),
+        // Popular Playlists
+        (() async {
+          try {
+            await fetchPopularPlaylists();
+          } catch (e) {
+            debugPrint('Dashboard popular playlists fetch error: $e');
           }
         })(),
       ]);
@@ -212,6 +223,22 @@ class DashboardService extends ChangeNotifier {
       return [];
     } catch (e) {
       debugPrint('Popular media fetch error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch popular playlists
+  /// GET /api/user/library/playlists/popular
+  Future<List<Playlist>> fetchPopularPlaylists() async {
+    try {
+      final data = await _api.get('/user/library/playlists/popular');
+      if (data != null && data is List) {
+        _popularPlaylists = data.map((item) => Playlist.fromJson(item)).toList();
+        notifyListeners();
+      }
+      return _popularPlaylists;
+    } catch (e) {
+      debugPrint('Popular playlists error: $e');
       return [];
     }
   }

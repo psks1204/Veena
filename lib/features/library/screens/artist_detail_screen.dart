@@ -58,11 +58,18 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final isWeb = MediaQuery.of(context).size.width >= 900;
     
     return Scaffold(
-      body: CustomScrollView(
+      body: isWeb ? _buildWebLayout(context) : _buildMobileLayout(context),
+    );
+  }
+
+  Widget _buildMobileLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return CustomScrollView(
         slivers: [
           SliverAppBar(
             expandedHeight: 320,
@@ -254,15 +261,237 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     },
                   );
                 },
-                childCount: _tracks.length,
               ),
             ),
+          ],
+        );
+  }
 
-            const SliverToBoxAdapter(
-                child: SizedBox(height: 140),
-             ),
-        ],
-      ),
+  Widget _buildWebLayout(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Row(
+      children: [
+        // Left Side: Artist Image
+        Expanded(
+          flex: 2,
+          child: Container(
+            height: double.infinity,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.black : Colors.grey[100],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _artist.imageUrl != null
+                    ? Image.network(
+                        _artist.imageUrl!,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(color: Colors.grey[800]),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.transparent,
+                        theme.scaffoldBackgroundColor.withOpacity(0.8),
+                        theme.scaffoldBackgroundColor,
+                      ],
+                      stops: const [0.0, 0.8, 1.0],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 40,
+                  left: 20,
+                  child: IconButton.filled(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back),
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.black.withOpacity(0.3),
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  bottom: 60,
+                  left: 40,
+                  right: 40,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_artist.verified)
+                        Row(
+                          children: const [
+                            Icon(Icons.verified, color: AppColors.primary, size: 24),
+                            SizedBox(width: 8),
+                            Text(
+                              'Verified Artist',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _artist.name,
+                        style: const TextStyle(
+                          fontSize: 56,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // Right Side: Tracks and Info
+        Expanded(
+          flex: 3,
+          child: Container(
+            color: theme.scaffoldBackgroundColor,
+            child: CustomScrollView(
+              slivers: [
+                const SliverToBoxAdapter(child: SizedBox(height: 60)),
+                
+                // Stats row + Follow button
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: AppSpacing.md,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Stats row
+                        Row(
+                          children: [
+                            _buildStatItem(
+                              context,
+                              label: 'Followers',
+                              value: _formatCount(_artist.followerCount),
+                              icon: Icons.people_outline_rounded,
+                            ),
+                            const SizedBox(width: AppSpacing.xl),
+                            if (_artist.totalPlays > 0)
+                              _buildStatItem(
+                                context,
+                                label: 'Total Plays',
+                                value: _formatCount(_artist.totalPlays),
+                                icon: Icons.play_circle_outline_rounded,
+                              ),
+                            const Spacer(),
+                            _buildPlayAllButton(),
+                            const SizedBox(width: AppSpacing.sm),
+                            _buildFollowButton(),
+                          ],
+                        ),
+                        
+                        // Bio
+                        if (_artist.bio != null && _artist.bio!.isNotEmpty) ...[
+                          const SizedBox(height: AppSpacing.xl),
+                          Text(
+                            _artist.bio!,
+                            style: theme.textTheme.bodyLarge?.copyWith(
+                              color: isDark ? Colors.white70 : Colors.black54,
+                              height: 1.6,
+                            ),
+                          ),
+                        ],
+
+                        // Genre / Country
+                        if (_artist.genre != null || _artist.country != null) ...[
+                          const SizedBox(height: AppSpacing.lg),
+                          Wrap(
+                            spacing: AppSpacing.sm,
+                            children: [
+                              if (_artist.genre != null)
+                                Chip(
+                                  label: Text(_artist.genre!),
+                                  backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                                  side: BorderSide.none,
+                                ),
+                              if (_artist.country != null)
+                                Chip(
+                                  avatar: const Icon(Icons.location_on_outlined, size: 16),
+                                  label: Text(_artist.country!),
+                                  backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
+                                  side: BorderSide.none,
+                                ),
+                            ],
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 40)),
+
+                // Section title for tracks
+                if (!_isLoading && _tracks.isNotEmpty)
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 40,
+                        vertical: AppSpacing.sm,
+                      ),
+                      child: Text(
+                        'Popular Tracks',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                
+                if (_isLoading)
+                  const SliverFillRemaining(
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (_tracks.isEmpty)
+                  const SliverFillRemaining(
+                    child: Center(child: Text('No tracks found')),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    sliver: SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final track = _tracks[index];
+                          return TrackTile(
+                            mediaItem: track,
+                            onTap: () {
+                               context.read<PlayerProvider>().playQueue(_tracks, startIndex: index);
+                            },
+                          );
+                        },
+                        childCount: _tracks.length,
+                      ),
+                    ),
+                  ),
+
+                  const SliverToBoxAdapter(
+                      child: SizedBox(height: 140),
+                   ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 

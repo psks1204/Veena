@@ -936,7 +936,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   ),
                 ),
                 Text(
-                  media.artistName,
+                  media.fullArtistString,
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,
@@ -976,13 +976,13 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  media.artistName,
+                  media.allCreditsString,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 1,
+                  maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
@@ -1344,7 +1344,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        player.currentMedia?.artistName ?? '',
+                        player.currentMedia?.fullArtistString ?? '',
                         style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
@@ -1599,11 +1599,18 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     const SizedBox(height: 8),
 
                     // Artist name
-                    Text(
-                      media.artistName ?? 'Unknown Artist',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.6),
-                        fontSize: 16,
+                    // Artist name & Credits
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        media.allCreditsString,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.6),
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
 

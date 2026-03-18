@@ -228,6 +228,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   // Featured Playlists
                   _buildFeaturedPlaylistsSection(context),
 
+                  // Popular Playlists
+                  _buildPopularPlaylistsSection(context),
+
                   // 1. Birthday Banner (Conditional)
                   if (isBirthday && user != null)
                     SliverToBoxAdapter(
@@ -643,6 +646,66 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: featuredPlaylists.length,
                   itemBuilder: (context, index) {
                     final playlist = featuredPlaylists[index];
+                    return _buildPlaylistCard(context, playlist, isDark);
+                  },
+                ),
+              ),
+              const SizedBox(height: AppSpacing.lg),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPopularPlaylistsSection(BuildContext context) {
+    return Consumer<DashboardService>(
+      builder: (context, dashboard, _) {
+        final popularPlaylists = dashboard.popularPlaylists;
+
+        if (popularPlaylists.isEmpty) {
+          return const SliverToBoxAdapter(child: SizedBox.shrink());
+        }
+
+        return SliverToBoxAdapter(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Section Header
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.lg),
+                child: SectionHeader(
+                  title: 'Popular Playlists',
+                  actionLabel: 'See all',
+                  onActionTap: () {
+                    // Navigate to a popular playlists browse screen if available, 
+                    // or just show them in a simple section screen
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => SimpleSectionScreen(
+                          title: 'Popular Playlists',
+                          items: [], // SimpleSectionScreen expect MediaItems, we need a Playlist variant or update it
+                          // For now, let's keep it simple or just not have a see all yet if not easily supported
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Playlist Cards Horizontal Scroll
+              SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.screenPadding,
+                  ),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: popularPlaylists.length,
+                  itemBuilder: (context, index) {
+                    final playlist = popularPlaylists[index];
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
                     return _buildPlaylistCard(context, playlist, isDark);
                   },
                 ),
