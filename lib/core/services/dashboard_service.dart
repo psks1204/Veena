@@ -18,6 +18,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> _videos = [];
   List<MediaItem> _audios = [];
   List<Playlist> _popularPlaylists = [];
+  List<MediaItem> _featuredActive = [];
   bool _isLoading = false;
   String? _error;
   
@@ -27,6 +28,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> get videos => _videos;
   List<MediaItem> get audios => _audios;
   List<Playlist> get popularPlaylists => _popularPlaylists;
+  List<MediaItem> get featuredActive => _featuredActive;
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -116,6 +118,14 @@ class DashboardService extends ChangeNotifier {
             await fetchPopularPlaylists();
           } catch (e) {
             debugPrint('Dashboard popular playlists fetch error: $e');
+          }
+        })(),
+        // Featured Active
+        (() async {
+          try {
+            await fetchFeaturedActive();
+          } catch (e) {
+            debugPrint('Dashboard featured active fetch error: $e');
           }
         })(),
       ]);
@@ -239,6 +249,43 @@ class DashboardService extends ChangeNotifier {
       return _popularPlaylists;
     } catch (e) {
       debugPrint('Popular playlists error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch active featured items
+  /// GET /api/featured/active
+  Future<List<MediaItem>> fetchFeaturedActive() async {
+    try {
+      debugPrint('🚀 [DashboardService] Calling fetchFeaturedActive...');
+      final data = await _api.get('/featured/active');
+      debugPrint('🚀 [DashboardService] fetchFeaturedActive response: $data');
+      if (data != null && data is List) {
+        _featuredActive = data.map((item) {
+          // Map the FeaturedSong response to a MediaItem
+          return MediaItem(
+            id: item['mediaId'] as String? ?? 'unknown_id',
+            title: item['mediaTitle'] as String? ?? 'Featured Item',
+            mediaType: MediaType.fromString(item['mediaType'] as String? ?? 'AUDIO'),
+            thumbnailUrl: item['thumbnailUrl'] as String?,
+            hlsUrl: item['hlsUrl'] as String?,
+            status: MediaStatus.published,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+            artist: item['artist'] != null
+                ? ArtistInfo.fromJson(item['artist'] as Map<String, dynamic>)
+                : null,
+          );
+        }).toList();
+        
+        debugPrint('🚀 [DashboardService] Parsed ${_featuredActive.length} featured active items.');
+        notifyListeners();
+      } else {
+        debugPrint('⚠️ [DashboardService] fetchFeaturedActive returned empty or invalid data format.');
+      }
+      return _featuredActive;
+    } catch (e) {
+      debugPrint('❌ [DashboardService] Featured active error: $e');
       return [];
     }
   }

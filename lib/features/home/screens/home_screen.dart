@@ -331,11 +331,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    // Interactive Hero Carousel - Shows top 5 latest releases
+    // Interactive Hero Carousel - Shows top active featured items
     return SliverToBoxAdapter(
       child: Consumer<DashboardService>(
         builder: (context, dashboard, _) {
-          final featuredItems = dashboard.latestReleases.take(5).toList();
+          final featuredItems = dashboard.featuredActive;
 
           if (featuredItems.isEmpty) return const SizedBox.shrink();
 

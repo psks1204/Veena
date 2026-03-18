@@ -14,6 +14,7 @@ class PublicDashboardService extends ChangeNotifier {
   List<MediaItem> _popularTracks = [];
   List<MediaItem> _videos = [];
   List<MediaItem> _audios = [];
+  List<MediaItem> _featuredActive = [];
   bool _isLoading = false;
   String? _error;
 
@@ -21,6 +22,7 @@ class PublicDashboardService extends ChangeNotifier {
   List<MediaItem> get popularTracks => _popularTracks;
   List<MediaItem> get videos => _videos;
   List<MediaItem> get audios => _audios;
+  List<MediaItem> get featuredActive => _featuredActive;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -92,6 +94,37 @@ class PublicDashboardService extends ChangeNotifier {
             }
           } catch (e) {
             debugPrint('Public audios fetch error: $e');
+          }
+        })(),
+        (() async {
+          try {
+            debugPrint('🚀 [PublicDashboardService] Calling fetchFeaturedActive...');
+            final featuredUri = Uri.parse('${ApiService.baseUrl}/featured/active');
+            final featuredResp = await http.get(featuredUri, headers: {'Content-Type': 'application/json'});
+            debugPrint('🚀 [PublicDashboardService] fetchFeaturedActive status: ${featuredResp.statusCode}');
+            if (featuredResp.statusCode >= 200 && featuredResp.statusCode < 300) {
+              final featuredData = jsonDecode(featuredResp.body);
+              if (featuredData != null && featuredData is List) {
+                _featuredActive = featuredData.map((item) {
+                  return MediaItem(
+                    id: item['mediaId'] as String? ?? 'unknown_id',
+                    title: item['mediaTitle'] as String? ?? 'Featured Item',
+                    mediaType: MediaType.fromString(item['mediaType'] as String? ?? 'AUDIO'),
+                    thumbnailUrl: item['thumbnailUrl'] as String?,
+                    hlsUrl: item['hlsUrl'] as String?,
+                    status: MediaStatus.published,
+                    createdAt: DateTime.now(),
+                    updatedAt: DateTime.now(),
+                    artist: item['artist'] != null
+                        ? ArtistInfo.fromJson(item['artist'] as Map<String, dynamic>)
+                        : null,
+                  );
+                }).toList();
+                debugPrint('🚀 [PublicDashboardService] Parsed ${_featuredActive.length} items');
+              }
+            }
+          } catch (e) {
+            debugPrint('❌ [PublicDashboardService] Featured active error: $e');
           }
         })(),
       ]);

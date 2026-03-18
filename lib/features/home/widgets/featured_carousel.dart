@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -72,16 +74,31 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     return Column(
       children: [
         SizedBox(
-          height: 300,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: _onPageChanged,
-            itemCount: widget.items.length,
-            itemBuilder: (context, index) {
-              final item = widget.items[index];
-              return _buildFeaturedItem(context, item, theme);
-            },
-          ),
+          child: kIsWeb 
+            ? SizedBox(
+                height: 350, // Fixed smaller height for web
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: widget.items.length,
+                  itemBuilder: (context, index) {
+                    final item = widget.items[index];
+                    return _buildFeaturedItem(context, item, theme);
+                  },
+                ),
+              )
+            : SizedBox(
+                height: 300,
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: widget.items.length,
+                  itemBuilder: (context, index) {
+                    final item = widget.items[index];
+                    return _buildFeaturedItem(context, item, theme);
+                  },
+                ),
+              ),
         ),
         const SizedBox(height: AppSpacing.md),
         // Page Indicators
@@ -118,12 +135,46 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
           child: Stack(
             fit: StackFit.expand,
             children: [
+              // Ambient blurred background matching the image color
+              if (item.thumbnailUrl != null) ...[
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: Image.network(
+                      item.thumbnailUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
+                    ),
+                  ),
+                ),
+                Positioned.fill(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
+                      child: Container(
+                        color: Colors.black.withOpacity(0.4),
+                      ),
+                    ),
+                  ),
+                ),
+              ] else ...[
+                // Fallback Background color
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ],
+              
               // Hero Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Image.network(
                   item.thumbnailUrl ?? '',
-                  fit: BoxFit.cover,
+                  fit: kIsWeb ? BoxFit.contain : BoxFit.cover,
+                  alignment: Alignment.center,
                   errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
                 ),
               ),
