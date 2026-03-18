@@ -241,7 +241,8 @@ class _ArtistCard extends StatelessWidget {
       child: Column(
         children: [
           // Circular Image
-          Expanded(
+          AspectRatio(
+            aspectRatio: 1,
             child: Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,

@@ -122,7 +122,8 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
+          AspectRatio(
+            aspectRatio: 1,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
@@ -141,6 +142,7 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
                         imageUrl: playlist.coverUrl!,
                         fit: BoxFit.cover,
                         width: double.infinity,
+                        height: double.infinity,
                         placeholder: (_, __) => _buildPlaceholder(isDark),
                         errorWidget: (_, __, ___) => _buildPlaceholder(isDark),
                       )

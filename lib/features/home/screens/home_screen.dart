@@ -744,51 +744,58 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Playlist Cover
-            Container(
-              height: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child:
-                    playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: playlist.coverUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
+            AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.2),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                  child:
+                      playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: playlist.coverUrl!,
+                          fit: BoxFit.cover,
+                          placeholder: (_, __) => Container(
+                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: Icon(
+                              Icons.playlist_play_rounded,
+                              color: isDark ? Colors.grey[600] : Colors.grey[400],
+                              size: 48,
+                            ),
+                          ),
+                          errorWidget: (_, __, ___) => Container(
+                            color: isDark ? Colors.grey[800] : Colors.grey[200],
+                            width: double.infinity,
+                            height: double.infinity,
+                            child: Icon(
+                              Icons.playlist_play_rounded,
+                              color: isDark ? Colors.grey[600] : Colors.grey[400],
+                              size: 48,
+                            ),
+                          ),
+                        )
+                      : Container(
                           color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          width: double.infinity,
+                          height: double.infinity,
                           child: Icon(
                             Icons.playlist_play_rounded,
                             color: isDark ? Colors.grey[600] : Colors.grey[400],
                             size: 48,
                           ),
                         ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          child: Icon(
-                            Icons.playlist_play_rounded,
-                            color: isDark ? Colors.grey[600] : Colors.grey[400],
-                            size: 48,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: isDark ? Colors.grey[800] : Colors.grey[200],
-                        child: Icon(
-                          Icons.playlist_play_rounded,
-                          color: isDark ? Colors.grey[600] : Colors.grey[400],
-                          size: 48,
-                        ),
-                      ),
+                ),
               ),
             ),
 

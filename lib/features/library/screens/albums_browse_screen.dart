@@ -244,7 +244,8 @@ class _AlbumCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Album Cover with shadow
-          Expanded(
+          AspectRatio(
+            aspectRatio: 1,
             child: Container(
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
