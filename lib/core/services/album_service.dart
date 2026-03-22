@@ -117,27 +117,55 @@ class AlbumService extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   
-  /// GET /api/albums - Get all active albums
-  Future<List<AlbumSummary>> getAllAlbums() async {
+  /// GET /api/albums - Get albums (paginated)
+  Future<PagedResponse<AlbumSummary>> getAllAlbums({int page = 0, int size = 20}) async {
     _isLoading = true;
     _error = null;
     notifyListeners();
     
     try {
-      final data = await _api.get('/albums');
-      if (data != null && data is List) {
-        _albums = data.map((item) => AlbumSummary.fromJson(item)).toList();
-        debugPrint('[AlbumService] Loaded ${_albums.length} albums');
+      final queryParams = {
+        'page': page.toString(),
+        'size': size.toString(),
+      };
+      
+      final data = await _api.get('/albums', queryParams: queryParams);
+      if (data != null) {
+        final response = PagedResponse<AlbumSummary>.fromJson(
+          data,
+          (item) => AlbumSummary.fromJson(item),
+        );
+        _albums = response.content;
+        _isLoading = false;
+        notifyListeners();
+        return response;
       }
+      
       _isLoading = false;
       notifyListeners();
-      return _albums;
+      return PagedResponse<AlbumSummary>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
     } catch (e) {
       _error = e.toString();
       _isLoading = false;
       notifyListeners();
-      debugPrint('Get all albums error: $e');
-      return [];
+      debugPrint('Get albums error: $e');
+      return PagedResponse<AlbumSummary>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
     }
   }
   

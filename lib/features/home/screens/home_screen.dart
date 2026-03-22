@@ -63,21 +63,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final profileProvider = context.read<ProfileProvider>();
     final user = profileProvider.profile;
 
-    // If profile not loaded yet, wait for it (handled by listener in build or subsequent checks)
     if (user == null) return;
 
     final birthdayService = BirthdayService();
     if (await birthdayService.shouldShowBirthdayBomb(user)) {
       if (!mounted) return;
 
-      // Mark as seen immediately so it doesn't show again on reload
       await birthdayService.markBirthdayBombAsSeen();
 
-      // Show overlay
       showDialog(
         context: context,
         barrierDismissible: false,
-        barrierColor: Colors.transparent, // Helper handles its own background
+        barrierColor: Colors.transparent,
         builder: (context) => BirthdayCelebrationOverlay(
           userName: user.displayName,
           onDismiss: () => Navigator.of(context).pop(),
@@ -97,7 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final albumService = context.read<AlbumService>();
       final libraryService = context.read<LibraryService>();
 
-      // Load dashboard, albums, and featured playlists concurrently
       await Future.wait([
         dashboard.fetchDashboard(),
         albumService.getAllAlbums(),
@@ -117,15 +113,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _playMedia(List<MediaItem> items, int index) {
     final player = context.read<PlayerProvider>();
-    final mediaService = context.read<MediaService>();
-
     player.playQueue(items, startIndex: index);
 
     final item = items[index];
-    // mediaService.recordPlay(item.id); // Track analytics (Handled by PlayerProvider)
-
     if (item.isVideo && !kIsWeb) {
-      // Use rootNavigator to open fullscreen on top of everything
       Navigator.of(
         context,
         rootNavigator: true,
@@ -139,14 +130,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
     await mediaService.toggleLike(item.id, initial: item.liked);
 
-    // Update local state for immediate UI reflection
     if (mediaService.isLiked(item.id, initial: item.liked)) {
       libraryService.addFavoriteLocal(item);
     } else {
       libraryService.removeFavoriteLocal(item.id);
     }
 
-    setState(() {}); // Refresh UI
+    setState(() {});
   }
 
   String _getGreeting() {
@@ -159,39 +149,33 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Scaffold(
       body: Consumer<DashboardService>(
         builder: (context, dashboard, child) {
-          // Watch profile for birthday updates
           final profileProvider = context.watch<ProfileProvider>();
           final user = profileProvider.profile;
           final isBirthday = BirthdayService().isBirthday(user);
 
-          // Re-check bomb if profile just loaded
           if (user != null && profileProvider.hasProfile) {
-            // We use a microtask to avoid building-phase side effects
             Future.microtask(() => _checkBirthday());
           }
 
           final latestReleases = dashboard.latestReleases;
           final popularTracks = dashboard.popularTracks;
           final recentlyPlayed = dashboard.recentlyPlayed;
-
-          // Audio and video come from dedicated API calls (no client-side filtering)
           final audios = dashboard.audios;
           final videos = dashboard.videos;
+          final podcasts = dashboard.podcasts;
+          final popularPlaylists = dashboard.popularPlaylists;
 
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: _loadData,
             child: CustomScrollView(
               slivers: [
-                // Header
                 _buildHeader(theme),
 
-                // Loading State
                 if (_isLoading)
                   const SliverFillRemaining(
                     child: Center(
@@ -203,9 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 else if (_error != null)
                   _buildErrorState()
                 else ...[
-                  // Recently Played (if available)
-                  if (recentlyPlayed.isNotEmpty) ...[
-                    _buildSection(
+                  if (recentlyPlayed.isNotEmpty)
+                    ..._buildSectionSlivers(
                       context,
                       title: 'Recently Played',
                       icon: Icons.history_rounded,
@@ -223,29 +206,67 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                  ],
 
-                  // Featured Playlists
-                  _buildFeaturedPlaylistsSection(context),
+                  ..._buildFeaturedPlaylistsSectionSlivers(context),
 
-                  // Popular Playlists
-                  _buildPopularPlaylistsSection(context),
+                  if (popularPlaylists.isNotEmpty)
+                    ..._buildSectionSlivers(
+                      context,
+                      title: 'Popular Playlists',
+                      icon: Icons.playlist_play_rounded,
+                      items: popularPlaylists,
+                      isHorizontal: true,
+                      onSeeAll: () {
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SimpleSectionScreen(
+                              title: 'Popular Playlists',
+                              items: [],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
 
-                  // 1. Birthday Banner (Conditional)
                   if (isBirthday && user != null)
                     SliverToBoxAdapter(
                       child: BirthdayBanner(userName: user.displayName),
                     ),
 
-                  // Latest Releases
-                  if (latestReleases.isNotEmpty) ...[
-                    _buildSection(
+                  if (audios.isNotEmpty)
+                    ..._buildSectionSlivers(
+                      context,
+                      title: 'Popular Tracks',
+                      icon: Icons.music_note_rounded,
+                      items: audios,
+                      isHorizontal: true,
+                      onSeeAll: () {
+                        final mediaService = context.read<MediaService>();
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaginatedSectionScreen(
+                              title: 'Popular Tracks',
+                              fetchPagedItems: (page, size) =>
+                                  mediaService.fetchMedia(
+                                    page: page,
+                                    size: size,
+                                    mediaType: 'AUDIO',
+                                  ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                  if (latestReleases.isNotEmpty)
+                    ..._buildSectionSlivers(
                       context,
                       title: 'Latest Releases',
                       icon: Icons.new_releases_rounded,
                       items: latestReleases,
                       isHorizontal: true,
-                      showBadge: true,
                       onSeeAll: () {
                         final mediaService = context.read<MediaService>();
                         AppNavigation.push(
@@ -260,11 +281,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                  ],
 
-                  // Popular/Trending
-                  if (popularTracks.isNotEmpty) ...[
-                    _buildSection(
+                  if (popularTracks.isNotEmpty)
+                    ..._buildSectionSlivers(
                       context,
                       title: 'Trending Now',
                       icon: Icons.trending_up_rounded,
@@ -282,44 +301,78 @@ class _HomeScreenState extends State<HomeScreen> {
                         );
                       },
                     ),
-                  ],
 
-                  // Albums Section
-                  _buildAlbumsSection(context),
+                  ..._buildAlbumsSectionSlivers(context),
 
-                  // Videos Grid
-                  if (videos.isNotEmpty) ...[
-                    _buildGridSection(
+                  if (podcasts.isNotEmpty)
+                    ..._buildSectionSlivers(
+                      context,
+                      title: 'Podcasts',
+                      icon: Icons.podcasts_rounded,
+                      items: podcasts,
+                      isHorizontal: true,
+                      onSeeAll: () {
+                        final mediaService = context.read<MediaService>();
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaginatedSectionScreen(
+                              title: 'Podcasts',
+                              fetchPagedItems: (page, size) =>
+                                  mediaService.fetchMedia(
+                                    page: page,
+                                    size: size,
+                                    mediaType: 'PODCAST',
+                                  ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                  if (videos.isNotEmpty)
+                    ..._buildSectionSlivers(
                       context,
                       title: 'Videos',
                       icon: Icons.play_circle_filled_rounded,
                       items: videos,
+                      isHorizontal: true,
+                      onSeeAll: () {
+                        final mediaService = context.read<MediaService>();
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => PaginatedSectionScreen(
+                              title: 'Videos',
+                              fetchPagedItems: (page, size) =>
+                                  mediaService.fetchMedia(
+                                    page: page,
+                                    size: size,
+                                    mediaType: 'VIDEO',
+                                  ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ],
 
-                  // Audio List
-                  if (audios.isNotEmpty) ...[
-                    _buildListSection(
+                  if (dashboard.artists.isNotEmpty)
+                    ..._buildArtistSectionSlivers(context, dashboard.artists),
+
+                  if (dashboard.audios.isNotEmpty)
+                    ..._buildListSectionSlivers(
                       context,
                       title: 'Audio',
                       icon: Icons.music_note_rounded,
-                      items: audios,
+                      items: dashboard.audios,
                     ),
-                  ],
 
-                  // Artists Section (Moved from Library)
-                  if (dashboard.artists.isNotEmpty) ...[
-                    _buildArtistSection(context, dashboard.artists),
-                  ],
-
-                  // Empty state
                   if (latestReleases.isEmpty &&
                       popularTracks.isEmpty &&
                       recentlyPlayed.isEmpty)
                     _buildEmptyState(),
                 ],
 
-                // Footer
                 const SliverToBoxAdapter(child: AppFooter()),
                 const SliverToBoxAdapter(child: SizedBox(height: 100)),
               ],
@@ -331,197 +384,144 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader(ThemeData theme) {
-    // Interactive Hero Carousel - Shows top active featured items
     return SliverToBoxAdapter(
       child: Consumer<DashboardService>(
         builder: (context, dashboard, _) {
           final featuredItems = dashboard.featuredActive;
-
           if (featuredItems.isEmpty) return const SizedBox.shrink();
-
           return FeaturedCarousel(items: featuredItems, onPlay: _playMedia);
         },
       ),
     );
   }
 
-  Widget _buildSection(
+  List<Widget> _buildSectionSlivers(
     BuildContext context, {
     required String title,
     required IconData icon,
-    required List<MediaItem> items,
+    required List<dynamic> items,
     bool isHorizontal = false,
     bool showBadge = false,
     VoidCallback? onSeeAll,
   }) {
     final mediaService = context.watch<MediaService>();
 
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(
-            title: title,
-            actionLabel: 'See all',
-            onActionTap: onSeeAll,
-            padding: const EdgeInsets.only(
-              left: AppSpacing.screenPadding,
-              right: AppSpacing.screenPadding,
-              bottom: AppSpacing.sm,
-            ),
-          ),
-          SizedBox(
-            height: 200, // Reduced height for compact look
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenPadding,
-              ),
-              scrollDirection: Axis.horizontal,
-              itemCount: items.length > 10 ? 10 : items.length,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return SizedBox(
-                  width: 140, // Smaller tiles for better rhythm
-                  child: AuraAlbumCard(
-                    title: item.title,
-                    subtitle: item.artistName,
-                    imageUrl: item.thumbnailUrl ?? '',
-                    mediaType: item.mediaType,
-                    isNew: showBadge && index < 3,
-                    isLiked: mediaService.isLiked(item.id, initial: item.liked),
-                    onTap: () => _playMedia(items, index),
-                    onLikeTap: () => _toggleLike(item),
-                    onMoreTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        backgroundColor: Colors.transparent,
-                        builder: (context) =>
-                            AddToPlaylistSheet(mediaItem: item),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg), // Space before next section
-        ],
-      ),
-    );
-  }
+    if (items.isEmpty) return [];
 
-  Widget _buildGridSection(
-    BuildContext context, {
-    required String title,
-    required IconData icon,
-    required List<MediaItem> items,
-  }) {
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: SectionHeader(
+    return [
+      SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(
               title: title,
-              actionLabel: 'See all',
-              onActionTap: () {
-                final mediaService = context.read<MediaService>();
-                AppNavigation.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PaginatedSectionScreen(
-                      title: title,
-                      fetchPagedItems: (page, size) =>
-                          mediaService.fetchMedia(
-                            page: page,
-                            size: size,
-                            mediaType: 'VIDEO',
-                          ),
-                    ),
-                  ),
-                );
-              },
+              actionLabel: onSeeAll != null ? 'See all' : null,
+              onActionTap: onSeeAll,
+              padding: const EdgeInsets.only(
+                left: AppSpacing.screenPadding,
+                right: AppSpacing.screenPadding,
+                bottom: AppSpacing.sm,
+              ),
             ),
-          ),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenPadding,
-              vertical: AppSpacing.sm,
+            SizedBox(
+              height: 200,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                ),
+                scrollDirection: Axis.horizontal,
+                itemCount: items.length > 10 ? 10 : items.length,
+                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  if (item is MediaItem) {
+                    return SizedBox(
+                      width: 140,
+                      child: AuraAlbumCard(
+                        title: item.title,
+                        subtitle: item.artistName,
+                        imageUrl: item.thumbnailUrl ?? '',
+                        mediaType: item.mediaType,
+                        isNew: showBadge && index < 3,
+                        isLiked: mediaService.isLiked(item.id, initial: item.liked),
+                        onTap: () => _playMedia(items.cast<MediaItem>(), index),
+                        onLikeTap: () => _toggleLike(item),
+                        onMoreTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) =>
+                                AddToPlaylistSheet(mediaItem: item),
+                          );
+                        },
+                      ),
+                    );
+                  } else if (item is Playlist) {
+                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    return _buildPlaylistCard(context, item, isDark);
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
             ),
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 200,
-              mainAxisSpacing: AppSpacing.md,
-              crossAxisSpacing: AppSpacing.md,
-              childAspectRatio: 0.85,
-            ),
-            itemCount: items.length > 6 ? 6 : items.length,
-            itemBuilder: (context, index) {
-              final item = items[index];
-              return AuraAlbumCard(
-                title: item.title,
-                subtitle: item.artistName,
-                imageUrl: item.thumbnailUrl ?? '',
-                mediaType: item.mediaType,
-                onTap: () => _playMedia(items, index),
-              );
-            },
-          ),
-        ],
+            const SizedBox(height: AppSpacing.lg),
+          ],
+        ),
       ),
-    );
+    ];
   }
 
-  Widget _buildListSection(
+  List<Widget> _buildListSectionSlivers(
     BuildContext context, {
     required String title,
     required IconData icon,
     required List<MediaItem> items,
+    VoidCallback? onSeeAll,
   }) {
     final player = context.watch<PlayerProvider>();
     final mediaService = context.watch<MediaService>();
 
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: SectionHeader(
-              title: title,
-              actionLabel: 'See all',
-              onActionTap: () {
-                final mediaService = context.read<MediaService>();
-                AppNavigation.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => PaginatedSectionScreen(
-                      title: title,
-                      fetchPagedItems: (page, size) =>
-                          mediaService.fetchMedia(
-                            page: page,
-                            size: size,
-                            mediaType: 'AUDIO',
-                          ),
+    if (items.isEmpty) return [];
+
+    return [
+      SliverToBoxAdapter(
+        child: Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: SectionHeader(
+            title: title,
+            actionLabel: onSeeAll != null ? 'See all' : null,
+            onActionTap: onSeeAll ??
+                () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PaginatedSectionScreen(
+                        title: title,
+                        fetchPagedItems: (page, size) =>
+                            mediaService.fetchMedia(
+                          page: page,
+                          size: size,
+                          mediaType: 'AUDIO',
+                        ),
+                      ),
                     ),
-                  ),
-                );
-              },
-            ),
-          ),
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+                  );
+                },
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.screenPadding,
-              vertical: AppSpacing.sm,
             ),
-            itemCount: items.length > 5 ? 5 : items.length,
-            itemBuilder: (context, index) {
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenPadding,
+          vertical: AppSpacing.sm,
+        ),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            (context, index) {
               final item = items[index];
               final isPlaying = player.currentMedia?.id == item.id;
 
@@ -548,8 +548,38 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               );
             },
+            childCount: items.length > 5 ? 5 : items.length,
           ),
-        ],
+        ),
+      ),
+      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+    ];
+  }
+
+
+  Widget _buildEmptyState() {
+    return SliverFillRemaining(
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.sentiment_dissatisfied_rounded,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'No content available',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Check back later for new music and videos!',
+              style: TextStyle(color: Colors.grey[600]),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -602,120 +632,226 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildFeaturedPlaylistsSection(BuildContext context) {
+  List<Widget> _buildFeaturedPlaylistsSectionSlivers(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
-    return Consumer<LibraryService>(
-      builder: (context, libraryService, _) {
-        final featuredPlaylists = libraryService.featuredPlaylists;
+    return [
+      Consumer<LibraryService>(
+        builder: (context, libraryService, _) {
+          final featuredPlaylists = libraryService.featuredPlaylists;
 
-        if (featuredPlaylists.isEmpty) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
-        }
+          if (featuredPlaylists.isEmpty) {
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          }
 
-        return SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Section Header
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.lg),
-                child: SectionHeader(
-                  title: 'Featured Playlists',
-                  actionLabel: 'See all',
-                  onActionTap: () {
-                    AppNavigation.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const FeaturedPlaylistsBrowseScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // Playlist Cards Horizontal Scroll
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenPadding,
+          return SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: SectionHeader(
+                    title: 'Featured Playlists',
+                    actionLabel: 'See all',
+                    onActionTap: () {
+                      AppNavigation.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const FeaturedPlaylistsBrowseScreen(),
+                        ),
+                      );
+                    },
                   ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: featuredPlaylists.length,
-                  itemBuilder: (context, index) {
-                    final playlist = featuredPlaylists[index];
-                    return _buildPlaylistCard(context, playlist, isDark);
-                  },
                 ),
-              ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-          ),
-        );
-      },
-    );
+
+                SizedBox(
+                  height: 200,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.screenPadding,
+                    ),
+                    scrollDirection: Axis.horizontal,
+                    itemCount: featuredPlaylists.length,
+                    itemBuilder: (context, index) {
+                      final playlist = featuredPlaylists[index];
+                      return _buildPlaylistCard(context, playlist, isDark);
+                    },
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+              ],
+            ),
+          );
+        },
+      ),
+    ];
   }
 
-  Widget _buildPopularPlaylistsSection(BuildContext context) {
-    return Consumer<DashboardService>(
-      builder: (context, dashboard, _) {
-        final popularPlaylists = dashboard.popularPlaylists;
+  List<Widget> _buildAlbumsSectionSlivers(BuildContext context) {
+    return [
+      Consumer<AlbumService>(
+        builder: (context, albumService, _) {
+          final albums = albumService.albums;
+          final isDark = Theme.of(context).brightness == Brightness.dark;
 
-        if (popularPlaylists.isEmpty) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
-        }
+          if (albums.isEmpty && !albumService.isLoading) {
+            return const SliverToBoxAdapter(child: SizedBox.shrink());
+          }
 
-        return SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Section Header
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.lg),
-                child: SectionHeader(
-                  title: 'Popular Playlists',
-                  actionLabel: 'See all',
-                  onActionTap: () {
-                    // Navigate to a popular playlists browse screen if available, 
-                    // or just show them in a simple section screen
-                    AppNavigation.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => SimpleSectionScreen(
-                          title: 'Popular Playlists',
-                          items: [], // SimpleSectionScreen expect MediaItems, we need a Playlist variant or update it
-                          // For now, let's keep it simple or just not have a see all yet if not easily supported
+          return SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: SectionHeader(
+                    title: 'Albums',
+                    actionLabel: 'See all',
+                    onActionTap: () {
+                      AppNavigation.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AlbumsBrowseScreen(),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // Playlist Cards Horizontal Scroll
-              SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenPadding,
+                      );
+                    },
                   ),
-                  scrollDirection: Axis.horizontal,
-                  itemCount: popularPlaylists.length,
-                  itemBuilder: (context, index) {
-                    final playlist = popularPlaylists[index];
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
-                    return _buildPlaylistCard(context, playlist, isDark);
-                  },
                 ),
+                SizedBox(
+                  height: 200,
+                  child: albumService.isLoading
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.screenPadding,
+                          ),
+                          scrollDirection: Axis.horizontal,
+                          itemCount: albums.length > 10 ? 10 : albums.length,
+                          itemBuilder: (context, index) {
+                            final album = albums[index];
+                            return _buildAlbumCard(context, album, isDark);
+                          },
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    ];
+  }
+
+  List<Widget> _buildArtistSectionSlivers(BuildContext context, List<Artist> artists) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return [
+      SliverToBoxAdapter(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: SectionHeader(
+                title: 'Artists',
+                actionLabel: 'See all',
+                onActionTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ArtistsBrowseScreen(),
+                    ),
+                  );
+                },
               ),
-              const SizedBox(height: AppSpacing.lg),
-            ],
-          ),
-        );
-      },
-    );
+            ),
+            SizedBox(
+              height: 160,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                ),
+                scrollDirection: Axis.horizontal,
+                itemCount: artists.length > 10 ? 10 : artists.length,
+                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final artist = artists[index];
+                  return GestureDetector(
+                    onTap: () {
+                      AppNavigation.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ArtistDetailScreen(artist: artist),
+                        ),
+                      );
+                    },
+                    child: SizedBox(
+                      width: 110,
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 110,
+                            height: 110,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.2),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                              image: artist.imageUrl != null
+                                  ? DecorationImage(
+                                      image: CachedNetworkImageProvider(artist.imageUrl!),
+                                      fit: BoxFit.cover,
+                                    )
+                                  : null,
+                              color: isDark ? Colors.grey[800] : Colors.grey[200],
+                            ),
+                            child: artist.imageUrl == null
+                                ? Center(
+                                    child: Text(
+                                      artist.name.isNotEmpty
+                                          ? artist.name[0].toUpperCase()
+                                          : '?',
+                                      style: TextStyle(
+                                        fontSize: 40,
+                                        fontWeight: FontWeight.bold,
+                                        color: isDark
+                                            ? Colors.grey[400]
+                                            : Colors.grey[500],
+                                      ),
+                                    ),
+                                  )
+                                : null,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            artist.name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   Widget _buildPlaylistCard(
@@ -746,252 +882,36 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             AspectRatio(
               aspectRatio: 1,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 8,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                  child:
-                      playlist.coverUrl != null && playlist.coverUrl!.isNotEmpty
-                      ? CachedNetworkImage(
-                          imageUrl: playlist.coverUrl!,
-                          fit: BoxFit.cover,
-                          placeholder: (_, __) => Container(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            width: double.infinity,
-                            height: double.infinity,
-                            child: Icon(
-                              Icons.playlist_play_rounded,
-                              color: isDark ? Colors.grey[600] : Colors.grey[400],
-                              size: 48,
-                            ),
-                          ),
-                          errorWidget: (_, __, ___) => Container(
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                            width: double.infinity,
-                            height: double.infinity,
-                            child: Icon(
-                              Icons.playlist_play_rounded,
-                              color: isDark ? Colors.grey[600] : Colors.grey[400],
-                              size: 48,
-                            ),
-                          ),
-                        )
-                      : Container(
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          width: double.infinity,
-                          height: double.infinity,
-                          child: Icon(
-                            Icons.playlist_play_rounded,
-                            color: isDark ? Colors.grey[600] : Colors.grey[400],
-                            size: 48,
-                          ),
-                        ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                child: CachedNetworkImage(
+                  imageUrl: playlist.coverUrl ?? '',
+                  fit: BoxFit.cover,
+                  memCacheWidth: 280,
+                  placeholder: (_, __) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                  errorWidget: (_, __, ___) => Container(
+                    color: isDark ? Colors.grey[900] : Colors.grey[200],
+                    child: const Icon(Icons.playlist_play_rounded, size: 40),
+                  ),
                 ),
               ),
             ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Title
+            const SizedBox(height: 8),
             Text(
               playlist.name,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-
-            // Track count
             Text(
               '${playlist.trackCount} songs',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildArtistSection(BuildContext context, List<Artist> artists) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return SliverToBoxAdapter(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: SectionHeader(
-              title: 'Artists',
-              actionLabel: 'See all',
-              onActionTap: () {
-                AppNavigation.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ArtistsBrowseScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-          SizedBox(
-            height: 160,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.screenPadding,
-              ),
-              scrollDirection: Axis.horizontal,
-              itemCount: artists.length > 10 ? 10 : artists.length,
-              separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, index) {
-                final artist = artists[index];
-                return GestureDetector(
-                  onTap: () {
-                    AppNavigation.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => ArtistDetailScreen(artist: artist),
-                      ),
-                    );
-                  },
-                  child: SizedBox(
-                    width: 110,
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 110,
-                          height: 110,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.2),
-                                blurRadius: 8,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                            image: artist.imageUrl != null
-                                ? DecorationImage(
-                                    image: NetworkImage(artist.imageUrl!),
-                                    fit: BoxFit.cover,
-                                  )
-                                : null,
-                            color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          ),
-                          child: artist.imageUrl == null
-                              ? Center(
-                                  child: Text(
-                                    artist.name.isNotEmpty
-                                        ? artist.name[0].toUpperCase()
-                                        : '?',
-                                    style: TextStyle(
-                                      fontSize: 40,
-                                      fontWeight: FontWeight.bold,
-                                      color: isDark
-                                          ? Colors.grey[400]
-                                          : Colors.grey[500],
-                                    ),
-                                  ),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          artist.name,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAlbumsSection(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
-    return Consumer<AlbumService>(
-      builder: (context, albumService, _) {
-        final albums = albumService.albums;
-
-        if (albums.isEmpty && !albumService.isLoading) {
-          return const SliverToBoxAdapter(child: SizedBox.shrink());
-        }
-
-        return SliverToBoxAdapter(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Section Header
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.lg),
-                child: SectionHeader(
-                  title: 'Albums',
-                  actionLabel: 'See all',
-                  onActionTap: () {
-                    AppNavigation.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const AlbumsBrowseScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ),
-
-              // Album Cards Horizontal Scroll
-              SizedBox(
-                height: 200,
-                child: albumService.isLoading
-                    ? const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.primary,
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.screenPadding,
-                        ),
-                        scrollDirection: Axis.horizontal,
-                        itemCount: albums.length > 10
-                            ? 10
-                            : albums.length, // Limit to 10 items
-                        itemBuilder: (context, index) {
-                          final album = albums[index];
-                          return _buildAlbumCard(context, album, isDark);
-                        },
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 
@@ -1022,107 +942,34 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Album Cover
-            Container(
-              height: 140,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 8,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            AspectRatio(
+              aspectRatio: 1,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: album.coverUrl != null && album.coverUrl!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: album.coverUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          child: Icon(
-                            Icons.album_rounded,
-                            color: isDark ? Colors.grey[600] : Colors.grey[400],
-                            size: 48,
-                          ),
-                        ),
-                        errorWidget: (_, __, ___) => Container(
-                          color: isDark ? Colors.grey[800] : Colors.grey[200],
-                          child: Icon(
-                            Icons.album_rounded,
-                            color: isDark ? Colors.grey[600] : Colors.grey[400],
-                            size: 48,
-                          ),
-                        ),
-                      )
-                    : Container(
-                        color: isDark ? Colors.grey[800] : Colors.grey[200],
-                        child: Icon(
-                          Icons.album_rounded,
-                          color: isDark ? Colors.grey[600] : Colors.grey[400],
-                          size: 48,
-                        ),
-                      ),
+                child: CachedNetworkImage(
+                  imageUrl: album.coverUrl ?? '',
+                  fit: BoxFit.cover,
+                  memCacheWidth: 280,
+                  placeholder: (_, __) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                  errorWidget: (_, __, ___) => Container(
+                    color: isDark ? Colors.grey[900] : Colors.grey[200],
+                    child: const Icon(Icons.album_rounded, size: 40),
+                  ),
+                ),
               ),
-            ),
-
-            const SizedBox(height: AppSpacing.sm),
-
-            // Title
-            Text(
-              album.title,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-
-            // Artist
-            Text(
-              album.artistName,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: isDark ? Colors.grey[400] : Colors.grey[600],
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return SliverFillRemaining(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.library_music_rounded,
-                size: 48,
-                color: AppColors.primary,
-              ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              'No content yet',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
-              'Discover new music in search',
-              style: TextStyle(color: Colors.grey[600]),
+              album.title,
+              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              album.artistName,
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

@@ -13,6 +13,7 @@ import 'core/services/artist_service.dart';
 import 'core/services/profile_service.dart';
 import 'core/services/public_dashboard_service.dart';
 import 'core/services/app_settings_service.dart';
+import 'core/services/comment_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/screens/maintenance_page.dart';
 import 'features/settings/screens/update_required_page.dart';
@@ -65,13 +66,13 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MediaService(apiService)),
         ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
         ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
-        ChangeNotifierProvider(create: (_) => AlbumService(apiService)),
         ChangeNotifierProvider(create: (_) => ArtistService(apiService)),
         ChangeNotifierProvider(
           create: (_) => ProfileProvider(ProfileService(apiService)),
         ),
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
         ChangeNotifierProvider(create: (_) => AppSettingsService(apiService)),
+        Provider<CommentService>(create: (_) => CommentService(apiService)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -103,9 +104,15 @@ class _AppRouterState extends State<_AppRouter> {
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
+    
+    final authService = context.read<AuthService>();
+    if (authService.accessToken == null) return; // Wait for token to be available
+    
     _settingsFetched = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppSettingsService>().fetchSettings();
+      if (mounted) {
+        context.read<AppSettingsService>().fetchSettings();
+      }
     });
   }
 

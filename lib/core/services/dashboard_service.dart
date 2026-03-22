@@ -19,6 +19,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> _audios = [];
   List<Playlist> _popularPlaylists = [];
   List<MediaItem> _featuredActive = [];
+  List<MediaItem> _podcasts = [];
   bool _isLoading = false;
   String? _error;
   
@@ -29,6 +30,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> get audios => _audios;
   List<Playlist> get popularPlaylists => _popularPlaylists;
   List<MediaItem> get featuredActive => _featuredActive;
+  List<MediaItem> get podcasts => _podcasts;
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -63,6 +65,11 @@ class DashboardService extends ChangeNotifier {
           final seen = <String>{};
           _recentlyPlayed = allHistory.where((item) => seen.add(item.id)).toList();
         }
+        if (data['podcasts'] != null) {
+          _podcasts = (data['podcasts'] as List)
+              .map((item) => MediaItem.fromJson(item))
+              .toList();
+        }
       }
 
       // Fetch artists, videos, and audios concurrently
@@ -70,9 +77,9 @@ class DashboardService extends ChangeNotifier {
         // Artists
         (() async {
           try {
-            final artistsData = await _api.get('/user/library/artists/all');
-            if (artistsData != null && artistsData is List) {
-              _artists = artistsData.map((item) => Artist.fromJson(item)).toList();
+            final artistsData = await _api.get('/user/library/artists', queryParams: {'page': '0', 'size': '20'});
+            if (artistsData != null && artistsData['content'] != null) {
+              _artists = (artistsData['content'] as List).map((item) => Artist.fromJson(item)).toList();
             }
           } catch (e) {
             debugPrint('Dashboard artists fetch error: $e');
@@ -123,7 +130,7 @@ class DashboardService extends ChangeNotifier {
         // Featured Active
         (() async {
           try {
-            await fetchFeaturedActive();
+            await fetchFeaturedActive(notify: false);
           } catch (e) {
             debugPrint('Dashboard featured active fetch error: $e');
           }
@@ -239,12 +246,12 @@ class DashboardService extends ChangeNotifier {
 
   /// Fetch popular playlists
   /// GET /api/user/library/playlists/popular
-  Future<List<Playlist>> fetchPopularPlaylists() async {
+  Future<List<Playlist>> fetchPopularPlaylists({bool notify = true}) async {
     try {
       final data = await _api.get('/user/library/playlists/popular');
       if (data != null && data is List) {
         _popularPlaylists = data.map((item) => Playlist.fromJson(item)).toList();
-        notifyListeners();
+        if (notify) notifyListeners();
       }
       return _popularPlaylists;
     } catch (e) {
@@ -255,7 +262,7 @@ class DashboardService extends ChangeNotifier {
 
   /// Fetch active featured items
   /// GET /api/featured/active
-  Future<List<MediaItem>> fetchFeaturedActive() async {
+  Future<List<MediaItem>> fetchFeaturedActive({bool notify = true}) async {
     try {
       debugPrint('🚀 [DashboardService] Calling fetchFeaturedActive...');
       final data = await _api.get('/featured/active');
@@ -279,7 +286,7 @@ class DashboardService extends ChangeNotifier {
         }).toList();
         
         debugPrint('🚀 [DashboardService] Parsed ${_featuredActive.length} featured active items.');
-        notifyListeners();
+        if (notify) notifyListeners();
       } else {
         debugPrint('⚠️ [DashboardService] fetchFeaturedActive returned empty or invalid data format.');
       }

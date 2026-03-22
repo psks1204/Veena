@@ -19,38 +19,58 @@ class ArtistsBrowseScreen extends StatefulWidget {
 
 class _ArtistsBrowseScreenState extends State<ArtistsBrowseScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   bool _isSearching = false;
   String _searchQuery = '';
   List<Artist> _artists = [];
   bool _isLoading = true;
+  bool _isFetchingMore = false;
+  int _currentPage = 0;
+  bool _hasMore = true;
   String? _error;
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadArtists();
     });
   }
 
+  void _onScroll() {
+    if (_searchQuery.isNotEmpty) return; // Disable pagination during search for simplicity
+    
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      if (!_isLoading && !_isFetchingMore && _hasMore) {
+        _loadMoreArtists();
+      }
+    }
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _loadArtists() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
+      _currentPage = 0;
+      _hasMore = true;
     });
 
     try {
       final artistService = context.read<ArtistService>();
-      final artists = await artistService.getAllArtists();
+      final response = await artistService.getAllArtists(page: 0);
       if (mounted) {
         setState(() {
-          _artists = artists;
+          _artists = response.content;
+          _hasMore = !response.isLast;
           _isLoading = false;
         });
       }
@@ -60,6 +80,32 @@ class _ArtistsBrowseScreenState extends State<ArtistsBrowseScreen> {
           _error = 'Failed to load artists';
           _isLoading = false;
         });
+      }
+    }
+  }
+
+  Future<void> _loadMoreArtists() async {
+    if (_isFetchingMore || !_hasMore || _searchQuery.isNotEmpty) return;
+
+    setState(() => _isFetchingMore = true);
+
+    try {
+      final artistService = context.read<ArtistService>();
+      final nextPage = _currentPage + 1;
+      final response = await artistService.getAllArtists(page: nextPage);
+      
+      if (mounted) {
+        setState(() {
+          _artists.addAll(response.content);
+          _currentPage = nextPage;
+          _hasMore = !response.isLast;
+          _isFetchingMore = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading more artists: $e');
+      if (mounted) {
+        setState(() => _isFetchingMore = false);
       }
     }
   }
@@ -85,6 +131,7 @@ class _ArtistsBrowseScreenState extends State<ArtistsBrowseScreen> {
 
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           // App Bar with search
           SliverAppBar(
@@ -196,23 +243,36 @@ class _ArtistsBrowseScreenState extends State<ArtistsBrowseScreen> {
       );
     }
 
-    return SliverPadding(
-      padding: const EdgeInsets.all(AppSpacing.screenPadding),
-      sliver: SliverGrid(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 160,
-          childAspectRatio: 0.8,
-          crossAxisSpacing: AppSpacing.md,
-          mainAxisSpacing: AppSpacing.lg,
+    return SliverMainAxisGroup(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(AppSpacing.screenPadding),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+              maxCrossAxisExtent: 160,
+              childAspectRatio: 0.8,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.lg,
+            ),
+            delegate: SliverChildBuilderDelegate((context, index) {
+              final artist = filteredArtists[index];
+              return _ArtistCard(
+                artist: artist,
+                onTap: () => _navigateToArtist(artist),
+              );
+            }, childCount: filteredArtists.length),
+          ),
         ),
-        delegate: SliverChildBuilderDelegate((context, index) {
-          final artist = filteredArtists[index];
-          return _ArtistCard(
-            artist: artist,
-            onTap: () => _navigateToArtist(artist),
-          );
-        }, childCount: filteredArtists.length),
-      ),
+        if (_isFetchingMore)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.lg),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            ),
+          ),
+      ],
     );
   }
 

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
@@ -9,8 +8,6 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/models/media_item.dart';
-import '../../../core/models/lyrics_model.dart';
-import '../../../core/navigation/app_navigation.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
@@ -18,6 +15,9 @@ import '../../../shared/widgets/lyrics_card.dart';
 import 'lyrics_fullscreen_screen.dart';
 import '../../../core/models/artist.dart';
 import '../../library/screens/artist_detail_screen.dart';
+import '../../../core/navigation/app_navigation.dart';
+import '../../../core/services/app_settings_service.dart';
+import '../widgets/comments_sheet.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
 ///
@@ -593,7 +593,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        media.artistName ?? 'Unknown Artist',
+                        media.fullArtistString,
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.7),
                           fontSize: 14,
@@ -601,6 +601,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      _buildCreditsSection(media),
                     ],
                   ),
                 ),
@@ -652,13 +653,34 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     size: 24,
                   ),
                 ),
-                IconButton(
-                  onPressed: () => _showQueueSheet(player),
-                  icon: const Icon(
-                    Icons.queue_music_rounded,
-                    color: Colors.white70,
-                    size: 24,
-                  ),
+                Row(
+                  children: [
+                    if (context.watch<AppSettingsService>().enableComments)
+                      IconButton(
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) =>
+                                CommentsSheet(mediaId: media.id),
+                          );
+                        },
+                        icon: const Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          color: Colors.white70,
+                          size: 24,
+                        ),
+                      ),
+                    IconButton(
+                      onPressed: () => _showQueueSheet(player),
+                      icon: const Icon(
+                        Icons.queue_music_rounded,
+                        color: Colors.white70,
+                        size: 24,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -718,12 +740,16 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             name: media.artist!.name,
             imageUrl: media.artist!.imageUrl,
             verified: media.artist!.verified,
+            followerCount: media.artist!.followerCount,
+            totalPlays: media.playedCount,
           );
         } else if (media.artistId != null) {
           theArtist = Artist(
             id: media.artistId!,
             name: artistName,
             imageUrl: artistImage,
+            followerCount: media.artist?.followerCount ?? 0,
+            totalPlays: media.playedCount,
           );
         }
 
@@ -901,6 +927,43 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     );
   }
 
+  /// Credits section - Spotify style
+  Widget _buildCreditsSection(MediaItem media, {bool centered = false}) {
+    final List<Widget> creditWidgets = [];
+
+    void addCredit(String label, String? name) {
+      if (name != null && name.isNotEmpty) {
+        creditWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+              '$label: $name',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: centered ? TextAlign.center : TextAlign.start,
+            ),
+          ),
+        );
+      }
+    }
+
+    addCredit('Lyricist', media.lyricist?.name ?? media.lyricistName);
+    addCredit('Composer', media.composer?.name ?? media.composerName);
+    addCredit('Producer', media.producer?.name ?? media.producerName);
+    addCredit('Director', media.director?.name ?? media.directorName);
+
+    if (creditWidgets.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment:
+          centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      children: creditWidgets,
+    );
+  }
+
   /// Mobile top bar widget
   Widget _buildMobileTopBar(
     PlayerProvider player,
@@ -976,15 +1039,16 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  media.allCreditsString,
+                  media.fullArtistString,
                   style: const TextStyle(
                     color: Colors.white70,
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),
-                  maxLines: 2,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                _buildCreditsSection(media),
               ],
             ),
           ),
@@ -1187,6 +1251,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     final linkedMedia = player.currentMedia?.linkedMedia;
     final hasLinkedMedia = linkedMedia != null;
 
+    final settings = context.watch<AppSettingsService>();
+    final showComments = settings.enableComments;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
@@ -1245,14 +1312,33 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           else
             const SizedBox.shrink(),
 
-          // Queue button
-          IconButton(
-            onPressed: () => _showQueueSheet(player),
-            icon: const Icon(
-              Icons.queue_music_rounded,
-              color: Colors.white70,
-              size: 24,
-            ),
+          Row(
+            children: [
+              if (showComments)
+                IconButton(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => CommentsSheet(mediaId: player.currentMedia!.id),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.chat_bubble_outline_rounded,
+                    color: Colors.white70,
+                    size: 24,
+                  ),
+                ),
+              IconButton(
+                onPressed: () => _showQueueSheet(player),
+                icon: const Icon(
+                  Icons.queue_music_rounded,
+                  color: Colors.white70,
+                  size: 24,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1602,15 +1688,18 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     // Artist name & Credits
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: Text(
-                        media.allCreditsString,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.6),
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        children: [
+                          Text(
+                            media.fullArtistString,
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.8),
+                              fontSize: 16,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          _buildCreditsSection(media, centered: true),
+                        ],
                       ),
                     ),
 
@@ -1740,18 +1829,44 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             ),
           ),
 
-        // Bottom right - Queue button
+        // Bottom right - Queue & Comments buttons
         Positioned(
           right: 24,
           bottom: 24,
-          child: IconButton(
-            onPressed: () => _showQueueSheet(player),
-            icon: const Icon(
-              Icons.queue_music_rounded,
-              color: Colors.white70,
-              size: 28,
-            ),
-            tooltip: 'Queue',
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (context.watch<AppSettingsService>().enableComments)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: IconButton(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (context) =>
+                            CommentsSheet(mediaId: media.id),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.chat_bubble_outline_rounded,
+                      color: Colors.white70,
+                      size: 28,
+                    ),
+                    tooltip: 'Comments',
+                  ),
+                ),
+              IconButton(
+                onPressed: () => _showQueueSheet(player),
+                icon: const Icon(
+                  Icons.queue_music_rounded,
+                  color: Colors.white70,
+                  size: 28,
+                ),
+                tooltip: 'Queue',
+              ),
+            ],
           ),
         ),
       ],

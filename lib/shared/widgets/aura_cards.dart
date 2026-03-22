@@ -88,6 +88,7 @@ class _AuraAlbumCardState extends State<AuraAlbumCard> {
                                ? CachedNetworkImage(
                                    imageUrl: widget.imageUrl,
                                    fit: BoxFit.cover,
+                                   memCacheWidth: 400, // Optimize for grid/list tiles
                                    placeholder: (context, url) => Container(color: theme.colorScheme.surfaceContainerHighest),
                                    errorWidget: (context, url, error) => _buildPlaceholder(theme),
                                  )
@@ -342,6 +343,7 @@ class AuraTrackTile extends StatelessWidget {
                      CachedNetworkImage(
                        imageUrl: imageUrl!,
                        fit: BoxFit.cover,
+                       memCacheWidth: 150, // Small optimization for track tiles
                      ),
                      if (isPlaying)
                       Container(

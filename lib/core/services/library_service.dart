@@ -360,9 +360,9 @@ class LibraryService extends ChangeNotifier {
   /// GET /api/user/library/artists/all
   Future<List<Artist>> getAllArtists() async {
     try {
-      final data = await _api.get('/user/library/artists/all');
-      if (data != null && data is List) {
-        return data.map((item) => Artist.fromJson(item)).toList();
+      final data = await _api.get('/user/library/artists', queryParams: {'page': '0', 'size': '20'});
+      if (data != null && data['content'] != null) {
+        return (data['content'] as List).map((item) => Artist.fromJson(item)).toList();
       }
       return [];
     } catch (e) {

@@ -76,7 +76,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
         SizedBox(
           child: kIsWeb 
             ? SizedBox(
-                height: 350, // Fixed smaller height for web
+                height: 180, // Halved from 350
                 child: PageView.builder(
                   controller: _pageController,
                   onPageChanged: _onPageChanged,
@@ -88,7 +88,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                 ),
               )
             : SizedBox(
-                height: 300,
+                height: 150, // Halved from 300
                 child: PageView.builder(
                   controller: _pageController,
                   onPageChanged: _onPageChanged,
@@ -173,7 +173,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                 borderRadius: BorderRadius.circular(24),
                 child: Image.network(
                   item.thumbnailUrl ?? '',
-                  fit: kIsWeb ? BoxFit.contain : BoxFit.cover,
+                  fit: BoxFit.contain,
                   alignment: Alignment.center,
                   errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
                 ),
@@ -194,51 +194,54 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
               ),
               // Content
               Padding(
-                padding: const EdgeInsets.all(AppSpacing.xl),
+                padding: const EdgeInsets.all(AppSpacing.md), // Reduced padding
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
-                        borderRadius: BorderRadius.circular(20),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
                         'FEATURED',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.md),
+                    const SizedBox(height: AppSpacing.xs),
                     Text(
                       item.title,
-                      style: theme.textTheme.displaySmall?.copyWith(
+                      style: theme.textTheme.titleLarge?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 2),
                     Text(
                       item.artistName,
-                      style: theme.textTheme.titleMedium?.copyWith(
+                      style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white70,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: AppSpacing.lg),
-                    ElevatedButton.icon(
-                      onPressed: () => widget.onPlay(widget.items, widget.items.indexOf(item)),
-                      icon: const Icon(Icons.play_arrow_rounded, color: Colors.white),
-                      label: const Text('Play Now'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(
+                      height: 32,
+                      child: ElevatedButton.icon(
+                        onPressed: () => widget.onPlay(widget.items, widget.items.indexOf(item)),
+                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
+                        label: const Text('Play Now', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
                       ),
                     ),
                   ],

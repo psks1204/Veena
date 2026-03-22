@@ -9,7 +9,9 @@ import 'web_video_fullscreen.dart';
 import 'lyrics_card.dart';
 import '../../core/services/artist_service.dart';
 import '../../core/services/library_service.dart';
+import '../../core/services/app_settings_service.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
+import '../../features/player/widgets/comments_sheet.dart';
 
 /// Spotify-style Now Playing Panel
 ///
@@ -147,6 +149,24 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          if (context.watch<AppSettingsService>().enableComments)
+            IconButton(
+              onPressed: () {
+                showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  backgroundColor: Colors.transparent,
+                  builder: (context) => CommentsSheet(mediaId: media.id),
+                );
+              },
+              icon: Icon(
+                Icons.chat_bubble_outline_rounded,
+                color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+                size: 20,
+              ),
+              tooltip: 'Comments',
+              splashRadius: 18,
+            ),
           IconButton(
             onPressed: widget.onClose,
             icon: Icon(
@@ -324,6 +344,11 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               fontSize: 16,
             ),
           ),
+
+          const SizedBox(height: 8),
+
+          // Credits Section
+          _buildCreditsSection(media, isDark),
 
           const SizedBox(height: 24),
 
@@ -657,6 +682,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                               artist: Artist(
                                 id: media.artistId!,
                                 name: media.artistName!,
+                                imageUrl: media.artist?.imageUrl,
+                                followerCount: media.artist?.followerCount ?? 0,
+                                totalPlays: media.playedCount,
                               ),
                             ),
                           ),
@@ -773,5 +801,40 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
   void _toggleFullscreen(PlayerProvider player) {
     if (player.videoController == null) return;
     WebVideoFullscreen.show(context, player.videoController!);
+  }
+
+  /// Credits section - Spotify style
+  Widget _buildCreditsSection(MediaItem media, bool isDark) {
+    final List<Widget> creditWidgets = [];
+
+    void addCredit(String label, String? name) {
+      if (name != null && name.isNotEmpty) {
+        creditWidgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              '$label: $name',
+              style: TextStyle(
+                color: isDark ? Colors.white.withOpacity(0.9) : AppColors.lightTextSecondary,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    addCredit('Lyricist', media.lyricist?.name ?? media.lyricistName);
+    addCredit('Composer', media.composer?.name ?? media.composerName);
+    addCredit('Producer', media.producer?.name ?? media.producerName);
+    addCredit('Director', media.director?.name ?? media.directorName);
+
+    if (creditWidgets.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: creditWidgets,
+    );
   }
 }

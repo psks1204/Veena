@@ -10,11 +10,19 @@ class AppSettingsService extends ChangeNotifier {
 
   bool _maintenanceMode = false;
   String _minimumAppVersion = '2.0.0';
+  bool _enableComments = false;
+  bool _enableUserNotifications = true;
+  bool _defaultAutoplayForUsers = true;
+  bool _allowUserDownloads = false;
   bool _isLoading = false;
   bool _hasLoaded = false;
 
   bool get maintenanceMode => _maintenanceMode;
   String get minimumAppVersion => _minimumAppVersion;
+  bool get enableComments => _enableComments;
+  bool get enableUserNotifications => _enableUserNotifications;
+  bool get defaultAutoplayForUsers => _defaultAutoplayForUsers;
+  bool get allowUserDownloads => _allowUserDownloads;
   bool get isLoading => _isLoading;
   bool get hasLoaded => _hasLoaded;
 
@@ -35,7 +43,13 @@ class AppSettingsService extends ChangeNotifier {
       if (data != null) {
         _maintenanceMode = data['maintenanceMode'] ?? false;
         _minimumAppVersion = data['minimumAppVersion'] ?? '2.0.1';
+        _enableComments = data['enableComments'] ?? false;
+        _enableUserNotifications = data['enableUserNotifications'] ?? true;
+        _defaultAutoplayForUsers = data['defaultAutoplayForUsers'] ?? true;
+        _allowUserDownloads = data['allowUserDownloads'] ?? false;
+
         debugPrint('🔧 maintenanceMode: $_maintenanceMode');
+        debugPrint('💬 enableComments: $_enableComments');
         debugPrint(
           '📱 minimumAppVersion: $_minimumAppVersion (current: $currentAppVersion)',
         );

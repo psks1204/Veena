@@ -18,7 +18,8 @@ class ArtistDetailScreen extends StatefulWidget {
   State<ArtistDetailScreen> createState() => _ArtistDetailScreenState();
 }
 
-class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
+class _ArtistDetailScreenState extends State<ArtistDetailScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
   bool _isLoading = true;
   List<MediaItem> _tracks = [];
   late Artist _artist;
@@ -27,20 +28,31 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
   void initState() {
     super.initState();
     _artist = widget.artist;
-    _loadArtistTracks();
+    _tabController = TabController(length: 2, vsync: this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadArtistDetails());
   }
 
-  Future<void> _loadArtistTracks() async {
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadArtistDetails() async {
     setState(() => _isLoading = true);
     try {
-      final tracks = await context.read<LibraryService>().getArtistTracks(widget.artist.id);
+      final libraryService = context.read<LibraryService>();
+      
+      // Fetch tracks only - there is no API for single artistId details here
+      final tracks = await libraryService.getArtistTracks(widget.artist.id);
+
       if (mounted) {
         setState(() {
           _tracks = tracks;
         });
       }
     } catch (e) {
-      debugPrint('Error loading artist tracks: $e');
+      debugPrint('Error loading artist details: $e');
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -261,6 +273,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     },
                   );
                 },
+                childCount: _tracks.length,
               ),
             ),
           ],
@@ -375,6 +388,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Stats
                         // Stats row
                         Row(
                           children: [
@@ -398,7 +412,7 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> {
                             _buildFollowButton(),
                           ],
                         ),
-                        
+
                         // Bio
                         if (_artist.bio != null && _artist.bio!.isNotEmpty) ...[
                           const SizedBox(height: AppSpacing.xl),
