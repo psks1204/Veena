@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide RepeatMode;
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
