@@ -29,7 +29,7 @@ class ArtistService extends ChangeNotifier {
 
   /// Get followed artists (paginated)
   /// GET /api/artists/following/page
-  Future<PagedResponse<Artist>> getFollowedArtists({int page = 0, int size = 20}) async {
+  Future<PagedResponse<Artist>> getFollowedArtists({int page = 0, int size = 30}) async {
     _isLoading = true;
     notifyListeners();
     
@@ -72,7 +72,7 @@ class ArtistService extends ChangeNotifier {
   
   /// Get all artists (for dashboard/discovery)
   /// GET /api/user/library/artists
-  Future<PagedResponse<Artist>> getAllArtists({int page = 0, int size = 20}) async {
+  Future<PagedResponse<Artist>> getAllArtists({int page = 0, int size = 30}) async {
     try {
       final queryParams = {
         'page': page.toString(),

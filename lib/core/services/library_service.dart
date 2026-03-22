@@ -26,7 +26,8 @@ class Playlist {
       id: (json['id'] ?? '').toString(),
       name: json['name'] ?? json['title'] ?? 'Untitled',
       description: json['description'] as String?,
-      coverUrl: json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
+      coverUrl:
+          json['coverUrl'] ?? json['coverImageUrl'] ?? json['thumbnailUrl'],
       trackCount: json['trackCount'] ?? json['tracks']?.length ?? 0,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
@@ -61,9 +62,10 @@ class Album {
     if (json['artist'] != null && json['artist'] is Map) {
       name = json['artist']['name'] as String? ?? 'Unknown Artist';
     } else {
-      name = json['artistName'] as String? ?? 
-             json['artist'] as String? ?? 
-             'Unknown Artist';
+      name =
+          json['artistName'] as String? ??
+          json['artist'] as String? ??
+          'Unknown Artist';
     }
 
     return Album(
@@ -153,7 +155,7 @@ class LibraryService extends ChangeNotifier {
       // Fetch artists if still empty (fallback)
       if (_artists.isEmpty) {
         try {
-          await getArtists();
+          await getArtists(size: 30);
         } catch (e) {
           debugPrint('[LibraryService] Failed to load artists fallback: $e');
         }
@@ -302,12 +304,9 @@ class LibraryService extends ChangeNotifier {
   // ==================== ARTISTS ====================
 
   /// Get followed artists
-  /// Get followed artists
-  /// GET /api/artists/following/page
-  Future<List<Artist>> getArtists() async {
+  /// GET /api/user/library/artists
+  Future<List<Artist>> getArtists({int size = 30}) async {
     try {
-      // Using the new pagination endpoint but fetching first page for now
-      // Ideally this should use ArtistService, but keeping logic here for now to avoid circular dependencies if simple
       final data = await _api.get(
         '/artists/following/page',
         queryParams: {'page': '0', 'size': '50'},
@@ -357,12 +356,17 @@ class LibraryService extends ChangeNotifier {
   }
 
   /// Get all artists (not user-specific)
-  /// GET /api/user/library/artists/all
+  /// GET /api/user/library/artists
   Future<List<Artist>> getAllArtists() async {
     try {
-      final data = await _api.get('/user/library/artists', queryParams: {'page': '0', 'size': '20'});
+      final data = await _api.get(
+        '/user/library/artists',
+        queryParams: {'page': '0', 'size': '30'},
+      );
       if (data != null && data['content'] != null) {
-        return (data['content'] as List).map((item) => Artist.fromJson(item)).toList();
+        return (data['content'] as List)
+            .map((item) => Artist.fromJson(item))
+            .toList();
       }
       return [];
     } catch (e) {
