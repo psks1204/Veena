@@ -5,13 +5,13 @@ import '../models/artist.dart';
 import 'library_service.dart'; // For Playlist model
 
 /// Dashboard Service
-/// 
+///
 /// Fetches home screen content from the backend.
 class DashboardService extends ChangeNotifier {
   final ApiService _api;
-  
+
   DashboardService(this._api);
-  
+
   List<MediaItem> _latestReleases = [];
   List<MediaItem> _popularTracks = [];
   List<MediaItem> _recentlyPlayed = [];
@@ -22,7 +22,7 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> _podcasts = [];
   bool _isLoading = false;
   String? _error;
-  
+
   List<MediaItem> get latestReleases => _latestReleases;
   List<MediaItem> get popularTracks => _popularTracks;
   List<MediaItem> get recentlyPlayed => _recentlyPlayed;
@@ -35,16 +35,16 @@ class DashboardService extends ChangeNotifier {
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  
+
   /// Fetch all dashboard data
   Future<void> fetchDashboard() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
-    
+
     try {
       final data = await _api.get('/user/dashboard');
-      
+
       // Parse dashboard sections
       if (data != null) {
         if (data['latestReleases'] != null) {
@@ -61,9 +61,11 @@ class DashboardService extends ChangeNotifier {
           final allHistory = (data['recentlyPlayed'] as List)
               .map((item) => MediaItem.fromJson(item))
               .toList();
-          
+
           final seen = <String>{};
-          _recentlyPlayed = allHistory.where((item) => seen.add(item.id)).toList();
+          _recentlyPlayed = allHistory
+              .where((item) => seen.add(item.id))
+              .toList();
         }
         if (data['podcasts'] != null) {
           _podcasts = (data['podcasts'] as List)
@@ -77,9 +79,14 @@ class DashboardService extends ChangeNotifier {
         // Artists
         (() async {
           try {
-            final artistsData = await _api.get('/user/library/artists', queryParams: {'page': '0', 'size': '20'});
+            final artistsData = await _api.get(
+              '/user/library/artists',
+              queryParams: {'page': '0', 'size': '30'},
+            );
             if (artistsData != null && artistsData['content'] != null) {
-              _artists = (artistsData['content'] as List).map((item) => Artist.fromJson(item)).toList();
+              _artists = (artistsData['content'] as List)
+                  .map((item) => Artist.fromJson(item))
+                  .toList();
             }
           } catch (e) {
             debugPrint('Dashboard artists fetch error: $e');
@@ -88,11 +95,10 @@ class DashboardService extends ChangeNotifier {
         // Videos (dedicated fetch via /media?type=VIDEO)
         (() async {
           try {
-            final videoData = await _api.get('/media', queryParams: {
-              'type': 'VIDEO',
-              'page': '0',
-              'size': '20',
-            });
+            final videoData = await _api.get(
+              '/media',
+              queryParams: {'type': 'VIDEO', 'page': '0', 'size': '20'},
+            );
             if (videoData != null && videoData['content'] != null) {
               _videos = (videoData['content'] as List)
                   .map((item) => MediaItem.fromJson(item))
@@ -105,11 +111,10 @@ class DashboardService extends ChangeNotifier {
         // Audios (dedicated fetch via /media?type=AUDIO)
         (() async {
           try {
-            final audioData = await _api.get('/media', queryParams: {
-              'type': 'AUDIO',
-              'page': '0',
-              'size': '20',
-            });
+            final audioData = await _api.get(
+              '/media',
+              queryParams: {'type': 'AUDIO', 'page': '0', 'size': '20'},
+            );
             if (audioData != null && audioData['content'] != null) {
               _audios = (audioData['content'] as List)
                   .map((item) => MediaItem.fromJson(item))
@@ -136,7 +141,7 @@ class DashboardService extends ChangeNotifier {
           }
         })(),
       ]);
-      
+
       _isLoading = false;
       notifyListeners();
     } catch (e) {
@@ -146,7 +151,7 @@ class DashboardService extends ChangeNotifier {
       debugPrint('Dashboard fetch error: $e');
     }
   }
-  
+
   /// Fetch latest releases only
   Future<List<MediaItem>> fetchLatestReleases() async {
     try {
@@ -161,7 +166,7 @@ class DashboardService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Fetch popular/trending tracks
   Future<List<MediaItem>> fetchPopularTracks() async {
     try {
@@ -176,7 +181,7 @@ class DashboardService extends ChangeNotifier {
       return [];
     }
   }
-  
+
   /// Fetch user's recently played
   Future<List<MediaItem>> fetchRecentlyPlayed() async {
     try {
@@ -194,10 +199,11 @@ class DashboardService extends ChangeNotifier {
       return [];
     }
   }
+
   /// Fetch paginated latest releases with optional type filter
   Future<List<MediaItem>> fetchLatestMedia({
-    int page = 1, 
-    int limit = 20, 
+    int page = 1,
+    int limit = 20,
     String? type,
   }) async {
     try {
@@ -206,9 +212,12 @@ class DashboardService extends ChangeNotifier {
         'limit': limit.toString(),
         if (type != null) 'type': type,
       };
-      
-      final data = await _api.get('/user/dashboard/latest', queryParams: queryParams);
-      
+
+      final data = await _api.get(
+        '/user/dashboard/latest',
+        queryParams: queryParams,
+      );
+
       if (data != null && data is List) {
         return data.map((item) => MediaItem.fromJson(item)).toList();
       }
@@ -232,7 +241,10 @@ class DashboardService extends ChangeNotifier {
         if (type != null) 'type': type,
       };
 
-      final data = await _api.get('/user/dashboard/popular', queryParams: queryParams);
+      final data = await _api.get(
+        '/user/dashboard/popular',
+        queryParams: queryParams,
+      );
 
       if (data != null && data is List) {
         return data.map((item) => MediaItem.fromJson(item)).toList();
@@ -250,7 +262,9 @@ class DashboardService extends ChangeNotifier {
     try {
       final data = await _api.get('/user/library/playlists/popular');
       if (data != null && data is List) {
-        _popularPlaylists = data.map((item) => Playlist.fromJson(item)).toList();
+        _popularPlaylists = data
+            .map((item) => Playlist.fromJson(item))
+            .toList();
         if (notify) notifyListeners();
       }
       return _popularPlaylists;
@@ -273,7 +287,9 @@ class DashboardService extends ChangeNotifier {
           return MediaItem(
             id: item['mediaId'] as String? ?? 'unknown_id',
             title: item['mediaTitle'] as String? ?? 'Featured Item',
-            mediaType: MediaType.fromString(item['mediaType'] as String? ?? 'AUDIO'),
+            mediaType: MediaType.fromString(
+              item['mediaType'] as String? ?? 'AUDIO',
+            ),
             thumbnailUrl: item['thumbnailUrl'] as String?,
             hlsUrl: item['hlsUrl'] as String?,
             status: MediaStatus.published,
@@ -284,11 +300,15 @@ class DashboardService extends ChangeNotifier {
                 : null,
           );
         }).toList();
-        
-        debugPrint('🚀 [DashboardService] Parsed ${_featuredActive.length} featured active items.');
+
+        debugPrint(
+          '🚀 [DashboardService] Parsed ${_featuredActive.length} featured active items.',
+        );
         if (notify) notifyListeners();
       } else {
-        debugPrint('⚠️ [DashboardService] fetchFeaturedActive returned empty or invalid data format.');
+        debugPrint(
+          '⚠️ [DashboardService] fetchFeaturedActive returned empty or invalid data format.',
+        );
       }
       return _featuredActive;
     } catch (e) {

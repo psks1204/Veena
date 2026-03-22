@@ -13,6 +13,7 @@ import '../../../core/services/library_service.dart';
 import '../../../core/models/media_item.dart';
 import '../../../shared/widgets/full_player.dart';
 import '../../../shared/widgets/seekbar_control.dart';
+import '../../../shared/widgets/share_song_button.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 import '../../../core/utils/fullscreen_web.dart'
     if (dart.library.io) '../../../core/utils/fullscreen_stub.dart'
@@ -582,10 +583,7 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
                 // Toggle follow
                 if (media.artistId != null) {
                   await artistService.toggleFollow(media.artistId!);
-                  // Refresh library to update isFollowing state context
-                  // context.read<LibraryService>().getArtists(); // properly done in toggleFollow usually?
-                  // Actually toggleFollow in ArtistService returns the artist but doesn't update LibraryService list directly unless we call it.
-                  // Let's call refresh
+                  // Refresh library
                   await context.read<LibraryService>().getArtists();
                 }
               },
@@ -686,7 +684,11 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       children: [
         const Icon(Icons.devices_rounded, color: Colors.white60, size: 20),
         const Spacer(),
-        const Icon(Icons.share_outlined, color: Colors.white60, size: 18),
+        ShareSongButton(
+          media: context.read<PlayerProvider>().currentMedia!,
+          color: Colors.white60,
+          size: 18,
+        ),
         const SizedBox(width: 20),
         const Icon(Icons.list_rounded, color: Colors.white60, size: 22),
       ],

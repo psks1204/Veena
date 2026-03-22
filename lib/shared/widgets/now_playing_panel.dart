@@ -12,6 +12,7 @@ import '../../core/services/library_service.dart';
 import '../../core/services/app_settings_service.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/player/widgets/comments_sheet.dart';
+import 'share_song_button.dart';
 
 /// Spotify-style Now Playing Panel
 ///
@@ -167,6 +168,11 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               tooltip: 'Comments',
               splashRadius: 18,
             ),
+          ShareSongButton(
+            media: media,
+            color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+            size: 20,
+          ),
           IconButton(
             onPressed: widget.onClose,
             icon: Icon(

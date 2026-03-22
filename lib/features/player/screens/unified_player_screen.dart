@@ -1,12 +1,13 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/providers/player_provider.dart';
+import '../../../core/providers/player_provider.dart' hide RepeatMode;
+import '../../../core/providers/player_provider.dart' as pp show RepeatMode;
 import '../../../core/models/media_item.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
@@ -239,7 +240,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             overflow: TextOverflow.ellipsis,
                           ),
                           subtitle: Text(
-                            item.artistName ?? 'Unknown Artist',
+                            item.artistName,
                             style: TextStyle(
                               color: Colors.white.withOpacity(0.6),
                             ),
@@ -492,14 +493,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     letterSpacing: 0.5,
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.more_vert_rounded,
-                    color: Colors.white,
-                    size: 24,
-                  ),
-                ),
+                const SizedBox(width: 32), // Balance for back button
+                ShareSongButton(media: media),
               ],
             ),
           ),
@@ -1234,10 +1229,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           IconButton(
             onPressed: player.toggleRepeatMode,
             icon: Icon(
-              player.repeatMode == RepeatMode.one
+              player.repeatMode == pp.RepeatMode.one
                   ? Icons.repeat_one_rounded
                   : Icons.repeat_rounded,
-              color: player.repeatMode != RepeatMode.off
+              color: player.repeatMode != pp.RepeatMode.off
                   ? AppColors.primary
                   : Colors.white54,
               size: 24,
@@ -1441,13 +1436,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     ],
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.settings_outlined,
-                    color: Colors.white,
-                  ),
-                ),
+                const SizedBox(width: 48), // Spacer to balance the back button
+                ShareSongButton(media: player.currentMedia!),
               ],
             ),
           ),
@@ -1986,10 +1976,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         IconButton(
           onPressed: () => player.toggleRepeatMode(),
           icon: Icon(
-            player.repeatMode == RepeatMode.one
+            player.repeatMode == pp.RepeatMode.one
                 ? Icons.repeat_one_rounded
                 : Icons.repeat_rounded,
-            color: player.repeatMode != RepeatMode.off
+            color: player.repeatMode != pp.RepeatMode.off
                 ? AppColors.primary
                 : Colors.white70,
             size: 22,
