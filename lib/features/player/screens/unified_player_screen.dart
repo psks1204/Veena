@@ -12,6 +12,7 @@ import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/lyrics_card.dart';
+import '../../../shared/widgets/share_song_button.dart';
 import 'lyrics_fullscreen_screen.dart';
 import '../../../core/models/artist.dart';
 import '../../library/screens/artist_detail_screen.dart';
@@ -1011,7 +1012,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               ],
             ),
           ),
-          const SizedBox(width: 48),
+          // Share button
+          ShareSongButton(media: media),
         ],
       ),
     );

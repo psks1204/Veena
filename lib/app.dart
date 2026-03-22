@@ -14,6 +14,7 @@ import 'core/services/profile_service.dart';
 import 'core/services/public_dashboard_service.dart';
 import 'core/services/app_settings_service.dart';
 import 'core/services/comment_service.dart';
+import 'core/services/deep_link_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/screens/maintenance_page.dart';
 import 'features/settings/screens/update_required_page.dart';
@@ -52,6 +53,10 @@ class VeenaApp extends StatelessWidget {
       PushNotificationService().setApiService(apiService);
     }
 
+    // Initialize deep link service once
+    final deepLinkService = DeepLinkService();
+    deepLinkService.initialize();
+
     return MultiProvider(
       providers: [
         // Core providers
@@ -73,6 +78,9 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
         ChangeNotifierProvider(create: (_) => AppSettingsService(apiService)),
         Provider<CommentService>(create: (_) => CommentService(apiService)),
+
+        // Deep link service
+        ChangeNotifierProvider<DeepLinkService>.value(value: deepLinkService),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -101,6 +109,7 @@ class _AppRouter extends StatefulWidget {
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
   bool _settingsFetched = false;
+  bool _deepLinkHandled = false;
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
@@ -225,6 +234,27 @@ class _AppRouterState extends State<_AppRouter> {
         final playerProvider = context.read<PlayerProvider>();
         final mediaService = context.read<MediaService>();
         playerProvider.setMediaService(mediaService);
+
+        // ── Deep link: navigate to song after first login ──────────────────
+        final deepLinkService = context.read<DeepLinkService>();
+        if (!_deepLinkHandled && deepLinkService.pendingSongId != null) {
+          _deepLinkHandled = true;
+          final songId = deepLinkService.pendingSongId!;
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            debugPrint('🔗 AppRouter: handling deep link for songId=$songId');
+            final item = await mediaService.fetchMediaById(songId);
+            deepLinkService.consume();
+            if (item != null && mounted) {
+              playerProvider.play(item);
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(
+                  builder: (_) => const UnifiedPlayerScreen(),
+                ),
+              );
+            }
+          });
+        }
 
         // Show main app
         return Stack(

@@ -431,5 +431,20 @@ class MediaService extends ChangeNotifier {
       );
     }
   }
-}
 
+  // ==================== FETCH BY ID ====================
+
+  /// Fetch a single media item by its ID.
+  /// Used by the deep link handler to load a shared song after login.
+  Future<MediaItem?> fetchMediaById(String id) async {
+    try {
+      final data = await _api.get('/media/$id');
+      if (data != null) {
+        return MediaItem.fromJson(data as Map<String, dynamic>);
+      }
+    } catch (e) {
+      debugPrint('fetchMediaById error: $e');
+    }
+    return null;
+  }
+}
