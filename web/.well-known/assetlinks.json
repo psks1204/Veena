@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.veena.music",
+      "sha256_cert_fingerprints": [
+        "1C:93:E5:01:D1:C0:94:20:0F:44:77:D9:06:1B:FB:AA:E1:C1:83:31:53:64:C7:F4:C8:6B:91:9D:05:EC:7D:7A"
+      ]
+    }
+  }
+]

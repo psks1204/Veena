@@ -41,10 +41,11 @@
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data
-                    android:scheme="https"
-                    android:host="veenamusiconline.com"
-                    android:pathPrefix="/song"/>
+                <data android:scheme="http"/>
+                <data android:scheme="https"/>
+                <data android:host="veenamusiconline.com"/>
+                <data android:host="www.veenamusiconline.com"/>
+                <data android:pathPrefix="/song"/>
             </intent-filter>
 
         </activity>
