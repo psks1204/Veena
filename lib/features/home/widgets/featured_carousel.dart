@@ -43,12 +43,12 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
       if (!mounted || widget.items.isEmpty) return;
-      
+
       int nextPage = _currentPage + 1;
       if (nextPage >= widget.items.length) {
         nextPage = 0;
       }
-      
+
       _pageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 800),
@@ -74,31 +74,31 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     return Column(
       children: [
         SizedBox(
-          child: kIsWeb 
-            ? SizedBox(
-                height: 180, // Halved from 350
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    final item = widget.items[index];
-                    return _buildFeaturedItem(context, item, theme);
-                  },
+          child: kIsWeb
+              ? SizedBox(
+                  height: 250, // Halved from 350
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _onPageChanged,
+                    itemCount: widget.items.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.items[index];
+                      return _buildFeaturedItem(context, item, theme);
+                    },
+                  ),
+                )
+              : SizedBox(
+                  height: 200, // Halved from 300
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: _onPageChanged,
+                    itemCount: widget.items.length,
+                    itemBuilder: (context, index) {
+                      final item = widget.items[index];
+                      return _buildFeaturedItem(context, item, theme);
+                    },
+                  ),
                 ),
-              )
-            : SizedBox(
-                height: 150, // Halved from 300
-                child: PageView.builder(
-                  controller: _pageController,
-                  onPageChanged: _onPageChanged,
-                  itemCount: widget.items.length,
-                  itemBuilder: (context, index) {
-                    final item = widget.items[index];
-                    return _buildFeaturedItem(context, item, theme);
-                  },
-                ),
-              ),
         ),
         const SizedBox(height: AppSpacing.md),
         // Page Indicators
@@ -113,9 +113,11 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                 width: isSelected ? 24 : 8,
                 height: 8,
                 decoration: BoxDecoration(
-                  color: isSelected 
-                      ? AppColors.primary 
-                      : (theme.brightness == Brightness.dark ? Colors.white24 : Colors.black12),
+                  color: isSelected
+                      ? AppColors.primary
+                      : (theme.brightness == Brightness.dark
+                            ? Colors.white24
+                            : Colors.black12),
                   borderRadius: BorderRadius.circular(4),
                 ),
               );
@@ -125,25 +127,32 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     );
   }
 
-  Widget _buildFeaturedItem(BuildContext context, MediaItem item, ThemeData theme) {
+  Widget _buildFeaturedItem(
+    BuildContext context,
+    MediaItem item,
+    ThemeData theme,
+  ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
-          onTap: () => widget.onPlay(widget.items, widget.items.indexOf(item)),
+          onTap: (item.hlsUrl != null && item.hlsUrl!.isNotEmpty)
+              ? () => widget.onPlay(widget.items, widget.items.indexOf(item))
+              : null,
           child: Stack(
             fit: StackFit.expand,
             children: [
               // Ambient blurred background matching the image color
-              if (item.thumbnailUrl != null) ...[
+              if (item.featuredImageUrl != null) ...[
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
                     child: Image.network(
-                      item.thumbnailUrl!,
+                      item.featuredImageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: Colors.grey[900]),
                     ),
                   ),
                 ),
@@ -152,9 +161,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     borderRadius: BorderRadius.circular(24),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: Container(
-                        color: Colors.black.withOpacity(0.4),
-                      ),
+                      child: Container(color: Colors.black.withOpacity(0.4)),
                     ),
                   ),
                 ),
@@ -167,15 +174,16 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   ),
                 ),
               ],
-              
+
               // Hero Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
                 child: Image.network(
-                  item.thumbnailUrl ?? '',
+                  item.featuredImageUrl ?? '',
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
-                  errorBuilder: (_, __, ___) => Container(color: Colors.grey[900]),
+                  errorBuilder: (_, __, ___) =>
+                      Container(color: Colors.grey[900]),
                 ),
               ),
               // Gradient Overlay
@@ -185,10 +193,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Colors.black.withOpacity(0.8),
-                    ],
+                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
                   ),
                 ),
               ),
@@ -200,14 +205,21 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.primary,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
                         'FEATURED',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 8),
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 8,
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xs),
@@ -230,20 +242,33 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: AppSpacing.sm),
-                    SizedBox(
-                      height: 32,
-                      child: ElevatedButton.icon(
-                        onPressed: () => widget.onPlay(widget.items, widget.items.indexOf(item)),
-                        icon: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 18),
-                        label: const Text('Play Now', style: TextStyle(fontSize: 12)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    if (item.hlsUrl != null && item.hlsUrl!.isNotEmpty)
+                      SizedBox(
+                        height: 32,
+                        child: ElevatedButton.icon(
+                          onPressed: () => widget.onPlay(
+                            widget.items,
+                            widget.items.indexOf(item),
+                          ),
+                          icon: const Icon(
+                            Icons.play_arrow_rounded,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Play Now',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),

@@ -195,6 +195,7 @@ class MediaItem {
   final AlbumInfo? album;
   final String? releaseDate;
   final LinkedMediaInfo? linkedMedia;
+  final String? featuredImageUrl;
 
   const MediaItem({
     required this.id,
@@ -225,6 +226,7 @@ class MediaItem {
     this.album,
     this.releaseDate,
     this.linkedMedia,
+    this.featuredImageUrl,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {
@@ -239,6 +241,7 @@ class MediaItem {
       ),
       hlsUrl: json['hlsUrl'] as String?,
       thumbnailUrl: json['thumbnailUrl'] as String?,
+      featuredImageUrl: json['featuredImageUrl'] as String?,
       lyricsUrl: json['lyricsUrl'] as String?,
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
@@ -291,6 +294,7 @@ class MediaItem {
     'visibility': visibility.value,
     'hlsUrl': hlsUrl,
     'thumbnailUrl': thumbnailUrl,
+    'featuredImageUrl': featuredImageUrl,
     'lyricsUrl': lyricsUrl,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
@@ -324,34 +328,34 @@ class MediaItem {
   /// Helper to get all contributors/credits as a formatted string
   String get allCreditsString {
     List<String> parts = [];
-    
+
     // Artists
     parts.add(fullArtistString);
-    
+
     // Lyricist
     final lName = lyricist?.name ?? lyricistName;
     if (lName != null && lName.isNotEmpty) {
       parts.add('Lyricist: $lName');
     }
-    
+
     // Composer
     final cName = composer?.name ?? composerName;
     if (cName != null && cName.isNotEmpty) {
       parts.add('Composer: $cName');
     }
-    
+
     // Producer
     final pName = producer?.name ?? producerName;
     if (pName != null && pName.isNotEmpty) {
       parts.add('Producer: $pName');
     }
-    
+
     // Director
     final dName = director?.name ?? directorName;
     if (dName != null && dName.isNotEmpty) {
       parts.add('Director: $dName');
     }
-    
+
     return parts.join(' • ');
   }
 

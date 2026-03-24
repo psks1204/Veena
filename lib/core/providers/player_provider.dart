@@ -21,6 +21,7 @@ class PlayerProvider extends ChangeNotifier {
   app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   MediaService? _mediaService;
+  dynamic _authService; // Using dynamic to avoid circular import if necessary, or just import it
 
   Lyrics? _currentLyrics;
   final LyricsService _lyricsService = LyricsService();
@@ -104,6 +105,11 @@ class PlayerProvider extends ChangeNotifier {
   /// Set the media service for auto play recording
   void setMediaService(MediaService service) {
     _mediaService = service;
+  }
+
+  /// Set the auth service for authenticated video requests
+  void setAuthService(dynamic service) {
+    _authService = service;
   }
 
   void _setupAudioListeners() {
@@ -386,14 +392,48 @@ class PlayerProvider extends ChangeNotifier {
       await audioHandler.updateMediaItem(item);
     }
 
+    // Clean up video controller if it exists
+    if (_videoController != null) {
+      final oldController = _videoController!;
+      _videoController = null;
+      notifyListeners();
+      oldController.removeListener(_onVideoUpdate);
+      await oldController.dispose();
+    }
+
+    // Ensure URL is absolute (relative to ApiService.baseUrl if needed)
+    String finalizedUrl = url;
+    if (!url.startsWith('http')) {
+      const apiPrefix = 'https://veena.dgfly.in/api';
+      final rootUrl = apiPrefix.replaceFirst('/api', '');
+      finalizedUrl = url.startsWith('/') ? '$rootUrl$url' : '$rootUrl/$url';
+    }
+
+    // Get auth token if available
+    final token = _authService?.accessToken;
+    final headers = {
+      if (token != null) 'Authorization': 'Bearer $token',
+    };
+
+    debugPrint('[PlayerProvider] Initializing video with headers: ${headers.keys}');
+
     // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(url),
+      Uri.parse(finalizedUrl),
+      httpHeaders: headers,
       videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
 
-    await _videoController!.initialize();
-    _duration = _videoController!.value.duration;
+    try {
+      await _videoController!.initialize().timeout(const Duration(seconds: 15));
+      _duration = _videoController!.value.duration;
+    } catch (e) {
+      debugPrint('[PlayerProvider] Video initialization failed: $e');
+      _isLoading = false;
+      _videoController = null;
+      notifyListeners();
+      return;
+    }
 
     // Seek to start position if provided (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
@@ -421,8 +461,21 @@ class PlayerProvider extends ChangeNotifier {
     // Listen to video position
     _videoController!.addListener(_onVideoUpdate);
 
-    await _videoController!.play();
-    _isPlaying = true;
+    await _videoController!.setVolume(_isMuted ? 0.0 : _volume);
+
+    if (!kIsWeb) {
+      try {
+        await _videoController!.play();
+        _isPlaying = true;
+      } catch (e) {
+        debugPrint('[PlayerProvider] Video play() failed: $e');
+        _isPlaying = false;
+      }
+    } else {
+      debugPrint('[PlayerProvider] Web: Skipping auto-play, waiting for user interaction');
+      _isPlaying = false;
+    }
+
     _isLoading = false;
     notifyListeners();
   }
@@ -479,6 +532,15 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     // NOW start playback from the seeked position
+    // Apply current volume/mute state to audio handler (esp. for web)
+    try {
+      await audioHandler.customAction('setVolume', {
+        'volume': _isMuted ? 0.0 : _volume,
+      });
+    } catch (e) {
+      debugPrint('[PlayerProvider] Error applying volume to audio handler: $e');
+    }
+
     await audioHandler.play();
     debugPrint('[PlayerProvider] Audio playback started');
 

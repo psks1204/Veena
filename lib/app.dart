@@ -109,7 +109,6 @@ class _AppRouter extends StatefulWidget {
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
   bool _settingsFetched = false;
-  bool _deepLinkHandled = false;
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
@@ -230,21 +229,23 @@ class _AppRouterState extends State<_AppRouter> {
           }
         };
 
-        // Connect player to media service for auto play tracking
+        // Connect player to services
         final playerProvider = context.read<PlayerProvider>();
         final mediaService = context.read<MediaService>();
         playerProvider.setMediaService(mediaService);
+        playerProvider.setAuthService(authService);
 
-        // ── Deep link: navigate to song after first login ──────────────────
-        final deepLinkService = context.read<DeepLinkService>();
-        if (!_deepLinkHandled && deepLinkService.pendingSongId != null) {
-          _deepLinkHandled = true;
+        // ── Deep link: navigate to song after login ───────────────────────
+        final deepLinkService = context.watch<DeepLinkService>();
+        if (deepLinkService.pendingSongId != null) {
           final songId = deepLinkService.pendingSongId!;
+          // Consume immediately to prevent duplicate triggers on rebuild
+          deepLinkService.consume();
+          
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
             debugPrint('🔗 AppRouter: handling deep link for songId=$songId');
             final item = await mediaService.fetchMediaById(songId);
-            deepLinkService.consume();
             if (item != null && mounted) {
               playerProvider.play(item);
               Navigator.of(context, rootNavigator: true).push(

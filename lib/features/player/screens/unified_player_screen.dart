@@ -1078,15 +1078,42 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         !controller.value.hasError;
 
     if (!isValid) {
+      final hasError = controller?.value.hasError ?? (!player.isLoading && controller == null);
+      
       return Container(
         color: Colors.black,
-        child: const Center(
+        child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: AppColors.primary),
-              SizedBox(height: 16),
-              Text('Loading video...', style: TextStyle(color: Colors.white70)),
+              if (hasError) ...[
+                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Playback Error',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  controller?.value.errorDescription ?? 'Failed to initialize video',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: () => player.play(player.currentMedia!),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ] else ...[
+                const CircularProgressIndicator(color: AppColors.primary),
+                const SizedBox(height: 16),
+                const Text('Loading video...', style: TextStyle(color: Colors.white70)),
+              ],
             ],
           ),
         ),
@@ -1113,7 +1140,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               child: const Icon(
                 Icons.play_arrow_rounded,
                 color: Colors.white,
-                size: 48,
+                size: 64,
               ),
             ),
         ],

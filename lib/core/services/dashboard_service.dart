@@ -295,6 +295,7 @@ class DashboardService extends ChangeNotifier {
             status: MediaStatus.published,
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
+            featuredImageUrl: item['featuredImageUrl'] as String?,
             artist: item['artist'] != null
                 ? ArtistInfo.fromJson(item['artist'] as Map<String, dynamic>)
                 : null,
