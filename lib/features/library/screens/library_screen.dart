@@ -189,9 +189,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   final isSelected = _selectedFilter == filter;
                   return GestureDetector(
                     onTap: () {
+                      final newFilter = isSelected ? 'All' : filter;
                       setState(() {
-                        _selectedFilter = isSelected ? 'All' : filter;
+                        _selectedFilter = newFilter;
                       });
+                      
+                      // Trigger fetch for followed artists when filter is selected
+                      if (newFilter == 'Artists') {
+                        context.read<LibraryService>().getArtists();
+                      }
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

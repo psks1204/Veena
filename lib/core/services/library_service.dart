@@ -134,11 +134,7 @@ class LibraryService extends ChangeNotifier {
               .map((item) => MediaItem.fromJson(item))
               .toList();
         }
-        if (data['artists'] != null) {
-          _artists = (data['artists'] as List)
-              .map((item) => Artist.fromJson(item))
-              .toList();
-        }
+// Note: We skip data['artists'] here to always use the followed artists API below
         if (data['albums'] != null) {
           _albums = (data['albums'] as List)
               .map((item) => Album.fromJson(item))
@@ -152,13 +148,11 @@ class LibraryService extends ChangeNotifier {
         debugPrint('[LibraryService] Loaded ${_albums.length} albums');
       }
 
-      // Fetch artists if still empty (fallback)
-      if (_artists.isEmpty) {
-        try {
-          await getArtists(size: 30);
-        } catch (e) {
-          debugPrint('[LibraryService] Failed to load artists fallback: $e');
-        }
+      // Always fetch followed artists to ensure consistency
+      try {
+        await getArtists(size: 30);
+      } catch (e) {
+        debugPrint('[LibraryService] Failed to load followed artists: $e');
       }
 
       _isLoading = false;

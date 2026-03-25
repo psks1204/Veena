@@ -3,6 +3,9 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../core/providers/profile_provider.dart';
+import '../../features/notifications/presentation/providers/notification_provider.dart';
+import '../../features/notifications/presentation/screens/notification_screen.dart';
+import '../../features/notifications/presentation/widgets/notification_detail_dialog.dart';
 
 /// Spotify-style Web Header Bar
 ///
@@ -24,16 +27,22 @@ class WebHeader extends StatefulWidget {
 class _WebHeaderState extends State<WebHeader> {
   final LayerLink _layerLink = LayerLink();
   OverlayEntry? _overlayEntry;
+  OverlayEntry? _notificationOverlayEntry;
   bool _showUserMenu = false;
+  bool _showNotificationMenu = false;
   final GlobalKey _userMenuKey = GlobalKey();
+  final GlobalKey _notificationMenuKey = GlobalKey();
+  final LayerLink _notificationLayerLink = LayerLink();
 
   @override
   void dispose() {
     _overlayEntry?.remove();
+    _notificationOverlayEntry?.remove();
     super.dispose();
   }
 
   void _toggleUserMenu() {
+    if (_showNotificationMenu) _toggleNotificationMenu();
     if (_showUserMenu) {
       _overlayEntry?.remove();
       _overlayEntry = null;
@@ -43,6 +52,47 @@ class _WebHeaderState extends State<WebHeader> {
       _overlayEntry = _createUserMenuOverlay();
       Overlay.of(context).insert(_overlayEntry!);
     }
+  }
+
+  void _toggleNotificationMenu() {
+    if (_showUserMenu) _toggleUserMenu();
+    if (_showNotificationMenu) {
+      _notificationOverlayEntry?.remove();
+      _notificationOverlayEntry = null;
+      setState(() => _showNotificationMenu = false);
+    } else {
+      setState(() => _showNotificationMenu = true);
+      _notificationOverlayEntry = _createNotificationOverlay();
+      Overlay.of(context).insert(_notificationOverlayEntry!);
+      // Refresh notifications when opening
+      context.read<NotificationProvider>().loadNotifications(refresh: true);
+    }
+  }
+
+  OverlayEntry _createNotificationOverlay() {
+    return OverlayEntry(
+      builder: (context) => Stack(
+        children: [
+          Positioned.fill(
+            child: GestureDetector(
+              onTap: _toggleNotificationMenu,
+              behavior: HitTestBehavior.opaque,
+              child: Container(color: Colors.transparent),
+            ),
+          ),
+          CompositedTransformFollower(
+            link: _notificationLayerLink,
+            targetAnchor: Alignment.bottomRight,
+            followerAnchor: Alignment.topRight,
+            offset: const Offset(0, 8),
+            child: Material(
+              color: Colors.transparent,
+              child: _buildNotificationMenu(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   OverlayEntry _createUserMenuOverlay() {
@@ -192,10 +242,57 @@ class _WebHeaderState extends State<WebHeader> {
     return Row(
       children: [
         // Notifications
-        IconButton(
-          onPressed: () {},
-          icon: Icon(Icons.notifications_outlined, color: iconColor, size: 24),
-          splashRadius: 24,
+        CompositedTransformTarget(
+          link: _notificationLayerLink,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                key: _notificationMenuKey,
+                onPressed: _toggleNotificationMenu,
+                icon: Icon(
+                  _showNotificationMenu ? Icons.notifications : Icons.notifications_outlined,
+                  color: _showNotificationMenu ? AppColors.primary : iconColor,
+                  size: 24,
+                ),
+                splashRadius: 24,
+              ),
+              Consumer<NotificationProvider>(
+                builder: (context, provider, _) {
+                  if (provider.unreadCount == 0) return const SizedBox.shrink();
+                  return Positioned(
+                    right: 8,
+                    top: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF121212) : Colors.white,
+                          width: 1.5,
+                        ),
+                      ),
+                      constraints: const BoxConstraints(
+                        minWidth: 16,
+                        minHeight: 16,
+                      ),
+                      child: Center(
+                        child: Text(
+                          provider.unreadCount > 9 ? '9+' : provider.unreadCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
         const SizedBox(width: 24),
 
@@ -392,6 +489,182 @@ class _WebHeaderState extends State<WebHeader> {
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Log out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationMenu() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? const Color(0xFF282828) : Colors.white;
+    final textColor = isDark ? Colors.white : AppColors.lightTextPrimary;
+    final subColor = isDark ? Colors.white54 : AppColors.lightTextSecondary;
+
+    return Container(
+      width: 320,
+      constraints: const BoxConstraints(maxHeight: 450),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Notifications',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    context.read<NotificationProvider>().markAllAsRead();
+                  },
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: AppColors.primary,
+                  ),
+                  child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Flexible(
+            child: Consumer<NotificationProvider>(
+              builder: (context, provider, _) {
+                if (provider.isLoading && provider.notifications.isEmpty) {
+                  return const Padding(
+                    padding: EdgeInsets.all(32.0),
+                    child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+                  );
+                }
+
+                if (provider.notifications.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(32.0),
+                    child: Center(
+                      child: Column(
+                        children: [
+                          Icon(Icons.notifications_none_rounded, size: 40, color: subColor),
+                          const SizedBox(height: 12),
+                          Text('No notifications', style: TextStyle(color: subColor)),
+                        ],
+                      ),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: provider.notifications.length > 5 ? 5 : provider.notifications.length,
+                  itemBuilder: (context, index) {
+                    final n = provider.notifications[index];
+                    return InkWell(
+                      onTap: () {
+                        _toggleNotificationMenu();
+                        showNotificationDetail(context, n);
+                        // Also mark read as per user request
+                        provider.markAllAsRead(); 
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        color: !n.viewed ? (isDark ? Colors.white.withOpacity(0.05) : AppColors.primary.withOpacity(0.05)) : null,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (n.imageUrl != null && n.imageUrl!.isNotEmpty)
+                              Container(
+                                width: 40,
+                                height: 40,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(6),
+                                  image: DecorationImage(image: NetworkImage(n.imageUrl!), fit: BoxFit.cover),
+                                ),
+                              )
+                            else
+                              Container(
+                                width: 40,
+                                height: 40,
+                                margin: const EdgeInsets.only(right: 12),
+                                decoration: BoxDecoration(
+                                  color: isDark ? Colors.white12 : Colors.grey[200],
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Icon(Icons.notifications_none, size: 20, color: subColor),
+                              ),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    n.title,
+                                    style: TextStyle(
+                                      color: textColor,
+                                      fontSize: 13,
+                                      fontWeight: !n.viewed ? FontWeight.bold : FontWeight.normal,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    n.description,
+                                    style: TextStyle(color: subColor, fontSize: 11),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+          const Divider(height: 1),
+          InkWell(
+            onTap: () {
+              _toggleNotificationMenu();
+              Navigator.of(context, rootNavigator: true).push(
+                MaterialPageRoute(builder: (_) => const NotificationScreen()),
+              );
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(
+                child: Text(
+                  'See all notifications',
+                  style: TextStyle(
+                    color: textColor,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
           ),
         ],
       ),

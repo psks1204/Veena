@@ -13,6 +13,7 @@ import 'privacy_policy_screen.dart';
 import 'about_us_screen.dart';
 import 'contact_us_screen.dart';
 import 'terms_of_service_screen.dart';
+import '../../notifications/presentation/screens/notification_screen.dart';
 
 /// Profile Screen
 ///
@@ -75,7 +76,14 @@ class ProfileScreen extends StatelessWidget {
               _SettingsTile(
                 icon: Icons.notifications_rounded,
                 title: 'Notifications',
-                onTap: () {},
+                onTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationScreen(),
+                    ),
+                  );
+                },
                 showDivider: false,
               ),
             ],

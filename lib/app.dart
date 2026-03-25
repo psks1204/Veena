@@ -34,6 +34,8 @@ import 'core/navigation/app_navigation.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'features/alarm/services/alarm_service.dart';
+import 'features/notifications/data/services/notification_service.dart';
+import 'features/notifications/presentation/providers/notification_provider.dart';
 
 /// Veena Music Streaming App
 ///
@@ -78,6 +80,9 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
         ChangeNotifierProvider(create: (_) => AppSettingsService(apiService)),
         Provider<CommentService>(create: (_) => CommentService(apiService)),
+        ChangeNotifierProvider(
+          create: (_) => NotificationProvider(NotificationService(apiService)),
+        ),
 
         // Deep link service
         ChangeNotifierProvider<DeepLinkService>.value(value: deepLinkService),
