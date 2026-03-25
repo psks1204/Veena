@@ -490,7 +490,7 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: SectionHeader(
             title: title,
-            actionLabel: onSeeAll != null ? 'See all' : null,
+            actionLabel: 'See all',
             onActionTap: onSeeAll ??
                 () {
                   AppNavigation.push(
