@@ -22,15 +22,15 @@ class ProfileProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get hasProfile => _profile != null;
-  
+
   /// True if profile was fetched but has no name — first-login flow
   bool get needsNameSetup => _needsNameSetup;
-  
+
   /// True if the first-login initialization has already been called
   bool get hasInitialized => _hasInitialized;
 
-  /// Called once after login. Sends location + Google name via PUT, then fetches profile.
-  /// Returns true if the user needs to set up their name (first login).
+  /// Called once after login. Fetches existing profile; conditionally updates
+  /// with location + google name if meaningful data is available.
   Future<void> initializeOnLogin({
     required String? googleName,
     required String? googleEmail,
@@ -46,26 +46,25 @@ class ProfileProvider extends ChangeNotifier {
       try {
         _profile = await _service.getProfile();
       } catch (e) {
-        // If fetch fails (e.g. 404), we might be creating a new profile
-        debugPrint('⚠️ Fetch profile failed during init (expected for new users): $e');
+        debugPrint('⚠️ Fetch profile failed during init: $e');
       }
 
-      // 2) Determine values to use (preserve existing if available)
-      String nameToUse = googleName ?? '';
-      if (_profile?.name != null && _profile!.name!.trim().isNotEmpty) {
-        nameToUse = _profile!.name!;
-      }
-      
-      String birthDateToUse = '';
-      if (_profile?.birthDate != null) {
-        final d = _profile!.birthDate!;
-        birthDateToUse = '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
-      }
+      // 2) Determine the name to use — never send an empty string to the API
+      final existingName = _profile?.name?.trim();
+      final hasValidExistingName =
+          existingName != null && existingName.isNotEmpty;
 
-      // 3) Get device location (best-effort)
-      double lat = _profile?.latitude ?? 0;
-      double lng = _profile?.longitude ?? 0;
-      
+      // Only update if we have a real Google name and the profile doesn't have one yet
+      final nameToSend =
+          (!hasValidExistingName &&
+              googleName != null &&
+              googleName.trim().isNotEmpty)
+          ? googleName.trim()
+          : null;
+
+      // 3) Get device location (best-effort, skip if unavailable)
+      double? lat;
+      double? lng;
       try {
         final position = await _getDeviceLocation();
         if (position != null) {
@@ -76,34 +75,58 @@ class ProfileProvider extends ChangeNotifier {
         debugPrint('📍 Location not available: $e');
       }
 
-      // 4) Update profile with merged data
-      await _service.updateProfile(
-         name: nameToUse,
-         birthDate: birthDateToUse,
-         latitude: lat,
-         longitude: lng,
-      );
-
-      // 5) Refresh profile to ensure we have the latest
-      _profile = await _service.getProfile();
+      // 4) Only call PUT if we have something worth updating AND a valid name
+      // Always need a non-empty name to pass API validation
+      final effectiveName = nameToSend ?? existingName ?? '';
+      final shouldUpdate =
+          effectiveName.isNotEmpty && (nameToSend != null || lat != null);
+      if (shouldUpdate) {
+        try {
+          await _service.updateProfile(
+            name: effectiveName,
+            birthDate: _buildBirthDateString(_profile?.birthDate),
+            latitude: lat ?? _profile?.latitude,
+            longitude: lng ?? _profile?.longitude,
+          );
+          // 5) Re-fetch after update
+          _profile = await _service.getProfile();
+        } catch (e) {
+          debugPrint('⚠️ Profile update failed (non-fatal): $e');
+          // Not fatal — use whatever profile data we already have
+        }
+      }
 
       // 6) Check if user still needs to set up name
-      _needsNameSetup = _profile?.name == null || _profile!.name!.trim().isEmpty;
-
+      _needsNameSetup =
+          _profile?.name == null || _profile!.name!.trim().isEmpty;
       _error = null;
     } catch (e) {
       debugPrint('❌ ProfileProvider.initializeOnLogin: $e');
       _error = e.toString();
-      // Even on error, try to guarantee profile state is acceptable
       if (_profile == null) {
-         try {
-           _profile = await _service.getProfile();
-         } catch (_) {}
+        try {
+          _profile = await _service.getProfile();
+        } catch (_) {}
       }
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  String? _buildBirthDateString(DateTime? date) {
+    if (date == null) return null;
+    return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+  }
+
+  /// Reset provider state for sign-out so the next sign-in initialises fresh.
+  void resetForSignOut() {
+    _profile = null;
+    _hasInitialized = false;
+    _needsNameSetup = false;
+    _isLoading = false;
+    _error = null;
+    notifyListeners();
   }
 
   /// Get device location - returns (lat, lng) or null
@@ -112,7 +135,9 @@ class ProfileProvider extends ChangeNotifier {
       final locationService = LocationService();
       final position = await locationService.getCurrentPosition();
       if (position != null) {
-        debugPrint('📍 Location fetched: ${position.latitude}, ${position.longitude}');
+        debugPrint(
+          '📍 Location fetched: ${position.latitude}, ${position.longitude}',
+        );
         return (position.latitude, position.longitude);
       }
     } catch (e) {
@@ -189,10 +214,7 @@ class ProfileProvider extends ChangeNotifier {
     try {
       if (kIsWeb) {
         final bytes = await image.readAsBytes();
-        await _service.uploadPhoto(
-          bytes: bytes,
-          fileName: image.name,
-        );
+        await _service.uploadPhoto(bytes: bytes, fileName: image.name);
       } else {
         await _service.uploadPhoto(filePath: image.path);
       }

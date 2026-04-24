@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/navigation/app_navigation.dart';
 import '../../core/providers/player_provider.dart';
+import '../../core/providers/app_mode_provider.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
@@ -79,6 +80,11 @@ class _AppShellState extends State<AppShell> {
       icon: Icon(Icons.person_outline_rounded),
       selectedIcon: Icon(Icons.person_rounded),
       label: Text('Profile'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.storefront_outlined),
+      selectedIcon: Icon(Icons.storefront_rounded),
+      label: Text('Shop'),
     ),
   ];
 
@@ -234,7 +240,14 @@ class _AppShellState extends State<AppShell> {
 
                 FloatingNavBar(
                   currentIndex: widget.currentIndex,
-                  onTap: widget.onDestinationSelected,
+                  onTap: (index) {
+                    if (index == 4) {
+                      // Shop icon — switch to shop mode
+                      context.read<AppModeProvider>().enterShop();
+                    } else {
+                      widget.onDestinationSelected(index);
+                    }
+                  },
                   items: const [
                     BottomNavigationBarItem(
                       icon: Icon(Icons.home_outlined),
@@ -255,6 +268,11 @@ class _AppShellState extends State<AppShell> {
                       icon: Icon(Icons.person_outline_rounded),
                       activeIcon: Icon(Icons.person_rounded),
                       label: 'Profile',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.storefront_outlined),
+                      activeIcon: Icon(Icons.storefront_rounded),
+                      label: 'Shop',
                     ),
                   ],
                 ),
@@ -277,7 +295,13 @@ class _AppShellState extends State<AppShell> {
           // Compact navigation rail
           NavigationRail(
             selectedIndex: widget.currentIndex,
-            onDestinationSelected: widget.onDestinationSelected,
+            onDestinationSelected: (index) {
+              if (index == 4) {
+                context.read<AppModeProvider>().enterShop();
+              } else {
+                widget.onDestinationSelected(index);
+              }
+            },
             destinations: _railDestinations,
             backgroundColor: surfaceColor,
             labelType: NavigationRailLabelType.all,

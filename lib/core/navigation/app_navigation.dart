@@ -12,6 +12,12 @@ class AppNavigation {
   static final libraryNavigatorKey = GlobalKey<NavigatorState>();
   static final profileNavigatorKey = GlobalKey<NavigatorState>();
 
+  /// Navigator keys for shop tabs
+  static final shopHomeKey = GlobalKey<NavigatorState>();
+  static final shopOrdersKey = GlobalKey<NavigatorState>();
+  static final shopWishlistKey = GlobalKey<NavigatorState>();
+  static final shopCartKey = GlobalKey<NavigatorState>();
+
   /// Current active tab index
   static int _currentTabIndex = 0;
 
@@ -47,6 +53,15 @@ class AppNavigation {
         return libraryNavigatorKey;
       case 3:
         return profileNavigatorKey;
+      // Shop tabs (4-7)
+      case 4:
+        return shopHomeKey;
+      case 5:
+        return shopOrdersKey;
+      case 6:
+        return shopWishlistKey;
+      case 7:
+        return shopCartKey;
       default:
         return homeNavigatorKey;
     }
@@ -59,8 +74,15 @@ class AppNavigation {
   }
 
   /// Push a named route within the current tab's navigator
-  static Future<T?> pushNamed<T>(BuildContext context, String routeName, {Object? arguments}) {
-    return currentNavigatorKey.currentState!.pushNamed(routeName, arguments: arguments);
+  static Future<T?> pushNamed<T>(
+    BuildContext context,
+    String routeName, {
+    Object? arguments,
+  }) {
+    return currentNavigatorKey.currentState!.pushNamed(
+      routeName,
+      arguments: arguments,
+    );
   }
 
   /// Pop the current route within the tab's navigator

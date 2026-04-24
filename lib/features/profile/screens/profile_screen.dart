@@ -14,6 +14,7 @@ import 'about_us_screen.dart';
 import 'contact_us_screen.dart';
 import 'terms_of_service_screen.dart';
 import '../../notifications/presentation/screens/notification_screen.dart';
+import '../../channel/screens/my_channel_screen.dart';
 
 /// Profile Screen
 ///
@@ -44,6 +45,27 @@ class ProfileScreen extends StatelessWidget {
                 MaterialPageRoute(builder: (_) => const EditProfileScreen()),
               );
             },
+          ),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // Creator section — My Channel
+          _SectionTitle(title: 'Creator'),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.video_library_rounded,
+                title: 'My Channel',
+                onTap: () {
+                  AppNavigation.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const MyChannelScreen()),
+                  );
+                },
+                showDivider: false,
+              ),
+            ],
           ),
 
           const SizedBox(height: AppSpacing.xl),

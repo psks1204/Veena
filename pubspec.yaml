@@ -90,6 +90,9 @@ dependencies:
   timezone: ^0.10.1
   flutter_timezone: ^5.0.1
 
+  # File picking (audio/video for channel uploads)
+  file_picker: ^8.0.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

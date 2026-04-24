@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/providers/app_mode_provider.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../core/providers/profile_provider.dart';
 import '../../features/notifications/presentation/providers/notification_provider.dart';
@@ -169,12 +170,36 @@ class _WebHeaderState extends State<WebHeader> {
           _buildNavLink(1, 'Search', Icons.search_rounded, isDark),
           const SizedBox(width: 8),
           _buildNavLink(2, 'Your Library', Icons.library_music_rounded, isDark),
+          const SizedBox(width: 8),
+          _buildShopNavLink(isDark),
 
           const Spacer(),
 
           // Right side actions
           _buildRightActions(isDark),
         ],
+      ),
+    );
+  }
+
+  Widget _buildShopNavLink(bool isDark) {
+    final inactiveColor = isDark
+        ? Colors.white54
+        : AppColors.lightTextSecondary;
+    return TextButton.icon(
+      onPressed: () => context.read<AppModeProvider>().enterShop(),
+      style: TextButton.styleFrom(
+        foregroundColor: inactiveColor,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      icon: Icon(Icons.storefront_outlined, size: 22, color: inactiveColor),
+      label: Text(
+        'Shop',
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: inactiveColor,
+        ),
       ),
     );
   }
@@ -251,7 +276,9 @@ class _WebHeaderState extends State<WebHeader> {
                 key: _notificationMenuKey,
                 onPressed: _toggleNotificationMenu,
                 icon: Icon(
-                  _showNotificationMenu ? Icons.notifications : Icons.notifications_outlined,
+                  _showNotificationMenu
+                      ? Icons.notifications
+                      : Icons.notifications_outlined,
                   color: _showNotificationMenu ? AppColors.primary : iconColor,
                   size: 24,
                 ),
@@ -269,7 +296,9 @@ class _WebHeaderState extends State<WebHeader> {
                         color: AppColors.primary,
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: isDark ? const Color(0xFF121212) : Colors.white,
+                          color: isDark
+                              ? const Color(0xFF121212)
+                              : Colors.white,
                           width: 1.5,
                         ),
                       ),
@@ -279,7 +308,9 @@ class _WebHeaderState extends State<WebHeader> {
                       ),
                       child: Center(
                         child: Text(
-                          provider.unreadCount > 9 ? '9+' : provider.unreadCount.toString(),
+                          provider.unreadCount > 9
+                              ? '9+'
+                              : provider.unreadCount.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 9,
@@ -540,7 +571,10 @@ class _WebHeaderState extends State<WebHeader> {
                     visualDensity: VisualDensity.compact,
                     foregroundColor: AppColors.primary,
                   ),
-                  child: const Text('Mark all as read', style: TextStyle(fontSize: 12)),
+                  child: const Text(
+                    'Mark all as read',
+                    style: TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -552,7 +586,12 @@ class _WebHeaderState extends State<WebHeader> {
                 if (provider.isLoading && provider.notifications.isEmpty) {
                   return const Padding(
                     padding: EdgeInsets.all(32.0),
-                    child: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        color: AppColors.primary,
+                        strokeWidth: 2,
+                      ),
+                    ),
                   );
                 }
 
@@ -562,9 +601,16 @@ class _WebHeaderState extends State<WebHeader> {
                     child: Center(
                       child: Column(
                         children: [
-                          Icon(Icons.notifications_none_rounded, size: 40, color: subColor),
+                          Icon(
+                            Icons.notifications_none_rounded,
+                            size: 40,
+                            color: subColor,
+                          ),
                           const SizedBox(height: 12),
-                          Text('No notifications', style: TextStyle(color: subColor)),
+                          Text(
+                            'No notifications',
+                            style: TextStyle(color: subColor),
+                          ),
                         ],
                       ),
                     ),
@@ -574,7 +620,9 @@ class _WebHeaderState extends State<WebHeader> {
                 return ListView.builder(
                   shrinkWrap: true,
                   padding: EdgeInsets.zero,
-                  itemCount: provider.notifications.length > 5 ? 5 : provider.notifications.length,
+                  itemCount: provider.notifications.length > 5
+                      ? 5
+                      : provider.notifications.length,
                   itemBuilder: (context, index) {
                     final n = provider.notifications[index];
                     return InkWell(
@@ -582,11 +630,18 @@ class _WebHeaderState extends State<WebHeader> {
                         _toggleNotificationMenu();
                         showNotificationDetail(context, n);
                         // Also mark read as per user request
-                        provider.markAllAsRead(); 
+                        provider.markAllAsRead();
                       },
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        color: !n.viewed ? (isDark ? Colors.white.withOpacity(0.05) : AppColors.primary.withOpacity(0.05)) : null,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        color: !n.viewed
+                            ? (isDark
+                                  ? Colors.white.withOpacity(0.05)
+                                  : AppColors.primary.withOpacity(0.05))
+                            : null,
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -597,7 +652,10 @@ class _WebHeaderState extends State<WebHeader> {
                                 margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(6),
-                                  image: DecorationImage(image: NetworkImage(n.imageUrl!), fit: BoxFit.cover),
+                                  image: DecorationImage(
+                                    image: NetworkImage(n.imageUrl!),
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               )
                             else
@@ -606,10 +664,16 @@ class _WebHeaderState extends State<WebHeader> {
                                 height: 40,
                                 margin: const EdgeInsets.only(right: 12),
                                 decoration: BoxDecoration(
-                                  color: isDark ? Colors.white12 : Colors.grey[200],
+                                  color: isDark
+                                      ? Colors.white12
+                                      : Colors.grey[200],
                                   borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: Icon(Icons.notifications_none, size: 20, color: subColor),
+                                child: Icon(
+                                  Icons.notifications_none,
+                                  size: 20,
+                                  color: subColor,
+                                ),
                               ),
                             Expanded(
                               child: Column(
@@ -620,7 +684,9 @@ class _WebHeaderState extends State<WebHeader> {
                                     style: TextStyle(
                                       color: textColor,
                                       fontSize: 13,
-                                      fontWeight: !n.viewed ? FontWeight.bold : FontWeight.normal,
+                                      fontWeight: !n.viewed
+                                          ? FontWeight.bold
+                                          : FontWeight.normal,
                                     ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
@@ -628,7 +694,10 @@ class _WebHeaderState extends State<WebHeader> {
                                   const SizedBox(height: 2),
                                   Text(
                                     n.description,
-                                    style: TextStyle(color: subColor, fontSize: 11),
+                                    style: TextStyle(
+                                      color: subColor,
+                                      fontSize: 11,
+                                    ),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),

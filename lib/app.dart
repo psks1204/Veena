@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/providers/player_provider.dart';
 import 'core/providers/profile_provider.dart';
+import 'core/providers/app_mode_provider.dart';
 import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
 import 'core/services/dashboard_service.dart';
@@ -29,8 +30,26 @@ import 'features/profile/screens/profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/player/screens/unified_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
+import 'shared/layouts/shop_shell.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/navigation/app_navigation.dart';
+import 'features/channel/services/channel_service.dart';
+import 'features/channel/providers/channel_provider.dart';
+import 'features/channel/screens/channel_setup_screen.dart';
+import 'features/shop/services/shop_catalog_service.dart';
+import 'features/shop/services/cart_service.dart';
+import 'features/shop/services/address_service.dart';
+import 'features/shop/services/order_service.dart';
+import 'features/shop/services/payment_service.dart';
+import 'features/shop/providers/shop_catalog_provider.dart';
+import 'features/shop/providers/cart_provider.dart';
+import 'features/shop/providers/order_provider.dart';
+import 'features/shop/providers/address_provider.dart';
+import 'features/shop/providers/wishlist_provider.dart';
+import 'features/shop/screens/shop_home_screen.dart';
+import 'features/shop/screens/orders_screen.dart';
+import 'features/shop/screens/wishlist_screen.dart';
+import 'features/shop/screens/cart_screen.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'features/alarm/services/alarm_service.dart';
@@ -86,6 +105,44 @@ class VeenaApp extends StatelessWidget {
 
         // Deep link service
         ChangeNotifierProvider<DeepLinkService>.value(value: deepLinkService),
+
+        // App mode (music ↔ shop)
+        ChangeNotifierProvider(create: (_) => AppModeProvider()),
+
+        // Channel feature
+        Provider<ChannelService>(create: (_) => ChannelService(apiService)),
+        ChangeNotifierProxyProvider<ChannelService, ChannelProvider>(
+          create: (ctx) => ChannelProvider(ctx.read<ChannelService>(), prefs),
+          update: (ctx, svc, prev) => prev ?? ChannelProvider(svc, prefs),
+        ),
+
+        // Shop services
+        Provider<ShopCatalogService>(
+          create: (_) => ShopCatalogService(apiService),
+        ),
+        Provider<CartService>(create: (_) => CartService(apiService)),
+        Provider<AddressService>(create: (_) => AddressService(apiService)),
+        Provider<OrderService>(create: (_) => OrderService(apiService)),
+        Provider<PaymentService>(create: (_) => PaymentService(apiService)),
+
+        // Shop providers
+        ChangeNotifierProxyProvider<ShopCatalogService, ShopCatalogProvider>(
+          create: (ctx) => ShopCatalogProvider(ctx.read<ShopCatalogService>()),
+          update: (ctx, svc, prev) => prev ?? ShopCatalogProvider(svc),
+        ),
+        ChangeNotifierProxyProvider<CartService, CartProvider>(
+          create: (ctx) => CartProvider(ctx.read<CartService>()),
+          update: (ctx, svc, prev) => prev ?? CartProvider(svc),
+        ),
+        ChangeNotifierProxyProvider<OrderService, OrderProvider>(
+          create: (ctx) => OrderProvider(ctx.read<OrderService>()),
+          update: (ctx, svc, prev) => prev ?? OrderProvider(svc),
+        ),
+        ChangeNotifierProxyProvider<AddressService, AddressProvider>(
+          create: (ctx) => AddressProvider(ctx.read<AddressService>()),
+          update: (ctx, svc, prev) => prev ?? AddressProvider(svc),
+        ),
+        ChangeNotifierProvider(create: (_) => WishlistProvider(prefs)),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
@@ -114,13 +171,16 @@ class _AppRouter extends StatefulWidget {
 class _AppRouterState extends State<_AppRouter> {
   int _currentIndex = 0;
   bool _settingsFetched = false;
+  bool _channelSetupTriggered = false;
+  bool _providersReset = false; // tracks whether sign-out reset has been done
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
-    
+
     final authService = context.read<AuthService>();
-    if (authService.accessToken == null) return; // Wait for token to be available
-    
+    if (authService.accessToken == null)
+      return; // Wait for token to be available
+
     _settingsFetched = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -141,8 +201,19 @@ class _AppRouterState extends State<_AppRouter> {
 
         // Show login if not authenticated
         if (authService.state != AuthState.authenticated) {
-          // Reset so settings are re-fetched on next login
+          // Reset so settings and channel setup are re-triggered on next login
           _settingsFetched = false;
+          _channelSetupTriggered = false;
+          // Reset provider state so re-login gets fresh data
+          if (!_providersReset) {
+            _providersReset = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                context.read<ProfileProvider>().resetForSignOut();
+                context.read<ChannelProvider>().resetForSignOut();
+              }
+            });
+          }
           // Web: show public landing page with dashboard preview
           if (kIsWeb) {
             return PublicLandingScreen(
@@ -158,6 +229,7 @@ class _AppRouterState extends State<_AppRouter> {
         }
 
         // ── Authenticated from here ──
+        _providersReset = false; // allow reset on next sign-out
 
         // Inject access token into ApiService for authenticated API calls
         final apiService = context.read<ApiService>();
@@ -221,6 +293,27 @@ class _AppRouterState extends State<_AppRouter> {
           });
         }
 
+        // Initialize channel on login (checks if setup needed)
+        final channelProvider = context.read<ChannelProvider>();
+        if (!channelProvider.hasInitialized && !channelProvider.isLoading) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            channelProvider.initializeOnLogin();
+          });
+        }
+
+        // Show channel setup if user has not set a custom channel name
+        if (channelProvider.needsChannelSetup && !_channelSetupTriggered) {
+          _channelSetupTriggered = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    ChannelSetupScreen(initialName: authService.userName),
+              ),
+            );
+          });
+        }
+
         // Handle 401 Unauthorized - Logout automatically
         apiService.onUnauthorized = () {
           // Prevent infinite loop: don't call signOut if already signing out
@@ -246,7 +339,7 @@ class _AppRouterState extends State<_AppRouter> {
           final songId = deepLinkService.pendingSongId!;
           // Consume immediately to prevent duplicate triggers on rebuild
           deepLinkService.consume();
-          
+
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
             debugPrint('🔗 AppRouter: handling deep link for songId=$songId');
@@ -254,57 +347,61 @@ class _AppRouterState extends State<_AppRouter> {
             if (item != null && mounted) {
               playerProvider.play(item);
               Navigator.of(context, rootNavigator: true).push(
-                MaterialPageRoute(
-                  builder: (_) => const UnifiedPlayerScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
               );
             }
           });
         }
 
-        // Show main app
-        return Stack(
-          children: [
-            AppShell(
+        // Build mini player data (shared between music and shop shells)
+        final miniPlayerData = player.hasMedia
+            ? MiniPlayerData(
+                trackTitle: player.currentMedia!.title,
+                artistName: player.currentMedia!.artistName,
+                artworkUrl: player.currentMedia!.thumbnailUrl,
+                isPlaying: player.isPlaying,
+                progress: player.progress,
+                onTap: () {
+                  Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute(
+                      builder: (_) => const UnifiedPlayerScreen(),
+                    ),
+                  );
+                },
+                onPlayPause: () => player.togglePlayPause(),
+                onNext: () {},
+                onClose: () => player.clearQueue(),
+              )
+            : null;
+
+        // Show main app — music shell or shop shell based on AppMode
+        return Consumer<AppModeProvider>(
+          builder: (context, appMode, _) {
+            if (appMode.isShop) {
+              return ShopShell(
+                miniPlayerData: miniPlayerData,
+                screens: const [
+                  ShopHomeScreen(),
+                  OrdersScreen(),
+                  WishlistScreen(),
+                  CartScreen(),
+                ],
+              );
+            }
+            return AppShell(
               currentIndex: _currentIndex,
               onDestinationSelected: (index) {
-                // If tapping the same tab, pop to root of that tab
                 if (_currentIndex == index) {
                   AppNavigation.popToFirst();
                 } else {
-                  setState(() {
-                    _currentIndex = index;
-                  });
+                  setState(() => _currentIndex = index);
                 }
               },
               showMiniPlayer: player.hasMedia,
-              miniPlayerData: player.hasMedia
-                  ? MiniPlayerData(
-                      trackTitle: player.currentMedia!.title,
-                      artistName: player.currentMedia!.artistName,
-                      artworkUrl: player.currentMedia!.thumbnailUrl,
-                      isPlaying: player.isPlaying,
-                      progress: player.progress,
-                      onTap: () {
-                        // Unified player handles both audio and video
-                        Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute(
-                            builder: (_) => const UnifiedPlayerScreen(),
-                          ),
-                        );
-                      },
-                      onPlayPause: () {
-                        player.togglePlayPause();
-                      },
-                      onNext: () {},
-                      onClose: () {
-                        player.clearQueue();
-                      },
-                    )
-                  : null,
+              miniPlayerData: miniPlayerData,
               screens: _buildScreens(context),
-            ),
-          ],
+            );
+          },
         );
       },
     );
