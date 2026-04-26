@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/theme/app_spacing.dart';
 import '../../core/navigation/app_navigation.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/providers/app_mode_provider.dart';
@@ -45,9 +44,9 @@ class _ShopShellState extends State<ShopShell> {
   }
 
   Widget _buildNavigator(int tabIndex, Widget root) {
-    // Shop tabs use indices 4-7 in AppNavigation
+    // Shop tabs use indices 5-8 in AppNavigation
     return Navigator(
-      key: AppNavigation.getNavigatorKey(tabIndex + 4),
+      key: AppNavigation.getNavigatorKey(tabIndex + 5),
       onGenerateRoute: (settings) =>
           MaterialPageRoute(settings: settings, builder: (_) => root),
     );
@@ -72,8 +71,6 @@ class _ShopShellState extends State<ShopShell> {
   }
 
   Widget _buildMobile(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
     final appMode = context.watch<AppModeProvider>();
     final tabIndex = appMode.shopTabIndex;
     final player = context.watch<PlayerProvider>();

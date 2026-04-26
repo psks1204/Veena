@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'app_tabs.dart';
 
 /// Global navigator keys for each tab - allows navigation within tabs
 /// while keeping the shell (nav bar + mini player) visible
@@ -8,6 +9,7 @@ class AppNavigation {
 
   /// Navigator keys for each tab
   static final homeNavigatorKey = GlobalKey<NavigatorState>();
+  static final uploadsNavigatorKey = GlobalKey<NavigatorState>();
   static final searchNavigatorKey = GlobalKey<NavigatorState>();
   static final libraryNavigatorKey = GlobalKey<NavigatorState>();
   static final profileNavigatorKey = GlobalKey<NavigatorState>();
@@ -29,13 +31,15 @@ class AppNavigation {
   /// Get the navigator key for the current tab
   static GlobalKey<NavigatorState> get currentNavigatorKey {
     switch (_currentTabIndex) {
-      case 0:
+      case AppTabs.home:
         return homeNavigatorKey;
-      case 1:
+      case AppTabs.uploads:
+        return uploadsNavigatorKey;
+      case AppTabs.search:
         return searchNavigatorKey;
-      case 2:
+      case AppTabs.library:
         return libraryNavigatorKey;
-      case 3:
+      case AppTabs.profile:
         return profileNavigatorKey;
       default:
         return homeNavigatorKey;
@@ -45,22 +49,24 @@ class AppNavigation {
   /// Get navigator key for a specific tab index
   static GlobalKey<NavigatorState> getNavigatorKey(int index) {
     switch (index) {
-      case 0:
+      case AppTabs.home:
         return homeNavigatorKey;
-      case 1:
+      case AppTabs.uploads:
+        return uploadsNavigatorKey;
+      case AppTabs.search:
         return searchNavigatorKey;
-      case 2:
+      case AppTabs.library:
         return libraryNavigatorKey;
-      case 3:
+      case AppTabs.profile:
         return profileNavigatorKey;
-      // Shop tabs (4-7)
-      case 4:
+      // Shop tabs (5-8)
+      case AppTabs.shopHome:
         return shopHomeKey;
-      case 5:
+      case AppTabs.shopOrders:
         return shopOrdersKey;
-      case 6:
+      case AppTabs.shopWishlist:
         return shopWishlistKey;
-      case 7:
+      case AppTabs.shopCart:
         return shopCartKey;
       default:
         return homeNavigatorKey;

@@ -92,6 +92,9 @@ dependencies:
 
   # File picking (audio/video for channel uploads)
   file_picker: ^8.0.0
+  speech_to_text: ^7.0.0
+  google_mobile_ads: ^5.2.0
+  razorpay_flutter: ^1.4.0
 
 dev_dependencies:
   flutter_test:

@@ -45,33 +45,14 @@ class DashboardService extends ChangeNotifier {
     try {
       final data = await _api.get('/user/dashboard');
 
-      // Parse dashboard sections
+      // Parse dashboard sections in background isolate to avoid UI jank
       if (data != null) {
-        if (data['latestReleases'] != null) {
-          _latestReleases = (data['latestReleases'] as List)
-              .map((item) => MediaItem.fromJson(item))
-              .toList();
-        }
-        if (data['popularTracks'] != null) {
-          _popularTracks = (data['popularTracks'] as List)
-              .map((item) => MediaItem.fromJson(item))
-              .toList();
-        }
-        if (data['recentlyPlayed'] != null) {
-          final allHistory = (data['recentlyPlayed'] as List)
-              .map((item) => MediaItem.fromJson(item))
-              .toList();
-
-          final seen = <String>{};
-          _recentlyPlayed = allHistory
-              .where((item) => seen.add(item.id))
-              .toList();
-        }
-        if (data['podcasts'] != null) {
-          _podcasts = (data['podcasts'] as List)
-              .map((item) => MediaItem.fromJson(item))
-              .toList();
-        }
+        final Map<String, dynamic> typedData = Map<String, dynamic>.from(data as Map);
+        final parsed = await compute(_parseDashboardData, typedData);
+        _latestReleases = parsed['latestReleases']!;
+        _popularTracks = parsed['popularTracks']!;
+        _recentlyPlayed = parsed['recentlyPlayed']!;
+        _podcasts = parsed['podcasts']!;
       }
 
       // Fetch artists, videos, and audios concurrently
@@ -317,4 +298,42 @@ class DashboardService extends ChangeNotifier {
       return [];
     }
   }
+}
+
+/// Top-level function for compute() — parses dashboard JSON in a background isolate.
+/// Must be top-level (not a class method) for compute() to work.
+Map<String, List<MediaItem>> _parseDashboardData(Map<String, dynamic> data) {
+  final result = <String, List<MediaItem>>{
+    'latestReleases': <MediaItem>[],
+    'popularTracks': <MediaItem>[],
+    'recentlyPlayed': <MediaItem>[],
+    'podcasts': <MediaItem>[],
+  };
+
+  if (data['latestReleases'] != null) {
+    result['latestReleases'] = (data['latestReleases'] as List)
+        .map((item) => MediaItem.fromJson(item))
+        .toList();
+  }
+  if (data['popularTracks'] != null) {
+    result['popularTracks'] = (data['popularTracks'] as List)
+        .map((item) => MediaItem.fromJson(item))
+        .toList();
+  }
+  if (data['recentlyPlayed'] != null) {
+    final allHistory = (data['recentlyPlayed'] as List)
+        .map((item) => MediaItem.fromJson(item))
+        .toList();
+    final seen = <String>{};
+    result['recentlyPlayed'] = allHistory
+        .where((item) => seen.add(item.id))
+        .toList();
+  }
+  if (data['podcasts'] != null) {
+    result['podcasts'] = (data['podcasts'] as List)
+        .map((item) => MediaItem.fromJson(item))
+        .toList();
+  }
+
+  return result;
 }

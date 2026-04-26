@@ -6,10 +6,10 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 
 /// Section View Screen
-/// 
+///
 /// Displays a list of media items for a specific section (e.g. Latest Releases, Popular).
 /// Used when clicking "See All" on the Home Screen.
 /// Designed like Spotify with list layout, header with play/shuffle buttons.
@@ -81,24 +81,28 @@ class SectionViewScreen extends StatelessWidget {
                       color: colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
-                  
+
                   const Spacer(),
-                  
+
                   // Shuffle button
                   IconButton(
-                    onPressed: items.isNotEmpty ? () => _playAll(context, shuffle: true) : null,
+                    onPressed: items.isNotEmpty
+                        ? () => _playAll(context, shuffle: true)
+                        : null,
                     icon: const Icon(Icons.shuffle_rounded),
                     tooltip: 'Shuffle',
                   ),
-                  
+
                   const SizedBox(width: AppSpacing.sm),
-                  
+
                   // Play button
                   Container(
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: items.isNotEmpty ? colorScheme.primary : Colors.grey,
+                      color: items.isNotEmpty
+                          ? colorScheme.primary
+                          : Colors.grey,
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
@@ -109,7 +113,9 @@ class SectionViewScreen extends StatelessWidget {
                       ],
                     ),
                     child: IconButton(
-                      onPressed: items.isNotEmpty ? () => _playAll(context) : null,
+                      onPressed: items.isNotEmpty
+                          ? () => _playAll(context)
+                          : null,
                       icon: const Icon(
                         Icons.play_arrow_rounded,
                         size: 28,
@@ -151,30 +157,27 @@ class SectionViewScreen extends StatelessWidget {
           else
             // Track list with nice styling
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+              ),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    final item = items[index];
-                    final isPlaying = player.currentMedia?.id == item.id;
-                    
-                    return _TrackListItem(
-                      index: index + 1,
-                      item: item,
-                      isPlaying: isPlaying,
-                      onTap: () => _playMedia(context, item, index),
-                      onMoreTap: () => _showMoreOptions(context, item),
-                    );
-                  },
-                  childCount: items.length,
-                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final item = items[index];
+                  final isPlaying = player.currentMedia?.id == item.id;
+
+                  return _TrackListItem(
+                    index: index + 1,
+                    item: item,
+                    isPlaying: isPlaying,
+                    onTap: () => _playMedia(context, item, index),
+                    onMoreTap: () => _showMoreOptions(context, item),
+                  );
+                }, childCount: items.length),
               ),
             ),
 
           // Bottom padding
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 140),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
       ),
     );
@@ -190,19 +193,15 @@ class SectionViewScreen extends StatelessWidget {
     player.playQueue(items, startIndex: index);
 
     if (item.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
   void _showMoreOptions(BuildContext context, MediaItem item) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => AddToPlaylistSheet(mediaItem: item),
-    );
+    MediaOptionsSheet.show(context, mediaItem: item);
   }
 }
 
@@ -252,16 +251,17 @@ class _TrackListItem extends StatelessWidget {
                       ),
                     ),
             ),
-            
+
             const SizedBox(width: AppSpacing.sm),
-            
+
             // Artwork thumbnail
             ClipRRect(
               borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
               child: SizedBox(
                 width: 48,
                 height: 48,
-                child: item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
+                child:
+                    item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty
                     ? CachedNetworkImage(
                         imageUrl: item.thumbnailUrl!,
                         fit: BoxFit.cover,
@@ -289,9 +289,9 @@ class _TrackListItem extends StatelessWidget {
                       ),
               ),
             ),
-            
+
             const SizedBox(width: AppSpacing.md),
-            
+
             // Title and artist
             Expanded(
               child: Column(
@@ -301,8 +301,8 @@ class _TrackListItem extends StatelessWidget {
                     item.title,
                     style: theme.textTheme.bodyLarge?.copyWith(
                       fontWeight: FontWeight.w500,
-                      color: isPlaying 
-                          ? AppColors.primary 
+                      color: isPlaying
+                          ? AppColors.primary
                           : (isDark ? Colors.white : Colors.black87),
                     ),
                     maxLines: 1,
@@ -347,7 +347,7 @@ class _TrackListItem extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // More button
             IconButton(
               onPressed: onMoreTap,

@@ -298,7 +298,6 @@ class _CartScreenState extends State<CartScreen> {
                           width: double.infinity,
                           child: FilledButton(
                             onPressed: () {
-                              context.read<AddressProvider>().loadAddresses();
                               Navigator.of(context).push(
                                 MaterialPageRoute(
                                   builder: (_) => const CheckoutScreen(),

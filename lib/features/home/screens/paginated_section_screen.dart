@@ -5,23 +5,27 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 
 /// Callback to fetch items for a specific page (legacy)
-typedef FetchItemsCallback = Future<List<MediaItem>> Function(int page, int limit);
+typedef FetchItemsCallback =
+    Future<List<MediaItem>> Function(int page, int limit);
 
 /// Callback to fetch a page of items – returns a PagedResponse for proper hasMore detection
-typedef FetchPagedItemsCallback = Future<PagedResponse<MediaItem>> Function(int page, int size);
+typedef FetchPagedItemsCallback =
+    Future<PagedResponse<MediaItem>> Function(int page, int size);
 
 /// Paginated Section Screen
-/// 
+///
 /// Displays a list of media items with infinite scrolling.
 /// Used for "See All" sections to load content progressively.
 class PaginatedSectionScreen extends StatefulWidget {
   final String title;
+
   /// New paged callback (preferred). Returns PagedResponse for proper hasMore detection.
   final FetchPagedItemsCallback? fetchPagedItems;
+
   /// Legacy callback for backward compatibility. Uses result count heuristic.
   final FetchItemsCallback? fetchItems;
   final int pageSize;
@@ -32,8 +36,10 @@ class PaginatedSectionScreen extends StatefulWidget {
     this.fetchPagedItems,
     this.fetchItems,
     this.pageSize = 20,
-  }) : assert(fetchPagedItems != null || fetchItems != null,
-           'Either fetchPagedItems or fetchItems must be provided');
+  }) : assert(
+         fetchPagedItems != null || fetchItems != null,
+         'Either fetchPagedItems or fetchItems must be provided',
+       );
 
   @override
   State<PaginatedSectionScreen> createState() => _PaginatedSectionScreenState();
@@ -42,7 +48,7 @@ class PaginatedSectionScreen extends StatefulWidget {
 class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
   final List<MediaItem> _items = [];
   final ScrollController _scrollController = ScrollController();
-  
+
   bool _isLoading = false;
   bool _hasMore = true;
   int _currentPage = 0;
@@ -62,7 +68,7 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
   }
 
   void _onScroll() {
-    if (_scrollController.position.pixels >= 
+    if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
       _loadMore();
     }
@@ -79,8 +85,11 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
     try {
       if (widget.fetchPagedItems != null) {
         // Use the paged callback for proper hasMore detection
-        final response = await widget.fetchPagedItems!(_currentPage, widget.pageSize);
-        
+        final response = await widget.fetchPagedItems!(
+          _currentPage,
+          widget.pageSize,
+        );
+
         if (!mounted) return;
 
         setState(() {
@@ -91,8 +100,11 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
         });
       } else if (widget.fetchItems != null) {
         // Legacy callback fallback – estimate hasMore from result count
-        final newItems = await widget.fetchItems!(_currentPage, widget.pageSize);
-        
+        final newItems = await widget.fetchItems!(
+          _currentPage,
+          widget.pageSize,
+        );
+
         if (!mounted) return;
 
         setState(() {
@@ -123,9 +135,10 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
     player.playQueue(_items, startIndex: index);
 
     if (item.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -134,7 +147,7 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    
+
     return Scaffold(
       body: CustomScrollView(
         controller: _scrollController,
@@ -186,14 +199,21 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
 
           // Error State
           if (_error != null && _items.isEmpty)
-             SliverFillRemaining(
+            SliverFillRemaining(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.grey),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
                     const SizedBox(height: 16),
-                    Text('Failed to load items', style: TextStyle(color: Colors.grey[600])),
+                    Text(
+                      'Failed to load items',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
                     TextButton(
                       onPressed: _loadMore,
                       child: const Text('Retry'),
@@ -203,12 +223,16 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
               ),
             )
           else if (_items.isEmpty && !_isLoading)
-             SliverFillRemaining(
+            SliverFillRemaining(
               child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.music_off_outlined, size: 48, color: Colors.grey[400]),
+                    Icon(
+                      Icons.music_off_outlined,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'No items found',
@@ -231,7 +255,9 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
                           ? const Padding(
                               padding: EdgeInsets.all(16.0),
                               child: Center(
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               ),
                             )
                           : const SizedBox(height: 140); // Bottom padding
@@ -248,22 +274,20 @@ class _PaginatedSectionScreenState extends State<PaginatedSectionScreen> {
                         subtitle: item.artistName,
                         imageUrl: item.thumbnailUrl,
                         isPlaying: isPlaying,
-                        playedCount: item.playedCount > 0 ? item.playedCount : null,
+                        playedCount: item.playedCount > 0
+                            ? item.playedCount
+                            : null,
                         likeCount: item.likeCount > 0 ? item.likeCount : null,
                         onTap: () => _playMedia(context, item, index),
                         onLikeTap: () {},
                         onMoreTap: () {
-                           showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => AddToPlaylistSheet(mediaItem: item),
-                           );
+                          MediaOptionsSheet.show(context, mediaItem: item);
                         },
                       ),
                     );
                   },
-                  childCount: _items.length + 1, // +1 for loading indicator/padding
+                  childCount:
+                      _items.length + 1, // +1 for loading indicator/padding
                 ),
               ),
             ),

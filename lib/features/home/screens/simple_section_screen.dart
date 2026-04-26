@@ -7,8 +7,8 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 
 /// Simple Section Screen
 ///
@@ -30,9 +30,10 @@ class SimpleSectionScreen extends StatelessWidget {
 
     final item = items[index];
     if (item.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -114,7 +115,11 @@ class SimpleSectionScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.music_off_outlined, size: 48, color: Colors.grey[400]),
+                    Icon(
+                      Icons.music_off_outlined,
+                      size: 48,
+                      color: Colors.grey[400],
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'No items found',
@@ -128,42 +133,39 @@ class SimpleSectionScreen extends StatelessWidget {
             SliverPadding(
               padding: const EdgeInsets.all(AppSpacing.screenPadding),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, index) {
-                    if (index == items.length) {
-                      return const SizedBox(height: 140);
-                    }
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  if (index == items.length) {
+                    return const SizedBox(height: 140);
+                  }
 
-                    final item = items[index];
-                    final player = context.watch<PlayerProvider>();
-                    final mediaService = context.watch<MediaService>();
-                    final isPlaying = player.currentMedia?.id == item.id;
+                  final item = items[index];
+                  final player = context.watch<PlayerProvider>();
+                  final mediaService = context.watch<MediaService>();
+                  final isPlaying = player.currentMedia?.id == item.id;
 
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: AuraTrackTile(
-                        title: item.title,
-                        subtitle: item.artistName,
-                        imageUrl: item.thumbnailUrl,
-                        isPlaying: isPlaying,
-                        isLiked: mediaService.isLiked(item.id, initial: item.liked),
-                        playedCount: item.playedCount > 0 ? item.playedCount : null,
-                        likeCount: item.likeCount > 0 ? item.likeCount : null,
-                        onTap: () => _playMedia(context, items, index),
-                        onLikeTap: () => _toggleLike(context, item),
-                        onMoreTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (ctx) => AddToPlaylistSheet(mediaItem: item),
-                          );
-                        },
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: AuraTrackTile(
+                      title: item.title,
+                      subtitle: item.artistName,
+                      imageUrl: item.thumbnailUrl,
+                      isPlaying: isPlaying,
+                      isLiked: mediaService.isLiked(
+                        item.id,
+                        initial: item.liked,
                       ),
-                    );
-                  },
-                  childCount: items.length + 1,
-                ),
+                      playedCount: item.playedCount > 0
+                          ? item.playedCount
+                          : null,
+                      likeCount: item.likeCount > 0 ? item.likeCount : null,
+                      onTap: () => _playMedia(context, items, index),
+                      onLikeTap: () => _toggleLike(context, item),
+                      onMoreTap: () {
+                        MediaOptionsSheet.show(context, mediaItem: item);
+                      },
+                    ),
+                  );
+                }, childCount: items.length + 1),
               ),
             ),
         ],

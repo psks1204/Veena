@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/channel.dart';
 import '../services/channel_service.dart';
-import '../../../core/models/paged_response.dart';
 
 const _kChannelNameConfirmedKey = 'channel_name_confirmed';
 

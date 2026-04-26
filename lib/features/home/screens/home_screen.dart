@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
@@ -16,7 +17,7 @@ import '../../../shared/widgets/aura_cards.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/screens/artist_detail_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 import '../../library/screens/albums_browse_screen.dart';
 import '../../library/screens/album_detail_screen.dart';
 import '../../library/screens/artists_browse_screen.dart';
@@ -49,6 +50,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   bool _isLoading = true;
   String? _error;
+  bool _birthdayChecked = false;
+  final BirthdayService _birthdayService = BirthdayService();
 
   @override
   void initState() {
@@ -60,16 +63,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _checkBirthday() async {
+    if (_birthdayChecked) return;
+    _birthdayChecked = true;
+
     final profileProvider = context.read<ProfileProvider>();
     final user = profileProvider.profile;
 
-    if (user == null) return;
+    if (user == null) {
+      _birthdayChecked = false; // allow retry if profile loads later
+      return;
+    }
 
-    final birthdayService = BirthdayService();
-    if (await birthdayService.shouldShowBirthdayBomb(user)) {
+    if (await _birthdayService.shouldShowBirthdayBomb(user)) {
       if (!mounted) return;
 
-      await birthdayService.markBirthdayBombAsSeen();
+      await _birthdayService.markBirthdayBombAsSeen();
 
       showDialog(
         context: context,
@@ -91,16 +99,20 @@ class _HomeScreenState extends State<HomeScreen> {
 
     try {
       final dashboard = context.read<DashboardService>();
-      final albumService = context.read<AlbumService>();
-      final libraryService = context.read<LibraryService>();
 
-      await Future.wait([
-        dashboard.fetchDashboard(),
-        albumService.getAllAlbums(),
-        libraryService.getFeaturedPlaylists(),
-      ]);
+      // Load critical dashboard data first — renders the home screen
+      await dashboard.fetchDashboard();
 
       if (mounted) setState(() => _isLoading = false);
+
+      // Load secondary data in the background (non-blocking)
+      // These don't need to complete before showing the home screen
+      if (mounted) {
+        final albumService = context.read<AlbumService>();
+        final libraryService = context.read<LibraryService>();
+        unawaited(albumService.getAllAlbums());
+        unawaited(libraryService.getFeaturedPlaylists());
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -155,11 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
         builder: (context, dashboard, child) {
           final profileProvider = context.watch<ProfileProvider>();
           final user = profileProvider.profile;
-          final isBirthday = BirthdayService().isBirthday(user);
-
-          if (user != null && profileProvider.hasProfile) {
-            Future.microtask(() => _checkBirthday());
-          }
+          final isBirthday = _birthdayService.isBirthday(user);
 
           final latestReleases = dashboard.latestReleases;
           final popularTracks = dashboard.popularTracks;
@@ -274,8 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(
                             builder: (_) => PaginatedSectionScreen(
                               title: 'Latest Releases',
-                              fetchPagedItems: (page, size) =>
-                                  mediaService.fetchLatestReleases(page: page, size: size),
+                              fetchPagedItems: (page, size) => mediaService
+                                  .fetchLatestReleases(page: page, size: size),
                             ),
                           ),
                         );
@@ -388,8 +396,17 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Consumer<DashboardService>(
         builder: (context, dashboard, _) {
           final featuredItems = dashboard.featuredActive;
-          if (featuredItems.isEmpty) return const SizedBox.shrink();
-          return FeaturedCarousel(items: featuredItems, onPlay: _playMedia);
+
+          final fallbackLatest = dashboard.latestReleases.take(6).toList();
+          final fallbackTrending = dashboard.popularTracks.take(6).toList();
+
+          final carouselItems = featuredItems.isNotEmpty
+              ? featuredItems
+              : (fallbackLatest.isNotEmpty ? fallbackLatest : fallbackTrending);
+
+          if (carouselItems.isEmpty) return const SizedBox.shrink();
+
+          return FeaturedCarousel(items: carouselItems, onPlay: _playMedia);
         },
       ),
     );
@@ -431,7 +448,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length > 10 ? 10 : items.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.md),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   if (item is MediaItem) {
@@ -443,22 +461,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         imageUrl: item.thumbnailUrl ?? '',
                         mediaType: item.mediaType,
                         isNew: showBadge && index < 3,
-                        isLiked: mediaService.isLiked(item.id, initial: item.liked),
+                        isLiked: mediaService.isLiked(
+                          item.id,
+                          initial: item.liked,
+                        ),
                         onTap: () => _playMedia(items.cast<MediaItem>(), index),
                         onLikeTap: () => _toggleLike(item),
                         onMoreTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) =>
-                                AddToPlaylistSheet(mediaItem: item),
+                          MediaOptionsSheet.show(
+                            context,
+                            mediaItem: item,
                           );
                         },
                       ),
                     );
                   } else if (item is Playlist) {
-                    final isDark = Theme.of(context).brightness == Brightness.dark;
+                    final isDark =
+                        Theme.of(context).brightness == Brightness.dark;
                     return _buildPlaylistCard(context, item, isDark);
                   }
                   return const SizedBox.shrink();
@@ -491,7 +510,8 @@ class _HomeScreenState extends State<HomeScreen> {
           child: SectionHeader(
             title: title,
             actionLabel: 'See all',
-            onActionTap: onSeeAll ??
+            onActionTap:
+                onSeeAll ??
                 () {
                   AppNavigation.push(
                     context,
@@ -500,10 +520,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         title: title,
                         fetchPagedItems: (page, size) =>
                             mediaService.fetchMedia(
-                          page: page,
-                          size: size,
-                          mediaType: 'AUDIO',
-                        ),
+                              page: page,
+                              size: size,
+                              mediaType: 'AUDIO',
+                            ),
                       ),
                     ),
                   );
@@ -520,42 +540,33 @@ class _HomeScreenState extends State<HomeScreen> {
           vertical: AppSpacing.sm,
         ),
         sliver: SliverList(
-          delegate: SliverChildBuilderDelegate(
-            (context, index) {
-              final item = items[index];
-              final isPlaying = player.currentMedia?.id == item.id;
+          delegate: SliverChildBuilderDelegate((context, index) {
+            final item = items[index];
+            final isPlaying = player.currentMedia?.id == item.id;
 
-              return Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: AuraTrackTile(
-                  title: item.title,
-                  subtitle: item.artistName,
-                  imageUrl: item.thumbnailUrl,
-                  isPlaying: isPlaying,
-                  isLiked: mediaService.isLiked(item.id, initial: item.liked),
-                  playedCount: item.playedCount > 0 ? item.playedCount : null,
-                  likeCount: item.likeCount > 0 ? item.likeCount : null,
-                  onTap: () => _playMedia(items, index),
-                  onLikeTap: () => _toggleLike(item),
-                  onMoreTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => AddToPlaylistSheet(mediaItem: item),
-                    );
-                  },
-                ),
-              );
-            },
-            childCount: items.length > 5 ? 5 : items.length,
-          ),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: AuraTrackTile(
+                title: item.title,
+                subtitle: item.artistName,
+                imageUrl: item.thumbnailUrl,
+                isPlaying: isPlaying,
+                isLiked: mediaService.isLiked(item.id, initial: item.liked),
+                playedCount: item.playedCount > 0 ? item.playedCount : null,
+                likeCount: item.likeCount > 0 ? item.likeCount : null,
+                onTap: () => _playMedia(items, index),
+                onLikeTap: () => _toggleLike(item),
+                onMoreTap: () {
+                  MediaOptionsSheet.show(context, mediaItem: item);
+                },
+              ),
+            );
+          }, childCount: items.length > 5 ? 5 : items.length),
         ),
       ),
       const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
     ];
   }
-
 
   Widget _buildEmptyState() {
     return SliverFillRemaining(
@@ -746,7 +757,10 @@ class _HomeScreenState extends State<HomeScreen> {
     ];
   }
 
-  List<Widget> _buildArtistSectionSlivers(BuildContext context, List<Artist> artists) {
+  List<Widget> _buildArtistSectionSlivers(
+    BuildContext context,
+    List<Artist> artists,
+  ) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
@@ -778,7 +792,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 scrollDirection: Axis.horizontal,
                 itemCount: artists.length > 10 ? 10 : artists.length,
-                separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.md),
                 itemBuilder: (context, index) {
                   final artist = artists[index];
                   return GestureDetector(
@@ -808,11 +823,15 @@ class _HomeScreenState extends State<HomeScreen> {
                               ],
                               image: artist.imageUrl != null
                                   ? DecorationImage(
-                                      image: CachedNetworkImageProvider(artist.imageUrl!),
+                                      image: CachedNetworkImageProvider(
+                                        artist.imageUrl!,
+                                      ),
                                       fit: BoxFit.cover,
                                     )
                                   : null,
-                              color: isDark ? Colors.grey[800] : Colors.grey[200],
+                              color: isDark
+                                  ? Colors.grey[800]
+                                  : Colors.grey[200],
                             ),
                             child: artist.imageUrl == null
                                 ? Center(
@@ -888,7 +907,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   imageUrl: playlist.coverUrl ?? '',
                   fit: BoxFit.cover,
                   memCacheWidth: 280,
-                  placeholder: (_, __) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                  placeholder: (_, __) => Container(
+                    color: isDark ? Colors.grey[900] : Colors.grey[200],
+                  ),
                   errorWidget: (_, __, ___) => Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                     child: const Icon(Icons.playlist_play_rounded, size: 40),
@@ -899,7 +920,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
               playlist.name,
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -950,7 +973,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   imageUrl: album.coverUrl ?? '',
                   fit: BoxFit.cover,
                   memCacheWidth: 280,
-                  placeholder: (_, __) => Container(color: isDark ? Colors.grey[900] : Colors.grey[200]),
+                  placeholder: (_, __) => Container(
+                    color: isDark ? Colors.grey[900] : Colors.grey[200],
+                  ),
                   errorWidget: (_, __, ___) => Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                     child: const Icon(Icons.album_rounded, size: 40),
@@ -961,7 +986,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 8),
             Text(
               album.title,
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

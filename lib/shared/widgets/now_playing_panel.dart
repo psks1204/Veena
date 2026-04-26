@@ -507,7 +507,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemBuilder: (context, index) {
         final item = player.queue[index];
-        final isCurrent = index == player.playQueueIndex;
+        final isCurrent = index == player.currentIndex;
         return ListTile(
           contentPadding: EdgeInsets.zero,
           leading: Container(
@@ -549,6 +549,16 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               fontSize: 12,
             ),
             maxLines: 1,
+          ),
+          trailing: IconButton(
+            tooltip: 'Remove from queue',
+            onPressed: () => player.removeFromQueueAt(index),
+            icon: Icon(
+              Icons.remove_circle_outline_rounded,
+              color: isDark ? Colors.white54 : AppColors.lightTextSecondary,
+              size: 20,
+            ),
+            splashRadius: 18,
           ),
           onTap: () {
             player.playQueueIndex(index);
@@ -821,7 +831,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             child: Text(
               '$label: $name',
               style: TextStyle(
-                color: isDark ? Colors.white.withOpacity(0.9) : AppColors.lightTextSecondary,
+                color: isDark
+                    ? Colors.white.withOpacity(0.9)
+                    : AppColors.lightTextSecondary,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),

@@ -20,6 +20,7 @@ import '../../library/screens/artist_detail_screen.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../widgets/comments_sheet.dart';
+import '../../../shared/widgets/player_ad_rotator.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
 ///
@@ -246,12 +247,30 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             ),
                             maxLines: 1,
                           ),
-                          trailing: isPlaying
-                              ? Icon(
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isPlaying)
+                                const Icon(
                                   Icons.equalizer_rounded,
                                   color: AppColors.primary,
-                                )
-                              : null,
+                                ),
+                              IconButton(
+                                tooltip: 'Remove from queue',
+                                onPressed: () async {
+                                  await player.removeFromQueueAt(index);
+                                  if (!context.mounted) return;
+                                  if (!player.hasMedia) {
+                                    Navigator.pop(context);
+                                  }
+                                },
+                                icon: const Icon(
+                                  Icons.remove_circle_outline_rounded,
+                                  color: Colors.white54,
+                                ),
+                              ),
+                            ],
+                          ),
                           onTap: () {
                             player.playQueueIndex(index);
                             Navigator.pop(context);
@@ -440,6 +459,11 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
           // Switch media button and queue
           _buildBottomActions(player),
+
+          const SizedBox(height: 16),
+
+          // Rotates between existing promo banner and ad banner on mobile.
+          const PlayerAdRotator(),
 
           // Lyrics section for audio
           if (player.currentLyrics != null) _buildLyricsSection(player),
@@ -954,8 +978,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     if (creditWidgets.isEmpty) return const SizedBox.shrink();
 
     return Column(
-      crossAxisAlignment:
-          centered ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+      crossAxisAlignment: centered
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
       children: creditWidgets,
     );
   }
@@ -1078,8 +1103,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         !controller.value.hasError;
 
     if (!isValid) {
-      final hasError = controller?.value.hasError ?? (!player.isLoading && controller == null);
-      
+      final hasError =
+          controller?.value.hasError ??
+          (!player.isLoading && controller == null);
+
       return Container(
         color: Colors.black,
         child: Center(
@@ -1087,15 +1114,24 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (hasError) ...[
-                const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 48),
+                const Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.redAccent,
+                  size: 48,
+                ),
                 const SizedBox(height: 16),
                 const Text(
                   'Playback Error',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  controller?.value.errorDescription ?? 'Failed to initialize video',
+                  controller?.value.errorDescription ??
+                      'Failed to initialize video',
                   style: const TextStyle(color: Colors.white70, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
@@ -1112,7 +1148,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               ] else ...[
                 const CircularProgressIndicator(color: AppColors.primary),
                 const SizedBox(height: 16),
-                const Text('Loading video...', style: TextStyle(color: Colors.white70)),
+                const Text(
+                  'Loading video...',
+                  style: TextStyle(color: Colors.white70),
+                ),
               ],
             ],
           ),
@@ -1345,7 +1384,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (context) => CommentsSheet(mediaId: player.currentMedia!.id),
+                      builder: (context) =>
+                          CommentsSheet(mediaId: player.currentMedia!.id),
                     );
                   },
                   icon: const Icon(
@@ -1864,8 +1904,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (context) =>
-                            CommentsSheet(mediaId: media.id),
+                        builder: (context) => CommentsSheet(mediaId: media.id),
                       );
                     },
                     icon: const Icon(

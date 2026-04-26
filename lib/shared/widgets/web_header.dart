@@ -167,9 +167,11 @@ class _WebHeaderState extends State<WebHeader> {
           // Navigation Links
           _buildNavLink(0, 'Home', Icons.home_filled, isDark),
           const SizedBox(width: 8),
-          _buildNavLink(1, 'Search', Icons.search_rounded, isDark),
+          _buildNavLink(1, 'Uploads', Icons.upload_file_rounded, isDark),
           const SizedBox(width: 8),
-          _buildNavLink(2, 'Your Library', Icons.library_music_rounded, isDark),
+          _buildNavLink(2, 'Search', Icons.search_rounded, isDark),
+          const SizedBox(width: 8),
+          _buildNavLink(3, 'Your Library', Icons.library_music_rounded, isDark),
           const SizedBox(width: 8),
           _buildShopNavLink(isDark),
 

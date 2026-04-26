@@ -2,9 +2,14 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:provider/provider.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/ads_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/google_banner_ad.dart';
+import '../../../shared/widgets/subscription_modal.dart';
 
 class FeaturedCarousel extends StatefulWidget {
   const FeaturedCarousel({
@@ -24,6 +29,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
   late final PageController _pageController;
   Timer? _timer;
   int _currentPage = 0;
+  int _pageCount = 0;
 
   @override
   void initState() {
@@ -42,10 +48,10 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 5), (timer) {
-      if (!mounted || widget.items.isEmpty) return;
+      if (!mounted || _pageCount == 0) return;
 
       int nextPage = _currentPage + 1;
-      if (nextPage >= widget.items.length) {
+      if (nextPage >= _pageCount) {
         nextPage = 0;
       }
 
@@ -70,6 +76,15 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
     final theme = Theme.of(context);
+    final subscription = context.watch<SubscriptionProvider>();
+    final shouldInsertAds =
+        subscription.shouldShowAds && AdsService.isSupportedPlatform;
+    final pages = _buildPages(widget.items, shouldInsertAds);
+    _pageCount = pages.length;
+
+    if (_currentPage >= _pageCount && _pageCount > 0) {
+      _currentPage = 0;
+    }
 
     return Column(
       children: [
@@ -80,10 +95,18 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   child: PageView.builder(
                     controller: _pageController,
                     onPageChanged: _onPageChanged,
-                    itemCount: widget.items.length,
+                    itemCount: pages.length,
                     itemBuilder: (context, index) {
-                      final item = widget.items[index];
-                      return _buildFeaturedItem(context, item, theme);
+                      final page = pages[index];
+                      if (page.isAd) {
+                        return _buildAdPage(context, theme);
+                      }
+                      return _buildFeaturedItem(
+                        context,
+                        page.item!,
+                        theme,
+                        page.mediaIndex!,
+                      );
                     },
                   ),
                 )
@@ -92,20 +115,28 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   child: PageView.builder(
                     controller: _pageController,
                     onPageChanged: _onPageChanged,
-                    itemCount: widget.items.length,
+                    itemCount: pages.length,
                     itemBuilder: (context, index) {
-                      final item = widget.items[index];
-                      return _buildFeaturedItem(context, item, theme);
+                      final page = pages[index];
+                      if (page.isAd) {
+                        return _buildAdPage(context, theme);
+                      }
+                      return _buildFeaturedItem(
+                        context,
+                        page.item!,
+                        theme,
+                        page.mediaIndex!,
+                      );
                     },
                   ),
                 ),
         ),
         const SizedBox(height: AppSpacing.md),
         // Page Indicators
-        if (widget.items.length > 1)
+        if (pages.length > 1)
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
-            children: List.generate(widget.items.length, (index) {
+            children: List.generate(pages.length, (index) {
               final isSelected = _currentPage == index;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 300),
@@ -131,6 +162,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     BuildContext context,
     MediaItem item,
     ThemeData theme,
+    int mediaIndex,
   ) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
@@ -138,7 +170,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
         cursor: SystemMouseCursors.click,
         child: GestureDetector(
           onTap: (item.hlsUrl != null && item.hlsUrl!.isNotEmpty)
-              ? () => widget.onPlay(widget.items, widget.items.indexOf(item))
+              ? () => widget.onPlay(widget.items, mediaIndex)
               : null,
           child: Stack(
             fit: StackFit.expand,
@@ -278,4 +310,66 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
       ),
     );
   }
+
+  List<_CarouselPage> _buildPages(List<MediaItem> items, bool withAds) {
+    if (!withAds) {
+      return List.generate(
+        items.length,
+        (index) => _CarouselPage(item: items[index], mediaIndex: index),
+      );
+    }
+
+    final pages = <_CarouselPage>[];
+    for (int i = 0; i < items.length; i++) {
+      pages.add(_CarouselPage(item: items[i], mediaIndex: i));
+      pages.add(const _CarouselPage(isAd: true));
+    }
+    return pages;
+  }
+
+  Widget _buildAdPage(BuildContext context, ThemeData theme) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: LinearGradient(
+          colors: [
+            AppColors.primary.withOpacity(0.22),
+            Colors.black.withOpacity(0.55),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const GoogleBannerAd(height: 50),
+          const SizedBox(height: 10),
+          Text(
+            'Remove ads with No Ads plan (Rs 9/month)',
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: () => showSubscriptionModal(context),
+            child: const Text('Go ad-free'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CarouselPage {
+  const _CarouselPage({this.item, this.mediaIndex, this.isAd = false});
+
+  final MediaItem? item;
+  final int? mediaIndex;
+  final bool isAd;
 }

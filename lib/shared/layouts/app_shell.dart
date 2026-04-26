@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/navigation/app_navigation.dart';
+import '../../core/navigation/app_tabs.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/providers/app_mode_provider.dart';
 import '../widgets/mini_player.dart';
@@ -9,7 +10,6 @@ import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
 import '../widgets/now_playing_panel.dart';
 import '../widgets/web_header.dart';
-import '../../features/playlist/screens/playlist_detail_screen.dart';
 
 /// Responsive App Shell with Nested Navigation
 ///
@@ -37,34 +37,16 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  static const _destinations = [
-    NavigationDestination(
-      icon: Icon(Icons.home_outlined),
-      selectedIcon: Icon(Icons.home_rounded),
-      label: 'Home',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.search_outlined),
-      selectedIcon: Icon(Icons.search_rounded),
-      label: 'Search',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.library_music_outlined),
-      selectedIcon: Icon(Icons.library_music_rounded),
-      label: 'Library',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.person_outline_rounded),
-      selectedIcon: Icon(Icons.person_rounded),
-      label: 'Profile',
-    ),
-  ];
-
   static const _railDestinations = [
     NavigationRailDestination(
       icon: Icon(Icons.home_outlined),
       selectedIcon: Icon(Icons.home_rounded),
       label: Text('Home'),
+    ),
+    NavigationRailDestination(
+      icon: Icon(Icons.upload_file_outlined),
+      selectedIcon: Icon(Icons.upload_file_rounded),
+      label: Text('Uploads'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.search_outlined),
@@ -97,11 +79,10 @@ class _AppShellState extends State<AppShell> {
     }
   }
 
-  // Cached navigator widgets - created once and reused
-  late final List<Widget> _navigatorWidgets;
-
-  // Keys for nested navigators to allow accessing them from outside (e.g. sidebar)
-  final _navigatorKeys = List.generate(4, (_) => GlobalKey<NavigatorState>());
+  // Cached navigator widgets - created lazily on first visit
+  late final List<Widget?> _navigatorWidgets;
+  // Tracks which tabs have been visited
+  final Set<int> _visitedTabs = {0}; // Home tab (index 0) always visited
 
   // Web-specific state
   bool _isNowPlayingOpen = false;
@@ -126,11 +107,10 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     AppNavigation.setCurrentTab(widget.currentIndex);
-    // Build navigators once and cache them
-    _navigatorWidgets = List.generate(
-      widget.screens.length,
-      (index) => _buildTabNavigator(index, widget.screens[index]),
-    );
+    // Initialize with null placeholders — built lazily on first visit
+    _navigatorWidgets = List<Widget?>.filled(widget.screens.length, null);
+    // Build the initial tab immediately
+    _navigatorWidgets[0] = _buildTabNavigator(0, widget.screens[0]);
 
     // Listen for playback start to auto-open panel
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -159,15 +139,6 @@ class _AppShellState extends State<AppShell> {
         );
       },
     );
-  }
-
-  /// Handle back button - pop within tab first
-  Future<bool> _handleBackPress() async {
-    if (AppNavigation.canPop()) {
-      AppNavigation.maybePop();
-      return false; // Don't exit app
-    }
-    return true; // Allow app exit
   }
 
   @override
@@ -201,11 +172,22 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
-  /// Content area with IndexedStack of nested navigators
+  /// Content area with lazy IndexedStack of nested navigators
   Widget _buildContent() {
+    // Lazily build the current tab if not yet visited
+    if (!_visitedTabs.contains(widget.currentIndex)) {
+      _visitedTabs.add(widget.currentIndex);
+      _navigatorWidgets[widget.currentIndex] = _buildTabNavigator(
+        widget.currentIndex,
+        widget.screens[widget.currentIndex],
+      );
+    }
+
     return IndexedStack(
       index: widget.currentIndex,
-      children: _navigatorWidgets,
+      children: List.generate(_navigatorWidgets.length, (i) {
+        return _navigatorWidgets[i] ?? const SizedBox.shrink();
+      }),
     );
   }
 
@@ -241,7 +223,7 @@ class _AppShellState extends State<AppShell> {
                 FloatingNavBar(
                   currentIndex: widget.currentIndex,
                   onTap: (index) {
-                    if (index == 4) {
+                    if (index == AppTabs.shopEntry) {
                       // Shop icon — switch to shop mode
                       context.read<AppModeProvider>().enterShop();
                     } else {
@@ -253,6 +235,11 @@ class _AppShellState extends State<AppShell> {
                       icon: Icon(Icons.home_outlined),
                       activeIcon: Icon(Icons.home_rounded),
                       label: 'Home',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.upload_file_outlined),
+                      activeIcon: Icon(Icons.upload_file_rounded),
+                      label: 'Uploads',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.search_outlined),
@@ -296,7 +283,7 @@ class _AppShellState extends State<AppShell> {
           NavigationRail(
             selectedIndex: widget.currentIndex,
             onDestinationSelected: (index) {
-              if (index == 4) {
+              if (index == AppTabs.shopEntry) {
                 context.read<AppModeProvider>().enterShop();
               } else {
                 widget.onDestinationSelected(index);

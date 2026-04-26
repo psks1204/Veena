@@ -1,5 +1,6 @@
 import 'dart:ui';
-import 'package:flutter/material.dart' hide RepeatMode;
+import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +14,7 @@ import 'seekbar_control.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
+import 'player_ad_rotator.dart';
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
 /// Responsive: Mobile stays the same, Web/Tablet gets a constrained centered layout
@@ -188,12 +190,30 @@ class FullPlayer extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: isCurrent
-                          ? const Icon(
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isCurrent)
+                            const Icon(
                               Icons.equalizer_rounded,
                               color: AppColors.primary,
-                            )
-                          : null,
+                            ),
+                          IconButton(
+                            tooltip: 'Remove from queue',
+                            onPressed: () async {
+                              await player.removeFromQueueAt(index);
+                              if (!context.mounted) return;
+                              if (!player.hasMedia) {
+                                Navigator.pop(context);
+                              }
+                            },
+                            icon: const Icon(
+                              Icons.remove_circle_outline_rounded,
+                              color: Colors.white54,
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 ),
@@ -228,11 +248,13 @@ class FullPlayer extends StatelessWidget {
             Positioned.fill(
               child: ImageFiltered(
                 imageFilter: ImageFilter.blur(sigmaX: 50, sigmaY: 50),
-                child: Image.network(
-                  mediaItem.thumbnailUrl!,
+                child: CachedNetworkImage(
+                  imageUrl: mediaItem.thumbnailUrl!,
                   fit: BoxFit.cover,
                   color: Colors.black.withOpacity(0.5),
                   colorBlendMode: BlendMode.darken,
+                  placeholder: (_, __) => Container(color: Colors.black),
+                  errorWidget: (_, __, ___) => Container(color: Colors.black),
                 ),
               ),
             ),
@@ -1136,6 +1158,10 @@ class FullPlayer extends StatelessWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: 16),
+
+          const PlayerAdRotator(),
 
           const SizedBox(height: 32),
 

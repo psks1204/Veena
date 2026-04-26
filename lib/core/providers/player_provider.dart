@@ -21,7 +21,8 @@ class PlayerProvider extends ChangeNotifier {
   app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   MediaService? _mediaService;
-  dynamic _authService; // Using dynamic to avoid circular import if necessary, or just import it
+  dynamic
+  _authService; // Using dynamic to avoid circular import if necessary, or just import it
 
   Lyrics? _currentLyrics;
   final LyricsService _lyricsService = LyricsService();
@@ -46,6 +47,9 @@ class PlayerProvider extends ChangeNotifier {
   int _activePlayOperations = 0;
   String? _lastPlayedMediaId;
   DateTime? _lastPlayRequestTime;
+
+  // Throttle for position updates to prevent excessive rebuilds
+  DateTime _lastPositionNotify = DateTime.now();
 
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
@@ -147,12 +151,17 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     // Listen to position updates directly from handler's player
+    // Throttle to ~15fps to prevent excessive widget rebuilds
     final handler = audioHandler as dynamic;
     handler.positionStream.listen((Duration pos) {
       if (_currentMedia?.isAudio ?? false) {
         _position = pos;
         _updateLyricIndex();
-        notifyListeners();
+        final now = DateTime.now();
+        if (now.difference(_lastPositionNotify).inMilliseconds >= 64) {
+          _lastPositionNotify = now;
+          notifyListeners();
+        }
       }
     });
 
@@ -332,14 +341,11 @@ class PlayerProvider extends ChangeNotifier {
     if (_videoController != null) {
       final oldController = _videoController!;
       _videoController = null;
-      // Notify listeners immediately so the UI stops using the old controller
-      // caused 'Bad state: No active player with ID' error
-      notifyListeners();
-
       oldController.removeListener(_onVideoUpdate);
       await oldController.dispose();
     }
 
+    // Batch state update: set new media + loading in one notify
     _currentMedia = media;
     _isLoading = true;
     _currentLyrics = null;
@@ -411,11 +417,11 @@ class PlayerProvider extends ChangeNotifier {
 
     // Get auth token if available
     final token = _authService?.accessToken;
-    final headers = {
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
+    final headers = {if (token != null) 'Authorization': 'Bearer $token'};
 
-    debugPrint('[PlayerProvider] Initializing video with headers: ${headers.keys}');
+    debugPrint(
+      '[PlayerProvider] Initializing video with headers: ${headers.keys}',
+    );
 
     // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
@@ -472,7 +478,9 @@ class PlayerProvider extends ChangeNotifier {
         _isPlaying = false;
       }
     } else {
-      debugPrint('[PlayerProvider] Web: Skipping auto-play, waiting for user interaction');
+      debugPrint(
+        '[PlayerProvider] Web: Skipping auto-play, waiting for user interaction',
+      );
       _isPlaying = false;
     }
 
@@ -679,6 +687,76 @@ class PlayerProvider extends ChangeNotifier {
     if (index < 0 || index >= _queue.length) return;
     _currentIndex = index;
     await _playCurrentItem();
+  }
+
+  /// Remove an item from now-playing queue by queue index.
+  /// Returns true when an item is removed, false for invalid index.
+  Future<bool> removeFromQueueAt(int index) async {
+    if (index < 0 || index >= _queue.length) return false;
+
+    final removed = _queue.removeAt(index);
+
+    if (_queue.isEmpty) {
+      await clearQueue();
+      return true;
+    }
+
+    if (_shuffleEnabled) {
+      final removedCurrent = removed.id == _currentMedia?.id;
+      final activeMediaId = removedCurrent ? null : _currentMedia?.id;
+      _generateShuffledIndices();
+
+      if (activeMediaId != null) {
+        final activeQueueIndex = _queue.indexWhere(
+          (m) => m.id == activeMediaId,
+        );
+        if (activeQueueIndex != -1) {
+          final shuffledPosition = _shuffledIndices.indexOf(activeQueueIndex);
+          if (shuffledPosition != -1) {
+            _currentIndex = shuffledPosition;
+            notifyListeners();
+            return true;
+          }
+        }
+      }
+
+      if (_currentIndex >= _queue.length) {
+        _currentIndex = _queue.length - 1;
+      }
+      if (_currentIndex < 0) {
+        _currentIndex = 0;
+      }
+      await _playCurrentItem();
+      return true;
+    }
+
+    final currentQueueIndex = _currentIndex;
+
+    // Removed item is before current item: shift current index left.
+    if (index < currentQueueIndex) {
+      _currentIndex = currentQueueIndex - 1;
+      notifyListeners();
+      return true;
+    }
+
+    // Removed item is not current: only notify queue change.
+    if (index != currentQueueIndex) {
+      notifyListeners();
+      return true;
+    }
+
+    // Removed currently playing item: continue from same position if possible.
+    if (_currentIndex >= _queue.length) {
+      _currentIndex = _queue.length - 1;
+    }
+    await _playCurrentItem();
+    return true;
+  }
+
+  Future<bool> removeFromQueueById(String mediaId) async {
+    final index = _queue.indexWhere((m) => m.id == mediaId);
+    if (index == -1) return false;
+    return removeFromQueueAt(index);
   }
 
   /// Format duration to string

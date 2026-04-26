@@ -62,41 +62,23 @@ class ProfileProvider extends ChangeNotifier {
           ? googleName.trim()
           : null;
 
-      // 3) Get device location (best-effort, skip if unavailable)
-      double? lat;
-      double? lng;
-      try {
-        final position = await _getDeviceLocation();
-        if (position != null) {
-          lat = position.$1;
-          lng = position.$2;
-        }
-      } catch (e) {
-        debugPrint('📍 Location not available: $e');
-      }
-
-      // 4) Only call PUT if we have something worth updating AND a valid name
-      // Always need a non-empty name to pass API validation
+      // 3) If we need to update the name, do it immediately (without location)
       final effectiveName = nameToSend ?? existingName ?? '';
-      final shouldUpdate =
-          effectiveName.isNotEmpty && (nameToSend != null || lat != null);
-      if (shouldUpdate) {
+      if (effectiveName.isNotEmpty && nameToSend != null) {
         try {
           await _service.updateProfile(
             name: effectiveName,
             birthDate: _buildBirthDateString(_profile?.birthDate),
-            latitude: lat ?? _profile?.latitude,
-            longitude: lng ?? _profile?.longitude,
+            latitude: _profile?.latitude,
+            longitude: _profile?.longitude,
           );
-          // 5) Re-fetch after update
           _profile = await _service.getProfile();
         } catch (e) {
-          debugPrint('⚠️ Profile update failed (non-fatal): $e');
-          // Not fatal — use whatever profile data we already have
+          debugPrint('⚠️ Profile name update failed (non-fatal): $e');
         }
       }
 
-      // 6) Check if user still needs to set up name
+      // 4) Check if user still needs to set up name
       _needsNameSetup =
           _profile?.name == null || _profile!.name!.trim().isEmpty;
       _error = null;
@@ -111,6 +93,31 @@ class ProfileProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+
+    // 5) Fire-and-forget: update location in the background (non-blocking)
+    _updateLocationInBackground();
+  }
+
+  /// Updates user profile with device location in the background.
+  /// This is fire-and-forget — it never blocks the login flow.
+  Future<void> _updateLocationInBackground() async {
+    try {
+      final position = await _getDeviceLocation();
+      if (position == null) return;
+
+      final effectiveName = _profile?.name?.trim() ?? '';
+      if (effectiveName.isEmpty) return;
+
+      await _service.updateProfile(
+        name: effectiveName,
+        birthDate: _buildBirthDateString(_profile?.birthDate),
+        latitude: position.$1,
+        longitude: position.$2,
+      );
+      debugPrint('📍 Location updated in background');
+    } catch (e) {
+      debugPrint('📍 Background location update failed (non-fatal): $e');
     }
   }
 

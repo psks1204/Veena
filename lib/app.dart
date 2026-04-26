@@ -5,6 +5,7 @@ import 'core/providers/theme_provider.dart';
 import 'core/providers/player_provider.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/app_mode_provider.dart';
+import 'core/providers/subscription_provider.dart';
 import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
 import 'core/services/dashboard_service.dart';
@@ -16,6 +17,8 @@ import 'core/services/public_dashboard_service.dart';
 import 'core/services/app_settings_service.dart';
 import 'core/services/comment_service.dart';
 import 'core/services/deep_link_service.dart';
+import 'core/services/subscription_service.dart';
+import 'core/services/invoice_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/settings/screens/maintenance_page.dart';
 import 'features/settings/screens/update_required_page.dart';
@@ -24,6 +27,7 @@ import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/splash_screen.dart';
 import 'features/home/screens/home_screen.dart';
 import 'features/home/screens/public_landing_screen.dart';
+import 'features/channel/screens/uploads_screen.dart';
 import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
@@ -85,6 +89,12 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        ChangeNotifierProvider(
+          create: (_) => SubscriptionProvider(
+            prefs,
+            SubscriptionService(apiService),
+          ),
+        ),
 
         // API-based services (share the same ApiService instance)
         Provider<ApiService>.value(value: apiService),
@@ -99,6 +109,7 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => PublicDashboardService()),
         ChangeNotifierProvider(create: (_) => AppSettingsService(apiService)),
         Provider<CommentService>(create: (_) => CommentService(apiService)),
+        Provider<InvoiceService>(create: (_) => InvoiceService(apiService)),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider(NotificationService(apiService)),
         ),
@@ -173,13 +184,17 @@ class _AppRouterState extends State<_AppRouter> {
   bool _settingsFetched = false;
   bool _channelSetupTriggered = false;
   bool _providersReset = false; // tracks whether sign-out reset has been done
+  bool _profileInitTriggered = false;
+  bool _nameSetupTriggered = false;
+  bool _subscriptionInitTriggered = false;
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
 
     final authService = context.read<AuthService>();
-    if (authService.accessToken == null)
+    if (authService.accessToken == null) {
       return; // Wait for token to be available
+    }
 
     _settingsFetched = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -204,6 +219,9 @@ class _AppRouterState extends State<_AppRouter> {
           // Reset so settings and channel setup are re-triggered on next login
           _settingsFetched = false;
           _channelSetupTriggered = false;
+          _profileInitTriggered = false;
+          _nameSetupTriggered = false;
+          _subscriptionInitTriggered = false;
           // Reset provider state so re-login gets fresh data
           if (!_providersReset) {
             _providersReset = true;
@@ -211,6 +229,7 @@ class _AppRouterState extends State<_AppRouter> {
               if (mounted) {
                 context.read<ProfileProvider>().resetForSignOut();
                 context.read<ChannelProvider>().resetForSignOut();
+                context.read<SubscriptionProvider>().resetForSignOut();
               }
             });
           }
@@ -267,9 +286,11 @@ class _AppRouterState extends State<_AppRouter> {
           );
         }
 
-        // Initialize profile on login: sends location + Google name via PUT, then fetches GET
+        // Initialize profile on login: sends Google name via PUT, then fetches GET
+        // Location is fetched in the background (non-blocking) by ProfileProvider
         final profileProvider = context.read<ProfileProvider>();
-        if (!profileProvider.hasInitialized && !profileProvider.isLoading) {
+        if (!_profileInitTriggered && !profileProvider.hasInitialized && !profileProvider.isLoading) {
+          _profileInitTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             profileProvider.initializeOnLogin(
               googleName: authService.userName,
@@ -279,7 +300,8 @@ class _AppRouterState extends State<_AppRouter> {
         }
 
         // Show first-login name setup if profile has no name
-        if (profileProvider.needsNameSetup) {
+        if (profileProvider.needsNameSetup && !_nameSetupTriggered) {
+          _nameSetupTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(
@@ -288,8 +310,10 @@ class _AppRouterState extends State<_AppRouter> {
                   isFirstLogin: true,
                 ),
               ),
-            );
-            profileProvider.markNameSetupDone();
+            ).then((_) {
+              // Only mark done after user actually closes the screen
+              profileProvider.markNameSetupDone();
+            });
           });
         }
 
@@ -311,6 +335,15 @@ class _AppRouterState extends State<_AppRouter> {
                     ChannelSetupScreen(initialName: authService.userName),
               ),
             );
+          });
+        }
+
+        final subscriptionProvider = context.read<SubscriptionProvider>();
+        if (!_subscriptionInitTriggered && !subscriptionProvider.isLoading) {
+          _subscriptionInitTriggered = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            subscriptionProvider.initialize(forceRefresh: true);
           });
         }
 
@@ -342,11 +375,15 @@ class _AppRouterState extends State<_AppRouter> {
 
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
+            final rootNavigator = Navigator.of(
+              this.context,
+              rootNavigator: true,
+            );
             debugPrint('🔗 AppRouter: handling deep link for songId=$songId');
             final item = await mediaService.fetchMediaById(songId);
             if (item != null && mounted) {
               playerProvider.play(item);
-              Navigator.of(context, rootNavigator: true).push(
+              rootNavigator.push(
                 MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
               );
             }
@@ -413,6 +450,7 @@ class _AppRouterState extends State<_AppRouter> {
 
     return [
       const HomeScreen(),
+      const UploadsScreen(),
       const SearchScreen(),
       const LibraryScreen(),
       ProfileScreen(

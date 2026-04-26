@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_spacing.dart';
-import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../auth/services/auth_service.dart';
 import 'edit_profile_screen.dart';
@@ -15,6 +15,7 @@ import 'contact_us_screen.dart';
 import 'terms_of_service_screen.dart';
 import '../../notifications/presentation/screens/notification_screen.dart';
 import '../../channel/screens/my_channel_screen.dart';
+import '../../../shared/widgets/subscription_modal.dart';
 
 /// Profile Screen
 ///
@@ -29,6 +30,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final subscription = context.watch<SubscriptionProvider>();
 
     return Scaffold(
       appBar: AppBar(
@@ -74,6 +76,24 @@ class ProfileScreen extends StatelessWidget {
           _SectionTitle(title: 'Appearance'),
           const SizedBox(height: AppSpacing.sm),
           _ThemeToggle(),
+
+          const SizedBox(height: AppSpacing.xl),
+
+          // Premium section
+          _SectionTitle(title: 'Premium'),
+          const SizedBox(height: AppSpacing.sm),
+          _SettingsCard(
+            children: [
+              _SettingsTile(
+                icon: Icons.workspace_premium_rounded,
+                title: subscription.isNoAdsSubscribed
+                    ? 'No Ads Plan • Active (${subscription.activeSubscription?.plan.name ?? subscription.monthlyPlanLabel})'
+                    : 'No Ads Plan • ${subscription.monthlyPlanLabel}',
+                onTap: () => showSubscriptionModal(context),
+                showDivider: false,
+              ),
+            ],
+          ),
 
           const SizedBox(height: AppSpacing.xl),
 

@@ -1,13 +1,21 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/constants/payment_config.dart';
+import '../../../core/services/razorpay_web_checkout.dart';
 import '../../../core/providers/app_mode_provider.dart';
 import '../models/address.dart';
 import '../providers/cart_provider.dart';
 import '../providers/address_provider.dart';
 import '../providers/order_provider.dart';
 import '../models/order.dart';
+import '../models/payment.dart';
+import '../services/payment_service.dart';
 import 'address_screen.dart';
 
 /// Checkout Screen
@@ -24,6 +32,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   AddressResponse? _selectedAddress;
   bool _placing = false;
   String? _error;
+  Razorpay? _razorpay;
+  Completer<_CheckoutResult>? _checkoutCompleter;
+
+  @override
+  void dispose() {
+    _razorpay?.clear();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -61,10 +77,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         );
 
     if (!mounted) return;
-    setState(() => _placing = false);
 
     if (order != null) {
-      // Clear the cart first
+      final paymentOk = await _startOrderPayment(order);
+
+      if (!mounted) return;
+      setState(() => _placing = false);
+
+      if (!paymentOk) {
+        await context.read<CartProvider>().loadCart();
+        if (!mounted) return;
+        return;
+      }
+
+      // Clear the cart first after successful payment verification
       await context.read<CartProvider>().clearCart();
       if (!mounted) return;
 
@@ -76,8 +102,147 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         ),
       );
     } else {
+      setState(() => _placing = false);
       setState(() => _error = 'Failed to place order. Please try again.');
     }
+  }
+
+  Future<bool> _startOrderPayment(OrderResponse order) async {
+    if (!PaymentConfig.hasRazorpayKey) {
+      setState(() {
+        _error =
+            'Razorpay key is not configured. Add --dart-define for current APP_ENV.';
+      });
+      return false;
+    }
+
+    try {
+      final paymentService = context.read<PaymentService>();
+      final pendingPayment = await paymentService.createPaymentOrder(order.id);
+      if (pendingPayment == null ||
+          pendingPayment.razorpayOrderId == null ||
+          pendingPayment.razorpayOrderId!.isEmpty) {
+        setState(() => _error = 'Unable to initiate payment for this order.');
+        return false;
+      }
+
+      final checkoutResult = await _openRazorpayCheckout(order, pendingPayment);
+      if (!checkoutResult.ok) {
+        setState(() {
+          _error = checkoutResult.message ?? 'Payment was not completed.';
+        });
+        return false;
+      }
+
+      final verifyResult = await paymentService.verifyPayment(
+        PaymentVerifyRequest(
+          razorpayOrderId:
+              checkoutResult.orderId?.isNotEmpty == true
+              ? checkoutResult.orderId!
+              : pendingPayment.razorpayOrderId!,
+          razorpayPaymentId: checkoutResult.paymentId ?? '',
+          razorpaySignature: checkoutResult.signature ?? '',
+        ),
+      );
+
+      if (verifyResult == null) {
+        setState(() => _error = 'Payment verification failed.');
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      setState(() => _error = 'Payment failed: $e');
+      return false;
+    }
+  }
+
+  Future<_CheckoutResult> _openRazorpayCheckout(
+    OrderResponse order,
+    PaymentResponse pendingPayment,
+  ) async {
+    if (kIsWeb) {
+      final result = await openRazorpayWebCheckout(
+        key: PaymentConfig.razorpayKey,
+        amount: (pendingPayment.amount * 100).round(),
+        currency: pendingPayment.currency,
+        name: 'Veena Shop',
+        description: 'Order ${order.orderNumber ?? '#${order.id}'}',
+        orderId: pendingPayment.razorpayOrderId ?? '',
+        prefillName: order.userName ?? order.shippingName ?? '',
+        prefillEmail: order.userEmail ?? '',
+        prefillContact: order.shippingPhone ?? '',
+      );
+
+      if (!result.ok) {
+        return _CheckoutResult.failure(result.message ?? 'Payment failed.');
+      }
+
+      return _CheckoutResult.success(
+        orderId: result.orderId ?? (pendingPayment.razorpayOrderId ?? ''),
+        paymentId: result.paymentId ?? '',
+        signature: result.signature ?? '',
+      );
+    }
+
+    _razorpay ??= Razorpay()
+      ..on(Razorpay.EVENT_PAYMENT_SUCCESS, _onPaymentSuccess)
+      ..on(Razorpay.EVENT_PAYMENT_ERROR, _onPaymentError)
+      ..on(Razorpay.EVENT_EXTERNAL_WALLET, _onExternalWallet);
+
+    _checkoutCompleter = Completer<_CheckoutResult>();
+
+    try {
+      _razorpay!.open({
+        'key': PaymentConfig.razorpayKey,
+        'amount': (pendingPayment.amount * 100).round(),
+        'currency': pendingPayment.currency,
+        'name': 'Veena Shop',
+        'description': 'Order ${order.orderNumber ?? '#${order.id}'}',
+        'order_id': pendingPayment.razorpayOrderId,
+        'prefill': {
+          'name': order.userName ?? order.shippingName ?? '',
+          'email': order.userEmail ?? '',
+          'contact': order.shippingPhone ?? '',
+        },
+        'theme': {'color': '#FF6B00'},
+      });
+
+      return _checkoutCompleter!.future.timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => _CheckoutResult.failure('Payment timed out.'),
+      );
+    } catch (e) {
+      _checkoutCompleter = null;
+      return _CheckoutResult.failure(e.toString());
+    }
+  }
+
+  void _onPaymentSuccess(PaymentSuccessResponse response) {
+    _checkoutCompleter?.complete(
+      _CheckoutResult.success(
+        orderId: response.orderId ?? '',
+        paymentId: response.paymentId ?? '',
+        signature: response.signature ?? '',
+      ),
+    );
+    _checkoutCompleter = null;
+  }
+
+  void _onPaymentError(PaymentFailureResponse response) {
+    _checkoutCompleter?.complete(
+      _CheckoutResult.failure(response.message ?? 'Payment failed.'),
+    );
+    _checkoutCompleter = null;
+  }
+
+  void _onExternalWallet(ExternalWalletResponse response) {
+    _checkoutCompleter?.complete(
+      _CheckoutResult.failure(
+        'External wallet selected (${response.walletName ?? 'unknown'}).',
+      ),
+    );
+    _checkoutCompleter = null;
   }
 
   @override
@@ -153,8 +318,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 border: Border.all(
                   color: isDark
-                      ? Colors.white.withOpacity(0.06)
-                      : Colors.black.withOpacity(0.06),
+                      ? Colors.white.withValues(alpha: 0.06)
+                      : Colors.black.withValues(alpha: 0.06),
                 ),
               ),
               child: Column(
@@ -219,7 +384,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.1),
+                  color: AppColors.error.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
                 ),
                 child: Text(
@@ -291,8 +456,8 @@ class _AddressTile extends StatelessWidget {
             color: selected
                 ? AppColors.primary
                 : (isDark
-                      ? Colors.white.withOpacity(0.08)
-                      : Colors.black.withOpacity(0.08)),
+                      ? Colors.white.withValues(alpha: 0.08)
+                      : Colors.black.withValues(alpha: 0.08)),
             width: selected ? 2 : 1,
           ),
         ),
@@ -325,7 +490,7 @@ class _AddressTile extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text(
@@ -355,6 +520,7 @@ class _AddNewAddressTile extends StatelessWidget {
         await Navigator.of(
           context,
         ).push(MaterialPageRoute(builder: (_) => const AddressScreen()));
+        if (!context.mounted) return;
         await context.read<AddressProvider>().loadAddresses();
       },
       child: Container(
@@ -362,7 +528,7 @@ class _AddNewAddressTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-          border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+          border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -412,7 +578,7 @@ class _OrderSuccessScreen extends StatelessWidget {
                     width: 96,
                     height: 96,
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.15),
+                      color: AppColors.success.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -503,5 +669,38 @@ class _OrderSuccessScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _CheckoutResult {
+  const _CheckoutResult._({
+    required this.ok,
+    this.orderId,
+    this.paymentId,
+    this.signature,
+    this.message,
+  });
+
+  final bool ok;
+  final String? orderId;
+  final String? paymentId;
+  final String? signature;
+  final String? message;
+
+  factory _CheckoutResult.success({
+    required String orderId,
+    required String paymentId,
+    required String signature,
+  }) {
+    return _CheckoutResult._(
+      ok: true,
+      orderId: orderId,
+      paymentId: paymentId,
+      signature: signature,
+    );
+  }
+
+  factory _CheckoutResult.failure(String message) {
+    return _CheckoutResult._(ok: false, message: message);
   }
 }

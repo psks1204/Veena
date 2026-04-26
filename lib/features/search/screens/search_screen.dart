@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
@@ -9,7 +10,7 @@ import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../library/screens/artist_detail_screen.dart';
@@ -31,15 +32,19 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final _searchController = TextEditingController();
   final _focusNode = FocusNode();
+  final stt.SpeechToText _speech = stt.SpeechToText();
   Timer? _debounceTimer;
 
   List<MediaItem> _searchResults = [];
   List<Artist> _searchArtists = [];
   bool _isSearching = false;
   bool _hasSearched = false;
+  bool _isListening = false;
+  bool _speechReady = false;
 
   @override
   void dispose() {
+    _speech.stop();
     _searchController.dispose();
     _focusNode.dispose();
     _debounceTimer?.cancel();
@@ -126,6 +131,64 @@ class _SearchScreenState extends State<SearchScreen> {
     });
   }
 
+  Future<void> _toggleVoiceSearch() async {
+    if (_isListening) {
+      await _speech.stop();
+      if (mounted) {
+        setState(() => _isListening = false);
+      }
+      return;
+    }
+
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize(
+        onStatus: (status) {
+          if (!mounted) return;
+          if (status == 'done' || status == 'notListening') {
+            setState(() => _isListening = false);
+          }
+        },
+        onError: (_) {
+          if (!mounted) return;
+          setState(() => _isListening = false);
+        },
+      );
+    }
+
+    if (!_speechReady) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Voice search is unavailable on this device'),
+        ),
+      );
+      return;
+    }
+
+    setState(() => _isListening = true);
+    await _speech.listen(
+      // ignore: deprecated_member_use
+      listenMode: stt.ListenMode.search,
+      onResult: (result) {
+        final text = result.recognizedWords.trim();
+        if (text.isEmpty) return;
+
+        _searchController.value = TextEditingValue(
+          text: text,
+          selection: TextSelection.collapsed(offset: text.length),
+        );
+        _onSearchChanged(text);
+
+        if (result.finalResult) {
+          _speech.stop();
+          if (mounted) {
+            setState(() => _isListening = false);
+          }
+        }
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -178,15 +241,30 @@ class _SearchScreenState extends State<SearchScreen> {
                         Icons.search_rounded,
                         color: isDark ? Colors.white70 : Colors.black54,
                       ),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_searchController.text.isNotEmpty)
+                            IconButton(
                               onPressed: _clearSearch,
                               icon: Icon(
                                 Icons.close_rounded,
                                 color: isDark ? Colors.white70 : Colors.black54,
                               ),
-                            )
-                          : null,
+                            ),
+                          IconButton(
+                            onPressed: _toggleVoiceSearch,
+                            icon: Icon(
+                              _isListening
+                                  ? Icons.mic_rounded
+                                  : Icons.mic_none_rounded,
+                              color: _isListening
+                                  ? AppColors.primary
+                                  : (isDark ? Colors.white70 : Colors.black54),
+                            ),
+                          ),
+                        ],
+                      ),
                       border: InputBorder.none,
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: AppSpacing.md,
@@ -362,12 +440,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   onTap: () => _playMedia(item),
                   onLikeTap: () => _toggleLike(item),
                   onMoreTap: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => AddToPlaylistSheet(mediaItem: item),
-                    );
+                    MediaOptionsSheet.show(context, mediaItem: item);
                   },
                 ),
               );
@@ -388,9 +461,7 @@ class _SearchScreenState extends State<SearchScreen> {
       onTap: () {
         AppNavigation.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => ArtistDetailScreen(artist: artist),
-          ),
+          MaterialPageRoute(builder: (_) => ArtistDetailScreen(artist: artist)),
         );
       },
       child: SizedBox(
@@ -420,8 +491,16 @@ class _SearchScreenState extends State<SearchScreen> {
                           color: isDark ? Colors.grey[800] : Colors.grey[200],
                           child: Center(
                             child: Text(
-                              artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
-                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                              artist.name.isNotEmpty
+                                  ? artist.name[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[500],
+                              ),
                             ),
                           ),
                         ),
@@ -429,8 +508,16 @@ class _SearchScreenState extends State<SearchScreen> {
                           color: isDark ? Colors.grey[800] : Colors.grey[200],
                           child: Center(
                             child: Text(
-                              artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
-                              style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                              artist.name.isNotEmpty
+                                  ? artist.name[0].toUpperCase()
+                                  : '?',
+                              style: TextStyle(
+                                fontSize: 36,
+                                fontWeight: FontWeight.bold,
+                                color: isDark
+                                    ? Colors.grey[400]
+                                    : Colors.grey[500],
+                              ),
                             ),
                           ),
                         ),
@@ -439,8 +526,16 @@ class _SearchScreenState extends State<SearchScreen> {
                         color: isDark ? Colors.grey[800] : Colors.grey[200],
                         child: Center(
                           child: Text(
-                            artist.name.isNotEmpty ? artist.name[0].toUpperCase() : '?',
-                            style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold, color: isDark ? Colors.grey[400] : Colors.grey[500]),
+                            artist.name.isNotEmpty
+                                ? artist.name[0].toUpperCase()
+                                : '?',
+                            style: TextStyle(
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[500],
+                            ),
                           ),
                         ),
                       ),

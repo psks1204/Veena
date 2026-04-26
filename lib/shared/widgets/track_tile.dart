@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../core/models/media_item.dart';
 import 'track_list_tile.dart';
-import '../../features/library/widgets/add_to_playlist_sheet.dart';
+import 'media_options_sheet.dart';
 
 class TrackTile extends StatelessWidget {
   final MediaItem mediaItem;
@@ -25,14 +25,11 @@ class TrackTile extends StatelessWidget {
       artworkUrl: mediaItem.thumbnailUrl,
       isPlaying: isPlaying,
       onTap: onTap,
-      onMoreTap: onMoreTap ?? () {
-        showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (context) => AddToPlaylistSheet(mediaItem: mediaItem),
-        );
-      },
+      onMoreTap:
+          onMoreTap ??
+          () {
+            MediaOptionsSheet.show(context, mediaItem: mediaItem);
+          },
       // You can parse duration if available in MediaItem, strict parsing required though
     );
   }

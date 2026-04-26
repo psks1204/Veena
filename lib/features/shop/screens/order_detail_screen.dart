@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/models/invoice.dart';
+import '../../../core/services/invoice_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../models/order.dart';
@@ -15,6 +17,8 @@ class OrderDetailScreen extends StatefulWidget {
 }
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
+  bool _invoiceLoading = false;
+
   @override
   void initState() {
     super.initState();
@@ -92,6 +96,59 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
+  Future<void> _showInvoice(OrderResponse order) async {
+    setState(() => _invoiceLoading = true);
+    try {
+      final invoiceService = context.read<InvoiceService>();
+      InvoiceResponse invoice;
+      try {
+        invoice = await invoiceService.getOrderInvoice(order.id);
+      } catch (_) {
+        invoice = await invoiceService.generateOrderInvoice(order.id);
+      }
+
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (dialogCtx) {
+          return AlertDialog(
+            title: const Text('Invoice'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Invoice #: ${invoice.invoiceNumber}'),
+                const SizedBox(height: 6),
+                Text('Status: ${invoice.status}'),
+                const SizedBox(height: 6),
+                Text('Type: ${invoice.invoiceType}'),
+                const SizedBox(height: 6),
+                Text(
+                  'Total: ${invoice.currency} ${invoice.totalAmount.toStringAsFixed(2)}',
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to load invoice: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _invoiceLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -115,6 +172,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: theme.textTheme.headlineMedium,
         ),
         actions: [
+          IconButton(
+            tooltip: 'Invoice',
+            onPressed: _invoiceLoading ? null : () => _showInvoice(order),
+            icon: _invoiceLoading
+                ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.receipt_long_rounded),
+          ),
           if (order.canCancel)
             TextButton(
               onPressed: () => _cancelOrder(order),
@@ -140,11 +208,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (order.shipment!.courierName != null)
-                      _Row('Courier', order.shipment!.courierName!, theme),
+                      _buildRow('Courier', order.shipment!.courierName!, theme),
                     if (order.shipment!.awbCode != null)
-                      _Row('AWB', order.shipment!.awbCode!, theme),
+                      _buildRow('AWB', order.shipment!.awbCode!, theme),
                     if (order.shipment!.estimatedDelivery != null)
-                      _Row(
+                      _buildRow(
                         'Est. Delivery',
                         order.shipment!.estimatedDelivery!,
                         theme,
@@ -226,25 +294,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               isDark: isDark,
               child: Column(
                 children: [
-                  _Row(
+                  _buildRow(
                     'Subtotal',
                     '₹${order.subtotal.toStringAsFixed(0)}',
                     theme,
                   ),
                   if (order.taxAmount > 0)
-                    _Row(
+                    _buildRow(
                       'Tax',
                       '₹${order.taxAmount.toStringAsFixed(0)}',
                       theme,
                     ),
                   if (order.shippingCharge > 0)
-                    _Row(
+                    _buildRow(
                       'Shipping',
                       '₹${order.shippingCharge.toStringAsFixed(0)}',
                       theme,
                     ),
                   const Divider(),
-                  _Row(
+                  _buildRow(
                     'Total',
                     '₹${order.totalAmount.toStringAsFixed(0)}',
                     theme,
@@ -302,9 +370,9 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -371,8 +439,8 @@ class _Section extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
               color: isDark
-                  ? Colors.white.withOpacity(0.06)
-                  : Colors.black.withOpacity(0.06),
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.06),
             ),
           ),
           child: child,
@@ -382,7 +450,7 @@ class _Section extends StatelessWidget {
   }
 }
 
-Widget _Row(String label, String value, ThemeData theme, {bool bold = false}) {
+  Widget _buildRow(String label, String value, ThemeData theme, {bool bold = false}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 2),
     child: Row(

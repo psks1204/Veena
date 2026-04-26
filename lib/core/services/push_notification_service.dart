@@ -357,7 +357,10 @@ class PushNotificationService {
   /// Download image from URL and return as bytes
   Future<Uint8List?> _downloadAndSaveImage(String url) async {
     try {
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url)).timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => http.Response('', 408),
+      );
       if (response.statusCode == 200) {
         return response.bodyBytes;
       }

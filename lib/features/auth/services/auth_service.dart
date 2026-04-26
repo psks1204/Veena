@@ -218,6 +218,7 @@ class AuthService extends ChangeNotifier {
       if (!kIsWeb) {
         PushNotificationService().unregisterFcmToken().catchError((e) {
           debugPrint('[AuthService] FCM unregister failed (expected): $e');
+          return false;
         });
       }
     } catch (e) {
