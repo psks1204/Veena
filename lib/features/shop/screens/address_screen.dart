@@ -99,16 +99,17 @@ class _AddressScreenState extends State<AddressScreen> {
   ) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) => AlertDialog(
+      useRootNavigator: true,
+      builder: (dialogCtx) => AlertDialog(
         title: const Text('Delete Address'),
         content: const Text('Remove this address?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Delete'),
           ),

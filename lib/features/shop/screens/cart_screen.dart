@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../providers/cart_provider.dart';
-import '../providers/address_provider.dart';
 import 'checkout_screen.dart';
 
 /// Cart Screen
@@ -15,12 +14,62 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
+  bool _isMutating = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<CartProvider>().loadCart();
     });
+  }
+
+  Future<void> _changeQuantity(int itemId, int quantity) async {
+    if (_isMutating) return;
+
+    setState(() => _isMutating = true);
+    try {
+      await context.read<CartProvider>().updateItem(itemId, quantity);
+    } finally {
+      if (mounted) {
+        setState(() => _isMutating = false);
+      }
+    }
+  }
+
+  Future<void> _clearCart() async {
+    if (_isMutating) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      useRootNavigator: true,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Clear Cart'),
+        content: const Text('Remove all items from your cart?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isMutating = true);
+    try {
+      await context.read<CartProvider>().clearCart();
+    } finally {
+      if (mounted) {
+        setState(() => _isMutating = false);
+      }
+    }
   }
 
   @override
@@ -35,31 +84,7 @@ class _CartScreenState extends State<CartScreen> {
         actions: [
           if (cart.items.isNotEmpty)
             TextButton(
-              onPressed: () async {
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (_) => AlertDialog(
-                    title: const Text('Clear Cart'),
-                    content: const Text('Remove all items from your cart?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                        ),
-                        child: const Text('Clear'),
-                      ),
-                    ],
-                  ),
-                );
-                if (confirmed == true && mounted) {
-                  await context.read<CartProvider>().clearCart();
-                }
-              },
+              onPressed: _isMutating ? null : _clearCart,
               child: const Text('Clear'),
             ),
         ],
@@ -189,12 +214,12 @@ class _CartScreenState extends State<CartScreen> {
                                   children: [
                                     _QtyButton(
                                       icon: Icons.remove,
-                                      onTap: () {
-                                        context.read<CartProvider>().updateItem(
-                                          item.id,
-                                          item.quantity - 1,
-                                        );
-                                      },
+                                      onTap: _isMutating
+                                          ? () {}
+                                          : () => _changeQuantity(
+                                              item.id,
+                                              item.quantity - 1,
+                                            ),
                                     ),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -210,17 +235,17 @@ class _CartScreenState extends State<CartScreen> {
                                     ),
                                     _QtyButton(
                                       icon: Icons.add,
-                                      onTap: () {
-                                        if (item.quantity <
-                                            item.availableQuantity) {
-                                          context
-                                              .read<CartProvider>()
-                                              .updateItem(
-                                                item.id,
-                                                item.quantity + 1,
-                                              );
-                                        }
-                                      },
+                                      onTap: _isMutating
+                                          ? () {}
+                                          : () {
+                                              if (item.quantity <
+                                                  item.availableQuantity) {
+                                                _changeQuantity(
+                                                  item.id,
+                                                  item.quantity + 1,
+                                                );
+                                              }
+                                            },
                                     ),
                                   ],
                                 ),
@@ -297,13 +322,15 @@ class _CartScreenState extends State<CartScreen> {
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton(
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const CheckoutScreen(),
-                                ),
-                              );
-                            },
+                            onPressed: _isMutating
+                                ? null
+                                : () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const CheckoutScreen(),
+                                      ),
+                                    );
+                                  },
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primary,
                               padding: const EdgeInsets.symmetric(vertical: 14),
