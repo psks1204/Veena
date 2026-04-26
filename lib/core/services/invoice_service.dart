@@ -25,7 +25,10 @@ class InvoiceService {
   }
 
   Future<InvoiceResponse> generateOrderInvoice(int orderId) async {
-    final data = await _api.post('/ecom/orders/$orderId/invoice/generate', body: {});
+    final data = await _api.post(
+      '/ecom/orders/$orderId/invoice/generate',
+      body: {},
+    );
     return InvoiceResponse.fromJson(_extractMap(data));
   }
 
@@ -52,6 +55,8 @@ class InvoiceService {
     if (data is Map && data['data'] is List) {
       return List<dynamic>.from(data['data'] as List);
     }
-    throw StateError('Unexpected invoice list payload type: ${data.runtimeType}');
+    throw StateError(
+      'Unexpected invoice list payload type: ${data.runtimeType}',
+    );
   }
 }

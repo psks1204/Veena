@@ -90,10 +90,8 @@ class VeenaApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
         ChangeNotifierProvider(
-          create: (_) => SubscriptionProvider(
-            prefs,
-            SubscriptionService(apiService),
-          ),
+          create: (_) =>
+              SubscriptionProvider(prefs, SubscriptionService(apiService)),
         ),
 
         // API-based services (share the same ApiService instance)
@@ -289,7 +287,9 @@ class _AppRouterState extends State<_AppRouter> {
         // Initialize profile on login: sends Google name via PUT, then fetches GET
         // Location is fetched in the background (non-blocking) by ProfileProvider
         final profileProvider = context.read<ProfileProvider>();
-        if (!_profileInitTriggered && !profileProvider.hasInitialized && !profileProvider.isLoading) {
+        if (!_profileInitTriggered &&
+            !profileProvider.hasInitialized &&
+            !profileProvider.isLoading) {
           _profileInitTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             profileProvider.initializeOnLogin(
@@ -303,17 +303,19 @@ class _AppRouterState extends State<_AppRouter> {
         if (profileProvider.needsNameSetup && !_nameSetupTriggered) {
           _nameSetupTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            Navigator.of(context, rootNavigator: true).push(
-              MaterialPageRoute(
-                builder: (_) => EditProfileScreen(
-                  initialName: authService.userName,
-                  isFirstLogin: true,
-                ),
-              ),
-            ).then((_) {
-              // Only mark done after user actually closes the screen
-              profileProvider.markNameSetupDone();
-            });
+            Navigator.of(context, rootNavigator: true)
+                .push(
+                  MaterialPageRoute(
+                    builder: (_) => EditProfileScreen(
+                      initialName: authService.userName,
+                      isFirstLogin: true,
+                    ),
+                  ),
+                )
+                .then((_) {
+                  // Only mark done after user actually closes the screen
+                  profileProvider.markNameSetupDone();
+                });
           });
         }
 

@@ -78,7 +78,9 @@ Future<RazorpayWebCheckoutResult> openRazorpayWebCheckout({
 
   void onError(dynamic message) {
     resolve(
-      RazorpayWebCheckoutResult.failure(message?.toString() ?? 'Payment failed'),
+      RazorpayWebCheckoutResult.failure(
+        message?.toString() ?? 'Payment failed',
+      ),
     );
   }
 

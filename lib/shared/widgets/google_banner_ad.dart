@@ -55,9 +55,7 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
 
     final width = MediaQuery.sizeOf(context).width.floor();
     final adaptiveSize =
-        await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(
-      width,
-    );
+        await AdSize.getCurrentOrientationAnchoredAdaptiveBannerAdSize(width);
 
     final adSize = adaptiveSize ?? AdSize.banner;
 

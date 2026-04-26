@@ -73,8 +73,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     });
 
     final order = await context.read<OrderProvider>().placeOrder(
-          PlaceOrderRequest(addressId: _selectedAddress!.id),
-        );
+      PlaceOrderRequest(addressId: _selectedAddress!.id),
+    );
 
     if (!mounted) return;
 
@@ -97,9 +97,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Show the order success screen — replaces the checkout route so the
       // user can't go "back to checkout" after placing the order.
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => _OrderSuccessScreen(order: order),
-        ),
+        MaterialPageRoute(builder: (_) => _OrderSuccessScreen(order: order)),
       );
     } else {
       setState(() => _placing = false);
@@ -136,8 +134,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
       final verifyResult = await paymentService.verifyPayment(
         PaymentVerifyRequest(
-          razorpayOrderId:
-              checkoutResult.orderId?.isNotEmpty == true
+          razorpayOrderId: checkoutResult.orderId?.isNotEmpty == true
               ? checkoutResult.orderId!
               : pendingPayment.razorpayOrderId!,
           razorpayPaymentId: checkoutResult.paymentId ?? '',
@@ -635,8 +632,9 @@ class _OrderSuccessScreen extends StatelessWidget {
                         backgroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusLg,
+                          ),
                         ),
                       ),
                     ),
@@ -656,8 +654,9 @@ class _OrderSuccessScreen extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusLg),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusLg,
+                          ),
                         ),
                       ),
                     ),

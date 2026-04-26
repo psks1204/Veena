@@ -82,7 +82,9 @@ class SubscriptionProvider extends ChangeNotifier {
         _service.getStatus(),
       ]);
 
-      _plans = List<SubscriptionPlan>.from(results[0] as List<SubscriptionPlan>);
+      _plans = List<SubscriptionPlan>.from(
+        results[0] as List<SubscriptionPlan>,
+      );
       _status = results[1] as SubscriptionStatus;
       _cachedNoAdsSubscribed = _status?.isSubscribed ?? _cachedNoAdsSubscribed;
       await _prefs.setBool(_kNoAdsSubscribedKey, _cachedNoAdsSubscribed);

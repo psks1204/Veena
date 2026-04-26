@@ -43,9 +43,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Please tell us why you want to cancel this order.',
-            ),
+            const Text('Please tell us why you want to cancel this order.'),
             const SizedBox(height: AppSpacing.md),
             TextField(
               controller: reasonCtrl,
@@ -66,9 +64,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(dialogCtx).pop(true),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.error,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
             child: const Text('Cancel Order'),
           ),
         ],
@@ -76,21 +72,25 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
 
     // Capture reason BEFORE disposing the controller
-    final reason = reasonCtrl.text.trim().isEmpty ? null : reasonCtrl.text.trim();
+    final reason = reasonCtrl.text.trim().isEmpty
+        ? null
+        : reasonCtrl.text.trim();
     reasonCtrl.dispose();
 
     if (!mounted) return;
     if (confirmed != true) return;
 
     final ok = await context.read<OrderProvider>().cancelOrder(
-          order.id,
-          reason: reason,
-        );
+      order.id,
+      reason: reason,
+    );
 
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(ok ? 'Order cancelled.' : 'Failed to cancel order. Please try again.'),
+        content: Text(
+          ok ? 'Order cancelled.' : 'Failed to cancel order. Please try again.',
+        ),
         backgroundColor: ok ? AppColors.success : AppColors.error,
       ),
     );
@@ -139,9 +139,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to load invoice: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Unable to load invoice: $e')));
     } finally {
       if (mounted) {
         setState(() => _invoiceLoading = false);
@@ -439,8 +439,8 @@ class _Section extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
             border: Border.all(
               color: isDark
-                    ? Colors.white.withValues(alpha: 0.06)
-                    : Colors.black.withValues(alpha: 0.06),
+                  ? Colors.white.withValues(alpha: 0.06)
+                  : Colors.black.withValues(alpha: 0.06),
             ),
           ),
           child: child,
@@ -450,7 +450,12 @@ class _Section extends StatelessWidget {
   }
 }
 
-  Widget _buildRow(String label, String value, ThemeData theme, {bool bold = false}) {
+Widget _buildRow(
+  String label,
+  String value,
+  ThemeData theme, {
+  bool bold = false,
+}) {
   return Padding(
     padding: const EdgeInsets.symmetric(vertical: 2),
     child: Row(

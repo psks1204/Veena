@@ -16,7 +16,10 @@ class SubscriptionService {
   }
 
   Future<UserSubscription> subscribe(SubscribeRequest request) async {
-    final data = await _api.post('/subscriptions/subscribe', body: request.toJson());
+    final data = await _api.post(
+      '/subscriptions/subscribe',
+      body: request.toJson(),
+    );
     final map = _extractMap(data);
     return UserSubscription.fromJson(map);
   }

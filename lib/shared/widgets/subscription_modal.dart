@@ -157,9 +157,9 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
   Future<void> _handleSubscribe(SubscriptionProvider subscription) async {
     final selectedId = _selectedPlanId;
     if (selectedId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a plan.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select a plan.')));
       return;
     }
 
@@ -184,7 +184,9 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
       if (!checkoutResult.ok) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(checkoutResult.message ?? 'Payment cancelled')),
+          SnackBar(
+            content: Text(checkoutResult.message ?? 'Payment cancelled'),
+          ),
         );
         return;
       }
@@ -192,8 +194,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
       await subscription.verifyPayment(
         SubscriptionPaymentVerifyRequest(
           subscriptionId: pending.id,
-          razorpayOrderId:
-              checkoutResult.orderId?.isNotEmpty == true
+          razorpayOrderId: checkoutResult.orderId?.isNotEmpty == true
               ? checkoutResult.orderId!
               : (pending.razorpayOrderId ?? ''),
           razorpayPaymentId: checkoutResult.paymentId ?? '',
@@ -288,7 +289,8 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                     const Text('Plans are currently unavailable.'),
                     const SizedBox(height: 8),
                     OutlinedButton(
-                      onPressed: () => subscription.initialize(forceRefresh: true),
+                      onPressed: () =>
+                          subscription.initialize(forceRefresh: true),
                       child: const Text('Retry'),
                     ),
                   ],
@@ -317,9 +319,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                           border: Border.all(
                             color: selected
                                 ? AppColors.primary
-                                : (isDark
-                                      ? Colors.white24
-                                      : Colors.black12),
+                                : (isDark ? Colors.white24 : Colors.black12),
                           ),
                         ),
                         child: Row(
@@ -338,9 +338,8 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                                 children: [
                                   Text(
                                     plan.name,
-                                    style: theme.textTheme.titleMedium?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w700),
                                   ),
                                   const SizedBox(height: 2),
                                   Text(
@@ -373,8 +372,10 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: buttonBusy || plans.isEmpty
-                  || subscription.isNoAdsSubscribed
+                onPressed:
+                    buttonBusy ||
+                        plans.isEmpty ||
+                        subscription.isNoAdsSubscribed
                     ? null
                     : () => _handleSubscribe(subscription),
                 style: ElevatedButton.styleFrom(
