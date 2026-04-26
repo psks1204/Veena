@@ -5,7 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/media_item.dart';
-import '../../../core/providers/player_provider.dart';
+import '../../../core/providers/player_provider.dart' as player_provider;
 import '../../../core/models/lyrics_model.dart';
 import '../widgets/lyrics_card.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
@@ -14,6 +14,7 @@ import 'seekbar_control.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
+import 'player_artwork_ad_swap.dart';
 import 'player_ad_rotator.dart';
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
@@ -27,7 +28,7 @@ class FullPlayer extends StatelessWidget {
     this.duration = const Duration(minutes: 3, seconds: 30),
     this.currentPosition = Duration.zero,
     this.isShuffleOn = false,
-    this.repeatMode = RepeatMode.off,
+    this.repeatMode = player_provider.RepeatMode.off,
     this.lyrics,
     this.activeLyricIndex = -1,
     this.onFullscreenLyricsTap,
@@ -46,7 +47,7 @@ class FullPlayer extends StatelessWidget {
   final Duration duration;
   final Duration currentPosition;
   final bool isShuffleOn;
-  final RepeatMode repeatMode;
+  final player_provider.RepeatMode repeatMode;
   final Lyrics? lyrics;
   final int activeLyricIndex;
   final VoidCallback? onFullscreenLyricsTap;
@@ -83,7 +84,7 @@ class FullPlayer extends StatelessWidget {
   }
 
   void _showQueueSheet(BuildContext context) {
-    final player = context.read<PlayerProvider>();
+    final player = context.read<player_provider.PlayerProvider>();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -323,21 +324,9 @@ class FullPlayer extends StatelessWidget {
                                     ],
                                   ),
                                   clipBehavior: Clip.antiAlias,
-                                  child:
-                                      mediaItem.thumbnailUrl != null &&
-                                          mediaItem.thumbnailUrl!.isNotEmpty
-                                      ? Image.network(
-                                          mediaItem.thumbnailUrl!,
-                                          fit: BoxFit.cover,
-                                        )
-                                      : Container(
-                                          color: Colors.grey[900],
-                                          child: const Icon(
-                                            Icons.music_note_rounded,
-                                            size: 80,
-                                            color: Colors.white24,
-                                          ),
-                                        ),
+                                  child: PlayerArtworkAdSwap(
+                                    thumbnailUrl: mediaItem.thumbnailUrl,
+                                  ),
                                 ),
                                 const SizedBox(height: 24),
                                 // Track info
@@ -745,10 +734,10 @@ class FullPlayer extends StatelessWidget {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 icon: Icon(
-                  repeatMode == RepeatMode.one
+                  repeatMode == player_provider.RepeatMode.one
                       ? Icons.repeat_one_rounded
                       : Icons.repeat_rounded,
-                  color: repeatMode != RepeatMode.off
+                  color: repeatMode != player_provider.RepeatMode.off
                       ? AppColors.primary
                       : Colors.white38,
                   size: 20,
@@ -865,18 +854,9 @@ class FullPlayer extends StatelessWidget {
                   ],
                 ),
                 clipBehavior: Clip.antiAlias,
-                child:
-                    mediaItem.thumbnailUrl != null &&
-                        mediaItem.thumbnailUrl!.isNotEmpty
-                    ? Image.network(mediaItem.thumbnailUrl!, fit: BoxFit.cover)
-                    : Container(
-                        color: Colors.grey[900],
-                        child: const Icon(
-                          Icons.music_note_rounded,
-                          size: 80,
-                          color: Colors.white24,
-                        ),
-                      ),
+                child: PlayerArtworkAdSwap(
+                  thumbnailUrl: mediaItem.thumbnailUrl,
+                ),
               ),
             ),
           ),
@@ -1146,10 +1126,10 @@ class FullPlayer extends StatelessWidget {
                     minHeight: 40,
                   ),
                   icon: Icon(
-                    repeatMode == RepeatMode.one
+                    repeatMode == player_provider.RepeatMode.one
                         ? Icons.repeat_one_rounded
                         : Icons.repeat_rounded,
-                    color: repeatMode != RepeatMode.off
+                    color: repeatMode != player_provider.RepeatMode.off
                         ? AppColors.primary
                         : Colors.white60,
                     size: 24,
@@ -1168,7 +1148,7 @@ class FullPlayer extends StatelessWidget {
           // Linked Media Switcher & Footer
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-            child: Consumer<PlayerProvider>(
+            child: Consumer<player_provider.PlayerProvider>(
               builder: (context, player, _) {
                 final linkedMedia = player.currentMedia?.linkedMedia;
                 final hasLinkedVideo =

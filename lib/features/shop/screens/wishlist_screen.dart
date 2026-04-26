@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -21,6 +22,8 @@ class WishlistScreen extends StatefulWidget {
 
 class _WishlistScreenState extends State<WishlistScreen> {
   final Map<int, ProductResponse?> _products = {};
+  final Set<int> _failedProductIds = {};
+  Set<int> _lastWishlistIds = const {};
   bool _loading = false;
 
   @override
@@ -31,17 +34,44 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
   Future<void> _loadProducts() async {
     final wishlist = context.read<WishlistProvider>();
-    if (wishlist.wishlistIds.isEmpty) return;
+    final ids = wishlist.wishlistIds;
+    _syncLocalState(ids);
 
-    setState(() => _loading = true);
+    final pendingIds = ids
+        .where(
+          (id) => !_products.containsKey(id) && !_failedProductIds.contains(id),
+        )
+        .toList();
+    if (pendingIds.isEmpty) return;
+
+    if (mounted) {
+      setState(() => _loading = true);
+    }
     final catalog = context.read<ShopCatalogProvider>();
 
-    for (final id in wishlist.wishlistIds) {
-      if (_products.containsKey(id)) continue;
-      final p = await catalog.getProduct(id);
-      if (mounted) setState(() => _products[id] = p);
+    try {
+      for (final id in pendingIds) {
+        try {
+          final p = await catalog.getProduct(id);
+          if (!mounted) return;
+          if (p != null) {
+            setState(() => _products[id] = p);
+          } else {
+            setState(() => _failedProductIds.add(id));
+          }
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => _failedProductIds.add(id));
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    if (mounted) setState(() => _loading = false);
+  }
+
+  void _syncLocalState(Set<int> ids) {
+    _products.removeWhere((id, _) => !ids.contains(id));
+    _failedProductIds.removeWhere((id) => !ids.contains(id));
   }
 
   @override
@@ -50,6 +80,15 @@ class _WishlistScreenState extends State<WishlistScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final wishlist = context.watch<WishlistProvider>();
     final ids = wishlist.wishlistIds.toList();
+    final idsSet = wishlist.wishlistIds;
+
+    if (!setEquals(_lastWishlistIds, idsSet)) {
+      _lastWishlistIds = Set<int>.from(idsSet);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _loadProducts();
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -92,31 +131,46 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     mainAxisSpacing: AppSpacing.sm,
                     childAspectRatio: 0.72,
                   ),
-              itemCount: ids.length,
-              itemBuilder: (context, index) {
-                final id = ids[index];
-                final product = _products[id];
-                if (product == null) {
-                  return Container(
-                    decoration: BoxDecoration(
-                      color: isDark
-                          ? AppColors.darkSurface
-                          : AppColors.lightSurface,
-                      borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
-                    ),
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                }
-                return _WishlistCard(
-                  product: product,
-                  isDark: isDark,
-                  onRemove: () {
-                    wishlist.remove(id);
-                    setState(() => _products.remove(id));
+                  itemCount: ids.length,
+                  itemBuilder: (context, index) {
+                    final id = ids[index];
+                    if (_failedProductIds.contains(id)) {
+                      return _UnavailableWishlistCard(
+                        isDark: isDark,
+                        onRemove: () {
+                          wishlist.remove(id);
+                          setState(() {
+                            _products.remove(id);
+                            _failedProductIds.remove(id);
+                          });
+                        },
+                      );
+                    }
+
+                    final product = _products[id];
+                    if (product == null) {
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.darkSurface
+                              : AppColors.lightSurface,
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusLg,
+                          ),
+                        ),
+                        child: const Center(child: CircularProgressIndicator()),
+                      );
+                    }
+                    return _WishlistCard(
+                      product: product,
+                      isDark: isDark,
+                      onRemove: () {
+                        wishlist.remove(id);
+                        setState(() => _products.remove(id));
+                      },
+                    );
                   },
-                );
-              },
-            ),
+                ),
         ),
       ),
     );
@@ -266,6 +320,55 @@ class _WishlistCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _UnavailableWishlistCard extends StatelessWidget {
+  const _UnavailableWishlistCard({
+    required this.isDark,
+    required this.onRemove,
+  });
+
+  final bool isDark;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
+        border: Border.all(
+          color: isDark
+              ? Colors.white.withOpacity(0.06)
+              : Colors.black.withOpacity(0.06),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.inventory_2_outlined,
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
+              size: 32,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Unable to load this item',
+              textAlign: TextAlign.center,
+              style: theme.textTheme.labelMedium,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            OutlinedButton(onPressed: onRemove, child: const Text('Remove')),
           ],
         ),
       ),

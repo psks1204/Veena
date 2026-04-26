@@ -32,6 +32,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   AddressResponse? _selectedAddress;
   bool _placing = false;
   String? _error;
+  String? _paymentInfo;
   Razorpay? _razorpay;
   Completer<_CheckoutResult>? _checkoutCompleter;
 
@@ -70,6 +71,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     setState(() {
       _placing = true;
       _error = null;
+      _paymentInfo = null;
     });
 
     final order = await context.read<OrderProvider>().placeOrder(
@@ -124,10 +126,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         return false;
       }
 
+      final backendPayable = pendingPayment.amount;
+      if ((backendPayable - order.totalAmount).abs() >= 0.5) {
+        setState(() {
+          _paymentInfo =
+              'Final payable amount updated by backend: ₹${backendPayable.toStringAsFixed(0)}';
+        });
+      }
+
       final checkoutResult = await _openRazorpayCheckout(order, pendingPayment);
       if (!checkoutResult.ok) {
         setState(() {
-          _error = checkoutResult.message ?? 'Payment was not completed.';
+          _error = _friendlyPaymentMessage(
+            checkoutResult.message,
+            fallback: 'Payment was not completed.',
+          );
         });
         return false;
       }
@@ -152,6 +165,17 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       setState(() => _error = 'Payment failed: $e');
       return false;
     }
+  }
+
+  String _friendlyPaymentMessage(String? raw, {required String fallback}) {
+    final msg = raw?.trim();
+    if (msg == null ||
+        msg.isEmpty ||
+        msg.toLowerCase() == 'undefined' ||
+        msg.toLowerCase() == 'null') {
+      return fallback;
+    }
+    return msg;
   }
 
   Future<_CheckoutResult> _openRazorpayCheckout(
@@ -228,7 +252,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
   void _onPaymentError(PaymentFailureResponse response) {
     _checkoutCompleter?.complete(
-      _CheckoutResult.failure(response.message ?? 'Payment failed.'),
+      _CheckoutResult.failure(
+        _friendlyPaymentMessage(
+          response.message,
+          fallback: 'Payment failed. Please try again.',
+        ),
+      ),
     );
     _checkoutCompleter = null;
   }
@@ -387,6 +416,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 child: Text(
                   _error!,
                   style: const TextStyle(color: AppColors.error),
+                ),
+              ),
+            ],
+
+            if (_paymentInfo != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              Container(
+                padding: const EdgeInsets.all(AppSpacing.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                ),
+                child: Text(
+                  _paymentInfo!,
+                  style: const TextStyle(color: AppColors.primary),
                 ),
               ),
             ],

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import '../../core/theme/app_colors.dart';
-import '../../core/providers/player_provider.dart';
+import '../../core/providers/player_provider.dart' as player_provider;
 import '../../core/models/media_item.dart';
 import '../../core/services/media_service.dart';
 import '../../core/services/library_service.dart';
@@ -40,7 +40,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
     // Initialize volume from player if possible, or default
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        final player = context.read<PlayerProvider>();
+        final player = context.read<player_provider.PlayerProvider>();
         setState(() {
           _volume = player.volume;
           _isMuted = player.isMuted;
@@ -65,7 +65,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
         ? Colors.white.withOpacity(0.1)
         : Colors.black.withOpacity(0.1);
 
-    return Consumer<PlayerProvider>(
+    return Consumer<player_provider.PlayerProvider>(
       builder: (context, player, _) {
         if (!player.hasMedia) {
           return const SizedBox.shrink();
@@ -124,7 +124,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Progress bar spanning full width
-  Widget _buildProgressBar(PlayerProvider player, bool isDark) {
+  Widget _buildProgressBar(player_provider.PlayerProvider player, bool isDark) {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHoveringProgress = true),
       onExit: (_) => setState(() => _isHoveringProgress = false),
@@ -171,7 +171,11 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Left section
-  Widget _buildTrackInfo(MediaItem media, PlayerProvider player, bool isDark) {
+  Widget _buildTrackInfo(
+    MediaItem media,
+    player_provider.PlayerProvider player,
+    bool isDark,
+  ) {
     final isVideoPlaying =
         media.isVideo &&
         player.videoController != null &&
@@ -296,7 +300,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Center section
-  Widget _buildPlaybackControls(PlayerProvider player, bool isDark) {
+  Widget _buildPlaybackControls(
+    player_provider.PlayerProvider player,
+    bool isDark,
+  ) {
     final iconColor = isDark ? Colors.white : AppColors.lightTextPrimary;
     final secondaryIconColor = isDark
         ? Colors.white70
@@ -374,10 +381,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
             IconButton(
               onPressed: () => player.toggleRepeatMode(),
               icon: Icon(
-                player.repeatMode == RepeatMode.one
+                player.repeatMode == player_provider.RepeatMode.one
                     ? Icons.repeat_one_rounded
                     : Icons.repeat_rounded,
-                color: player.repeatMode != RepeatMode.off
+                color: player.repeatMode != player_provider.RepeatMode.off
                     ? AppColors.primary
                     : secondaryIconColor,
                 size: 20,
@@ -421,7 +428,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Right section
-  Widget _buildVolumeAndActions(PlayerProvider player, bool isDark) {
+  Widget _buildVolumeAndActions(
+    player_provider.PlayerProvider player,
+    bool isDark,
+  ) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
@@ -448,7 +458,10 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
   }
 
   /// Volume control with slider
-  Widget _buildVolumeControl(PlayerProvider player, bool isDark) {
+  Widget _buildVolumeControl(
+    player_provider.PlayerProvider player,
+    bool isDark,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [

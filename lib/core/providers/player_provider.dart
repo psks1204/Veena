@@ -286,6 +286,17 @@ class PlayerProvider extends ChangeNotifier {
     return index;
   }
 
+  int _getCurrentQueueIndex() {
+    if (_queue.isEmpty || _currentIndex < 0) return -1;
+    if (_shuffleEnabled &&
+        _shuffledIndices.isNotEmpty &&
+        _currentIndex < _shuffledIndices.length) {
+      return _shuffledIndices[_currentIndex];
+    }
+    if (_currentIndex >= _queue.length) return _queue.length - 1;
+    return _currentIndex;
+  }
+
   /// Play the current item in the queue
   /// [startPosition] - Optional position to start playback from
   Future<void> _playCurrentItem({Duration? startPosition}) async {
@@ -694,7 +705,11 @@ class PlayerProvider extends ChangeNotifier {
   Future<bool> removeFromQueueAt(int index) async {
     if (index < 0 || index >= _queue.length) return false;
 
-    final removed = _queue.removeAt(index);
+    final currentQueueIndex = _getCurrentQueueIndex();
+    final removingCurrent = index == currentQueueIndex;
+    final activeMediaId = _currentMedia?.id;
+
+    _queue.removeAt(index);
 
     if (_queue.isEmpty) {
       await clearQueue();
@@ -702,11 +717,9 @@ class PlayerProvider extends ChangeNotifier {
     }
 
     if (_shuffleEnabled) {
-      final removedCurrent = removed.id == _currentMedia?.id;
-      final activeMediaId = removedCurrent ? null : _currentMedia?.id;
       _generateShuffledIndices();
 
-      if (activeMediaId != null) {
+      if (!removingCurrent && activeMediaId != null) {
         final activeQueueIndex = _queue.indexWhere(
           (m) => m.id == activeMediaId,
         );
@@ -720,35 +733,34 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
 
-      if (_currentIndex >= _queue.length) {
-        _currentIndex = _queue.length - 1;
+      if (removingCurrent) {
+        final nextQueueIndex = index >= _queue.length
+            ? _queue.length - 1
+            : index;
+        final nextShuffledPosition = _shuffledIndices.indexOf(nextQueueIndex);
+        _currentIndex = nextShuffledPosition == -1 ? 0 : nextShuffledPosition;
+        _lastPlayedMediaId = null; // allow immediate replay of same media id
+        await _playCurrentItem();
+        return true;
       }
-      if (_currentIndex < 0) {
-        _currentIndex = 0;
-      }
-      await _playCurrentItem();
-      return true;
-    }
 
-    final currentQueueIndex = _currentIndex;
-
-    // Removed item is before current item: shift current index left.
-    if (index < currentQueueIndex) {
-      _currentIndex = currentQueueIndex - 1;
+      _currentIndex = _currentIndex.clamp(0, _queue.length - 1);
       notifyListeners();
       return true;
     }
 
-    // Removed item is not current: only notify queue change.
-    if (index != currentQueueIndex) {
+    // Removed item is before current item: shift current index left.
+    if (!removingCurrent) {
+      if (currentQueueIndex != -1 && index < currentQueueIndex) {
+        _currentIndex = currentQueueIndex - 1;
+      }
       notifyListeners();
       return true;
     }
 
     // Removed currently playing item: continue from same position if possible.
-    if (_currentIndex >= _queue.length) {
-      _currentIndex = _queue.length - 1;
-    }
+    _currentIndex = index >= _queue.length ? _queue.length - 1 : index;
+    _lastPlayedMediaId = null; // allow immediate replay of same media id
     await _playCurrentItem();
     return true;
   }

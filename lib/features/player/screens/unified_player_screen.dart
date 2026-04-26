@@ -20,6 +20,7 @@ import '../../library/screens/artist_detail_screen.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../widgets/comments_sheet.dart';
+import '../../../shared/widgets/player_artwork_ad_swap.dart';
 import '../../../shared/widgets/player_ad_rotator.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
@@ -1189,17 +1190,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   /// Artwork content widget
   Widget _buildArtworkContent(MediaItem media) {
-    if (media.thumbnailUrl != null && media.thumbnailUrl!.isNotEmpty) {
-      return Image.network(media.thumbnailUrl!, fit: BoxFit.cover);
-    }
-    return Container(
-      color: Colors.grey[900],
-      child: const Icon(
-        Icons.music_note_rounded,
-        size: 80,
-        color: Colors.white24,
-      ),
-    );
+    return PlayerArtworkAdSwap(thumbnailUrl: media.thumbnailUrl);
   }
 
   /// Progress bar
