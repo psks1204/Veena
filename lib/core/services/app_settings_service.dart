@@ -82,8 +82,12 @@ class AppSettingsService extends ChangeNotifier {
     final bParts = b.split('.').map((e) => int.tryParse(e) ?? 0).toList();
 
     // Pad to same length
-    while (aParts.length < 3) aParts.add(0);
-    while (bParts.length < 3) bParts.add(0);
+    while (aParts.length < 3) {
+      aParts.add(0);
+    }
+    while (bParts.length < 3) {
+      bParts.add(0);
+    }
 
     for (int i = 0; i < 3; i++) {
       if (aParts[i] < bParts[i]) return -1;

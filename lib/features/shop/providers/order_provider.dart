@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/order.dart';
 import '../services/order_service.dart';
-import '../services/shop_catalog_service.dart';
 
 /// Order Provider
 ///

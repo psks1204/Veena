@@ -24,7 +24,7 @@ class _PlayerArtworkAdSwapState extends State<PlayerArtworkAdSwap> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 5), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 10), (_) {
       if (!mounted) return;
       setState(() => _showAd = !_showAd);
     });
@@ -70,7 +70,7 @@ class _AdView extends StatelessWidget {
           GoogleBannerAd(height: 50),
           SizedBox(height: 10),
           Text(
-            'Ad breaks every 5s',
+            'Ad breaks every 10s',
             style: TextStyle(
               color: AppColors.primary,
               fontSize: 12,

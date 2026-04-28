@@ -26,10 +26,26 @@ class _CartScreenState extends State<CartScreen> {
 
   Future<void> _changeQuantity(int itemId, int quantity) async {
     if (_isMutating) return;
+    if (quantity <= 0) {
+      await _removeItem(itemId);
+      return;
+    }
 
     setState(() => _isMutating = true);
     try {
       await context.read<CartProvider>().updateItem(itemId, quantity);
+    } finally {
+      if (mounted) {
+        setState(() => _isMutating = false);
+      }
+    }
+  }
+
+  Future<void> _removeItem(int itemId) async {
+    if (_isMutating) return;
+    setState(() => _isMutating = true);
+    try {
+      await context.read<CartProvider>().removeItem(itemId);
     } finally {
       if (mounted) {
         setState(() => _isMutating = false);
@@ -213,9 +229,13 @@ class _CartScreenState extends State<CartScreen> {
                                 Row(
                                   children: [
                                     _QtyButton(
-                                      icon: Icons.remove,
+                                      icon: item.quantity <= 1
+                                          ? Icons.delete_outline
+                                          : Icons.remove,
                                       onTap: _isMutating
                                           ? () {}
+                                          : item.quantity <= 1
+                                          ? () => _removeItem(item.id)
                                           : () => _changeQuantity(
                                               item.id,
                                               item.quantity - 1,

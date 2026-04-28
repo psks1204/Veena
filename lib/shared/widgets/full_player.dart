@@ -59,12 +59,6 @@ class FullPlayer extends StatelessWidget {
   final ValueChanged<double>? onSeek;
   final VoidCallback? onClose;
 
-  String _formatDuration(Duration d) {
-    final minutes = d.inMinutes;
-    final seconds = d.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
   void _navigateToAlbum(BuildContext context) {
     if (mediaItem.album != null) {
       // Close player first if it's a modal or separate screen
@@ -182,7 +176,7 @@ class FullPlayer extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        track.artistName ?? 'Unknown Artist',
+                        track.artistName,
                         style: TextStyle(
                           color: isCurrent
                               ? AppColors.primary.withAlpha(179)
@@ -279,7 +273,7 @@ class FullPlayer extends StatelessWidget {
   ) {
     final hasLyrics = lyrics != null && lyrics!.lines.isNotEmpty;
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: double.infinity,
       child: Center(
@@ -917,8 +911,9 @@ class FullPlayer extends StatelessWidget {
                 // Follow Button
                 Consumer<ArtistService>(
                   builder: (context, artistService, _) {
-                    if (mediaItem.artistId == null)
+                    if (mediaItem.artistId == null) {
                       return const SizedBox.shrink();
+                    }
 
                     final library = context.watch<LibraryService>();
                     final isFollowing = library.artists.any(
@@ -1324,8 +1319,9 @@ class FullPlayer extends StatelessWidget {
                         const SizedBox(height: 16),
                         Consumer<ArtistService>(
                           builder: (context, artistService, _) {
-                            if (mediaItem.artistId == null)
+                            if (mediaItem.artistId == null) {
                               return const SizedBox.shrink();
+                            }
                             final library = context.watch<LibraryService>();
                             final isFollowing = library.artists.any(
                               (a) => a.id == mediaItem.artistId,
@@ -1398,8 +1394,9 @@ class _WebLyricsViewState extends State<_WebLyricsView> {
   void _scrollToActiveLine() {
     if (!_scrollController.hasClients) return;
     if (widget.activeIndex < 0 ||
-        widget.activeIndex >= widget.lyrics.lines.length)
+        widget.activeIndex >= widget.lyrics.lines.length) {
       return;
+    }
 
     final targetOffset = widget.activeIndex * _itemHeight;
     final maxScroll = _scrollController.position.maxScrollExtent;

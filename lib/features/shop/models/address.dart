@@ -1,4 +1,5 @@
 /// Shop Address Models
+library;
 
 class AddressRequest {
   final String fullName;

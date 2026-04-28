@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/services/library_service.dart';
-import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/track_tile.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../../shared/layouts/player_overlay_shell.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final Playlist playlist;

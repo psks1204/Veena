@@ -398,9 +398,9 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia != null) {
       final item = audio_service.MediaItem(
         id: _currentMedia!.id,
-        album: _currentMedia!.artistName ?? 'Video',
+        album: _currentMedia!.artistName,
         title: _currentMedia!.title,
-        artist: _currentMedia!.artistName ?? 'Unknown Artist',
+        artist: _currentMedia!.artistName,
         artUri: _currentMedia!.thumbnailUrl != null
             ? Uri.parse(_currentMedia!.thumbnailUrl!)
             : null,
@@ -464,9 +464,9 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia != null) {
       final itemWithDuration = audio_service.MediaItem(
         id: _currentMedia!.id,
-        album: _currentMedia!.artistName ?? 'Video',
+        album: _currentMedia!.artistName,
         title: _currentMedia!.title,
-        artist: _currentMedia!.artistName ?? 'Unknown Artist',
+        artist: _currentMedia!.artistName,
         artUri: _currentMedia!.thumbnailUrl != null
             ? Uri.parse(_currentMedia!.thumbnailUrl!)
             : null,
@@ -525,9 +525,9 @@ class PlayerProvider extends ChangeNotifier {
     // Create audio_service MediaItem for notification
     final item = audio_service.MediaItem(
       id: media.id,
-      album: media.artistName ?? 'Unknown Album',
+      album: media.artistName,
       title: media.title,
-      artist: media.artistName ?? 'Unknown Artist',
+      artist: media.artistName,
       duration: null, // Will be updated when loaded
       artUri: media.thumbnailUrl != null
           ? Uri.parse(media.thumbnailUrl!)

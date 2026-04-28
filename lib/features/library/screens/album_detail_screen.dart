@@ -12,7 +12,6 @@ import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
-import '../../../shared/layouts/player_overlay_shell.dart';
 
 /// Album Detail Screen - Neon Horizon
 /// 

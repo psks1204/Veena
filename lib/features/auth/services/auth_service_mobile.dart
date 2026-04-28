@@ -21,11 +21,15 @@ Future<AuthResult> signIn() async {
         additionalParameters: {'identity_provider': 'Google'},
       ),
     );
-    if (result != null) {
-      return AuthResult(success: true, accessToken: result.accessToken, refreshToken: result.refreshToken, idToken: result.idToken);
-    }
-    return AuthResult(success: false, error: 'Auth failed');
-  } catch (e) { return AuthResult(success: false, error: e.toString()); }
+    return AuthResult(
+      success: true,
+      accessToken: result.accessToken,
+      refreshToken: result.refreshToken,
+      idToken: result.idToken,
+    );
+  } catch (e) {
+    return AuthResult(success: false, error: e.toString());
+  }
 }
 
 Future<Map<String, String?>> getStoredTokens() async {
@@ -36,10 +40,17 @@ Future<Map<String, String?>> getStoredTokens() async {
   };
 }
 
-Future<void> storeTokens({String? accessToken, String? refreshToken, String? idToken}) async {
-  if (accessToken != null) await _secureStorage.write(key: 'access_token', value: accessToken);
-  if (refreshToken != null) await _secureStorage.write(key: 'refresh_token', value: refreshToken);
-  if (idToken != null) await _secureStorage.write(key: 'id_token', value: idToken);
+Future<void> storeTokens({
+  String? accessToken,
+  String? refreshToken,
+  String? idToken,
+}) async {
+  if (accessToken != null)
+    await _secureStorage.write(key: 'access_token', value: accessToken);
+  if (refreshToken != null)
+    await _secureStorage.write(key: 'refresh_token', value: refreshToken);
+  if (idToken != null)
+    await _secureStorage.write(key: 'id_token', value: idToken);
 }
 
 Future<void> clearTokens() async {
@@ -48,10 +59,23 @@ Future<void> clearTokens() async {
 
 Future<AuthResult> refreshToken(String refreshTokenValue) async {
   try {
-    final result = await _appAuth.token(TokenRequest(AuthConfig.clientId, AuthConfig.redirectUri, issuer: 'https://${AuthConfig.issuer}', refreshToken: refreshTokenValue, scopes: AuthConfig.scopes));
-    if (result != null) return AuthResult(success: true, accessToken: result.accessToken, idToken: result.idToken);
-  } catch (e) { return AuthResult(success: false, error: e.toString()); }
-  return AuthResult(success: false);
+    final result = await _appAuth.token(
+      TokenRequest(
+        AuthConfig.clientId,
+        AuthConfig.redirectUri,
+        issuer: 'https://${AuthConfig.issuer}',
+        refreshToken: refreshTokenValue,
+        scopes: AuthConfig.scopes,
+      ),
+    );
+    return AuthResult(
+      success: true,
+      accessToken: result.accessToken,
+      idToken: result.idToken,
+    );
+  } catch (e) {
+    return AuthResult(success: false, error: e.toString());
+  }
 }
 
 Future<AuthResult?> handleWebCallback() async => null;

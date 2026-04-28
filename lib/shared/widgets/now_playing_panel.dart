@@ -344,7 +344,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             ),
           ),
           Text(
-            media.artistName ?? 'Unknown Artist',
+            media.artistName,
             style: TextStyle(
               color: isDark ? Colors.white70 : AppColors.lightTextSecondary,
               fontSize: 16,
@@ -541,7 +541,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
             overflow: TextOverflow.ellipsis,
           ),
           subtitle: Text(
-            item.artistName ?? 'Unknown',
+            item.artistName,
             style: TextStyle(
               color: isDark
                   ? Colors.white.withOpacity(0.7)
@@ -690,14 +690,14 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                   cursor: SystemMouseCursors.click,
                   child: GestureDetector(
                     onTap: () {
-                      if (media.artistId != null && media.artistName != null) {
+                      if (media.artistId != null) {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => ArtistDetailScreen(
                               artist: Artist(
                                 id: media.artistId!,
-                                name: media.artistName!,
+                                name: media.artistName,
                                 imageUrl: media.artist?.imageUrl,
                                 followerCount: media.artist?.followerCount ?? 0,
                                 totalPlays: media.playedCount,
@@ -711,7 +711,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          media.artistName ?? 'Unknown',
+                          media.artistName,
                           style: TextStyle(
                             color: isDark
                                 ? Colors.white

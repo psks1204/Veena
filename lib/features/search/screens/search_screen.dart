@@ -1,5 +1,8 @@
 import 'dart:async';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/theme/app_colors.dart';
@@ -41,6 +44,12 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   bool _isListening = false;
   bool _speechReady = false;
+
+  /// Voice search is only supported on Android and iOS.
+  bool get _isVoiceSupported {
+    if (kIsWeb) return false;
+    return Platform.isAndroid || Platform.isIOS;
+  }
 
   @override
   void dispose() {
@@ -132,6 +141,7 @@ class _SearchScreenState extends State<SearchScreen> {
   }
 
   Future<void> _toggleVoiceSearch() async {
+    if (!_isVoiceSupported) return;
     if (_isListening) {
       await _speech.stop();
       if (mounted) {
@@ -140,20 +150,46 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    if (!_speechReady) {
-      _speechReady = await _speech.initialize(
-        onStatus: (status) {
-          if (!mounted) return;
-          if (status == 'done' || status == 'notListening') {
-            setState(() => _isListening = false);
-          }
-        },
-        onError: (_) {
-          if (!mounted) return;
-          setState(() => _isListening = false);
-        },
-      );
+    // Request microphone permission before initialising speech on Android
+    if (Platform.isAndroid) {
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        if (!mounted) return;
+        if (status.isPermanentlyDenied) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text(
+                'Microphone permission is required for voice search',
+              ),
+              action: SnackBarAction(
+                label: 'Settings',
+                onPressed: openAppSettings,
+              ),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Microphone permission denied')),
+          );
+        }
+        return;
+      }
     }
+
+    // Re-initialise each time so a previously-denied permission is picked up
+    _speechReady = false;
+    _speechReady = await _speech.initialize(
+      onStatus: (status) {
+        if (!mounted) return;
+        if (status == 'done' || status == 'notListening') {
+          setState(() => _isListening = false);
+        }
+      },
+      onError: (_) {
+        if (!mounted) return;
+        setState(() => _isListening = false);
+      },
+    );
 
     if (!_speechReady) {
       if (!mounted) return;
@@ -252,17 +288,20 @@ class _SearchScreenState extends State<SearchScreen> {
                                 color: isDark ? Colors.white70 : Colors.black54,
                               ),
                             ),
-                          IconButton(
-                            onPressed: _toggleVoiceSearch,
-                            icon: Icon(
-                              _isListening
-                                  ? Icons.mic_rounded
-                                  : Icons.mic_none_rounded,
-                              color: _isListening
-                                  ? AppColors.primary
-                                  : (isDark ? Colors.white70 : Colors.black54),
+                          if (_isVoiceSupported)
+                            IconButton(
+                              onPressed: _toggleVoiceSearch,
+                              icon: Icon(
+                                _isListening
+                                    ? Icons.mic_rounded
+                                    : Icons.mic_none_rounded,
+                                color: _isListening
+                                    ? AppColors.primary
+                                    : (isDark
+                                          ? Colors.white70
+                                          : Colors.black54),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                       border: InputBorder.none,

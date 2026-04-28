@@ -1,4 +1,5 @@
 /// Shop Payment Models
+library;
 
 enum PaymentStatus {
   created,

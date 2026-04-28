@@ -336,8 +336,9 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
   Widget _buildHeroCarousel(List<MediaItem> items) {
     final featuredItems = items.take(5).toList();
 
-    if (featuredItems.isEmpty)
+    if (featuredItems.isEmpty) {
       return const SliverToBoxAdapter(child: SizedBox.shrink());
+    }
 
     return SliverToBoxAdapter(
       child: FeaturedCarousel(items: featuredItems, onPlay: _onPlayAttempt),

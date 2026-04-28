@@ -201,7 +201,7 @@ class _AlarmListScreenState extends State<AlarmListScreen> {
                                 Switch(
                                   value: alarm.isEnabled,
                                   onChanged: (val) => _toggleAlarm(alarm, val),
-                                  activeColor: AppColors.primary,
+                                  activeThumbColor: AppColors.primary,
                                 ),
                               ],
                             ),

@@ -11,7 +11,7 @@ import '../../player/screens/unified_player_screen.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Playlist Detail Screen
-/// 
+///
 /// Full playlist view with large artwork header and track list.
 /// Fetches real tracks from API using LibraryService.
 class PlaylistDetailScreen extends StatefulWidget {
@@ -30,8 +30,8 @@ class PlaylistDetailScreen extends StatefulWidget {
   State<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
 }
 
-class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteAware {
-  bool _isLiked = false;
+class _PlaylistDetailScreenState extends State<PlaylistDetailScreen>
+    with RouteAware {
   bool _isLoading = true;
   String? _error;
   List<MediaItem> _tracks = [];
@@ -67,18 +67,18 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
 
   void _playTrack(MediaItem track, {int? trackIndex}) {
     final player = context.read<PlayerProvider>();
-    
+
     // Play the queue starting from this track
     if (_tracks.isNotEmpty && trackIndex != null) {
       player.playQueue(_tracks, startIndex: trackIndex);
     } else {
       player.play(track);
     }
-    
+
     if (track.isVideo) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -94,11 +94,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
     int totalSeconds = _tracks.length * 180; // Estimate ~3min per track
     int hours = totalSeconds ~/ 3600;
     int minutes = (totalSeconds % 3600) ~/ 60;
-    
+
     if (hours > 0) {
-      return '${_tracks.length} songs, $hours hr ${minutes} min';
+      return '${_tracks.length} songs, $hours hr $minutes min';
     }
-    return '${_tracks.length} songs, ${minutes} min';
+    return '${_tracks.length} songs, $minutes min';
   }
 
   @override
@@ -148,7 +148,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                         height: artworkSize,
                         decoration: BoxDecoration(
                           color: colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withOpacity(0.3),
@@ -157,20 +159,28 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                             ),
                           ],
                         ),
-                        child: widget.coverUrl != null && widget.coverUrl!.isNotEmpty
+                        child:
+                            widget.coverUrl != null &&
+                                widget.coverUrl!.isNotEmpty
                             ? ClipRRect(
-                                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                                borderRadius: BorderRadius.circular(
+                                  AppSpacing.radiusMd,
+                                ),
                                 child: CachedNetworkImage(
                                   imageUrl: widget.coverUrl!,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => _buildPlaceholderIcon(artworkSize, colorScheme),
+                                  errorWidget: (_, __, ___) =>
+                                      _buildPlaceholderIcon(
+                                        artworkSize,
+                                        colorScheme,
+                                      ),
                                 ),
                               )
                             : _buildPlaceholderIcon(artworkSize, colorScheme),
                       ),
-                      
+
                       const SizedBox(height: AppSpacing.lg),
-                      
+
                       // Playlist title
                       Padding(
                         padding: const EdgeInsets.symmetric(
@@ -186,9 +196,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      
+
                       const SizedBox(height: AppSpacing.xs),
-                      
+
                       // Playlist info
                       Text(
                         _formatTotalDuration(),
@@ -214,19 +224,23 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
             child: Row(
               children: [
                 const Spacer(),
-                
+
                 // Shuffle button
                 IconButton(
-                  onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: true) : null,
+                  onPressed: _tracks.isNotEmpty
+                      ? () => _playAll(shuffle: true)
+                      : null,
                   icon: const Icon(Icons.shuffle_rounded),
                 ),
-                
+
                 // Play button
                 Container(
                   width: 56,
                   height: 56,
                   decoration: BoxDecoration(
-                    color: _tracks.isNotEmpty ? colorScheme.primary : Colors.grey,
+                    color: _tracks.isNotEmpty
+                        ? colorScheme.primary
+                        : Colors.grey,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
@@ -267,7 +281,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
               child: Center(
                 child: Column(
                   children: [
-                    const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                    const Icon(
+                      Icons.error_outline,
+                      size: 48,
+                      color: Colors.red,
+                    ),
                     const SizedBox(height: AppSpacing.md),
                     const Text('Failed to load playlist'),
                     TextButton(
@@ -308,47 +326,47 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
             selector: (_, player) => player.currentMedia?.id,
             builder: (context, currentPlayingId, _) {
               return SliverPadding(
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.screenPadding,
+                ),
                 sliver: SliverList(
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final track = _tracks[index];
-                      final isPlaying = currentPlayingId == track.id;
-                      
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                        child: AuraTrackTile(
-                          index: index + 1,
-                          title: track.title,
-                          subtitle: track.artistName,
-                          duration: '',
-                          imageUrl: track.thumbnailUrl,
-                          isPlaying: isPlaying,
-                          playedCount: track.playedCount > 0 ? track.playedCount : null,
-                          likeCount: track.likeCount > 0 ? track.likeCount : null,
-                          onTap: () => _playTrack(track, trackIndex: index),
-                          onMoreTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              backgroundColor: Colors.transparent,
-                              builder: (context) => AddToPlaylistSheet(mediaItem: track),
-                            );
-                          },
-                        ),
-                      );
-                    },
-                    childCount: _tracks.length,
-                  ),
+                  delegate: SliverChildBuilderDelegate((context, index) {
+                    final track = _tracks[index];
+                    final isPlaying = currentPlayingId == track.id;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: AuraTrackTile(
+                        index: index + 1,
+                        title: track.title,
+                        subtitle: track.artistName,
+                        duration: '',
+                        imageUrl: track.thumbnailUrl,
+                        isPlaying: isPlaying,
+                        playedCount: track.playedCount > 0
+                            ? track.playedCount
+                            : null,
+                        likeCount: track.likeCount > 0 ? track.likeCount : null,
+                        onTap: () => _playTrack(track, trackIndex: index),
+                        onMoreTap: () {
+                          showModalBottomSheet(
+                            context: context,
+                            isScrollControlled: true,
+                            backgroundColor: Colors.transparent,
+                            builder: (context) =>
+                                AddToPlaylistSheet(mediaItem: track),
+                          );
+                        },
+                      ),
+                    );
+                  }, childCount: _tracks.length),
                 ),
               );
             },
           ),
 
         // Bottom padding
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 140),
-        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 140)),
       ],
     );
   }
@@ -367,7 +385,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
             color: isDark ? AppColors.darkBg : AppColors.lightBg,
           ),
         ),
-        
+
         Row(
           children: [
             // Left Side: Artwork & Info
@@ -392,19 +410,21 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                           ),
                         ],
                       ),
-                      child: widget.coverUrl != null && widget.coverUrl!.isNotEmpty
+                      child:
+                          widget.coverUrl != null && widget.coverUrl!.isNotEmpty
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(12),
                               child: CachedNetworkImage(
                                 imageUrl: widget.coverUrl!,
                                 fit: BoxFit.cover,
-                                errorWidget: (_, __, ___) => _buildPlaceholderIcon(280, colorScheme),
+                                errorWidget: (_, __, ___) =>
+                                    _buildPlaceholderIcon(280, colorScheme),
                               ),
                             )
                           : _buildPlaceholderIcon(280, colorScheme),
                     ),
                     const SizedBox(height: 32),
-                    
+
                     Text(
                       widget.playlistTitle,
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -414,35 +434,46 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
-                    
+
                     Text(
                       _formatTotalDuration(),
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                        color: (isDark ? Colors.white : Colors.black)
+                            .withOpacity(0.6),
                       ),
                       textAlign: TextAlign.center,
                     ),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Actions
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: false) : null,
+                          onPressed: _tracks.isNotEmpty
+                              ? () => _playAll(shuffle: false)
+                              : null,
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('Play All'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 20,
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         IconButton(
-                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: true) : null,
+                          onPressed: _tracks.isNotEmpty
+                              ? () => _playAll(shuffle: true)
+                              : null,
                           icon: const Icon(Icons.shuffle_rounded),
                           color: isDark ? Colors.white : Colors.black,
                           tooltip: 'Shuffle',
@@ -454,7 +485,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                 ),
               ),
             ),
-            
+
             // Right Side: Tracks
             Expanded(
               flex: 3,
@@ -470,50 +501,60 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
                         style: TextStyle(
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,
-                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withOpacity(0.4),
                           fontSize: 12,
                         ),
                       ),
                     ),
-                    
+
                     Expanded(
-                      child: _isLoading 
-                        ? const Center(child: CircularProgressIndicator())
-                        : _error != null
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _error != null
                           ? Center(child: Text('Error: $_error'))
                           : _tracks.isEmpty
-                            ? const Center(child: Text('No tracks in this playlist'))
-                            : ListView.builder(
-                                padding: const EdgeInsets.symmetric(horizontal: 24),
-                                itemCount: _tracks.length,
-                                itemBuilder: (context, index) {
-                                  final track = _tracks[index];
-                                  final isPlaying = player.currentMedia?.id == track.id;
-                                  
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8),
-                                    child: AuraTrackTile(
-                                      index: index + 1,
-                                      title: track.title,
-                                      subtitle: track.artistName,
-                                      duration: '',
-                                      imageUrl: track.thumbnailUrl,
-                                      isPlaying: isPlaying,
-                                      onTap: () => _playTrack(track, trackIndex: index),
-                                      onMoreTap: () {
-                                        showModalBottomSheet(
-                                          context: context,
-                                          isScrollControlled: true,
-                                          backgroundColor: Colors.transparent,
-                                          builder: (context) => AddToPlaylistSheet(mediaItem: track),
-                                        );
-                                      },
-                                    ),
-                                  );
-                                },
+                          ? const Center(
+                              child: Text('No tracks in this playlist'),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
                               ),
+                              itemCount: _tracks.length,
+                              itemBuilder: (context, index) {
+                                final track = _tracks[index];
+                                final isPlaying =
+                                    player.currentMedia?.id == track.id;
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: AuraTrackTile(
+                                    index: index + 1,
+                                    title: track.title,
+                                    subtitle: track.artistName,
+                                    duration: '',
+                                    imageUrl: track.thumbnailUrl,
+                                    isPlaying: isPlaying,
+                                    onTap: () =>
+                                        _playTrack(track, trackIndex: index),
+                                    onMoreTap: () {
+                                      showModalBottomSheet(
+                                        context: context,
+                                        isScrollControlled: true,
+                                        backgroundColor: Colors.transparent,
+                                        builder: (context) =>
+                                            AddToPlaylistSheet(
+                                              mediaItem: track,
+                                            ),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            ),
                     ),
-                    
+
                     SizedBox(height: player.hasMedia ? 120 : 40),
                   ],
                 ),
@@ -521,7 +562,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> with RouteA
             ),
           ],
         ),
-        
+
         // App Bar / Back
         Positioned(
           top: 0,

@@ -261,8 +261,6 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildErrorState(ThemeData theme, String? errorMessage) {
-    final colorScheme = theme.colorScheme;
-
     return Column(
       children: [
         Container(

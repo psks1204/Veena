@@ -2,6 +2,7 @@
 ///
 /// Represents a media item from the API (video or audio content).
 /// Includes nested artist and album information.
+library;
 
 /// Artist information embedded in media response
 class ArtistInfo {

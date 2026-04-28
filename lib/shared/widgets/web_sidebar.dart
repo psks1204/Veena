@@ -29,7 +29,7 @@ class WebSidebar extends StatefulWidget {
 class _WebSidebarState extends State<WebSidebar> {
   String _activeFilter = 'Playlists'; // Playlists, Artists
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
+  final bool _isSearching = false;
 
   @override
   void initState() {

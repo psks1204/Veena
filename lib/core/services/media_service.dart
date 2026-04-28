@@ -15,8 +15,8 @@ class MediaService extends ChangeNotifier {
   List<Artist> _searchArtists = [];
   List<MediaItem> _allMedia = [];
   Set<String> _likedMediaIds = {};
-  Set<String> _unlikedMediaIds = {};
-  Map<String, int> _likeCounts = {};
+  final Set<String> _unlikedMediaIds = {};
+  final Map<String, int> _likeCounts = {};
   bool _isLoading = false;
   bool _isSearching = false;
   String? _error;

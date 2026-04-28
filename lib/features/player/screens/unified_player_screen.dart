@@ -366,7 +366,6 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
         : screenSize.width - (AppSpacing.xl * 2);
 
     final media = player.currentMedia!;
-    final isVideo = player.isVideo;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -749,7 +748,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
   /// About the artist card - Spotify style
   Widget _buildArtistCard(MediaItem media) {
-    final artistName = media.artistName ?? 'Unknown Artist';
+    final artistName = media.artistName;
     final artistImage = media.artist?.imageUrl ?? media.thumbnailUrl;
 
     return GestureDetector(
@@ -899,8 +898,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   // Follow button
                   Consumer<ArtistService>(
                     builder: (context, artistService, _) {
-                      if (media.artistId == null)
+                      if (media.artistId == null) {
                         return const SizedBox.shrink();
+                      }
                       final library = context.watch<LibraryService>();
                       final isFollowing = library.artists.any(
                         (a) => a.id == media.artistId,
@@ -1618,7 +1618,6 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     final hasLinkedMedia = linkedMedia != null;
 
     // Calculate sizes for web
-    final screenSize = MediaQuery.of(context).size;
     final maxContentWidth = 500.0;
     final mediaWidth = isVideo ? maxContentWidth : 280.0;
     final mediaHeight = isVideo ? mediaWidth * 9 / 16 : 280.0;
@@ -1758,8 +1757,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     // Web Follow Button
                     Consumer<ArtistService>(
                       builder: (context, artistService, _) {
-                        if (media.artistId == null)
+                        if (media.artistId == null) {
                           return const SizedBox.shrink();
+                        }
                         final library = context.watch<LibraryService>();
                         final isFollowing = library.artists.any(
                           (a) => a.id == media.artistId,

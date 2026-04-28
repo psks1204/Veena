@@ -328,6 +328,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
   }
 
   Widget _buildAdPage(BuildContext context, ThemeData theme) {
+    final subscription = context.watch<SubscriptionProvider>();
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
       padding: const EdgeInsets.all(AppSpacing.md),
@@ -348,7 +349,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
           const GoogleBannerAd(height: 50),
           const SizedBox(height: 10),
           Text(
-            'Remove ads with No Ads plan (Rs 9/month)',
+            'Remove ads • ${subscription.monthlyPlanLabel}',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w600,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/invoice.dart';
 import '../../../core/services/invoice_service.dart';
 import '../../../core/theme/app_colors.dart';
@@ -133,6 +134,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 onPressed: () => Navigator.of(dialogCtx).pop(),
                 child: const Text('Close'),
               ),
+              if (invoice.pdfUrl != null)
+                FilledButton.icon(
+                  onPressed: () async {
+                    final uri = Uri.parse(invoice.pdfUrl!);
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.download_rounded, size: 18),
+                  label: const Text('Download PDF'),
+                ),
             ],
           );
         },

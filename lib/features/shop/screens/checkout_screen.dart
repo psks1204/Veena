@@ -381,6 +381,21 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ],
                     ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Shipping', style: theme.textTheme.bodyMedium),
+                      Text(
+                        'Calculated at order',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -648,6 +663,19 @@ class _OrderSuccessScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
+                  if (order.shippingCharge > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 4),
+                      child: Text(
+                        'Shipping: ₹${order.shippingCharge.toStringAsFixed(0)}',
+                        style: TextStyle(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
                   Text(
                     'Total: ₹${order.totalAmount.toStringAsFixed(0)}',
                     style: const TextStyle(

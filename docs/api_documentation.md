@@ -1,5 +1,7 @@
 # Veena User API Documentation
 
+flutter build apk --release --dart-define=RAZORPAY_KEY_ID=rzp_live_SFw9YPmFfp12PK
+
 > **Base URL**: `https://d17362b1w27h09.cloudfront.net`
 > 
 > **Authentication**: AWS Cognito Bearer Token (unless specified otherwise)

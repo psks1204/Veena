@@ -334,7 +334,7 @@ class _TrackListItem extends StatelessWidget {
                         ),
                       Expanded(
                         child: Text(
-                          item.artistName ?? 'Unknown Artist',
+                          item.artistName,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: colorScheme.onSurface.withOpacity(0.6),
                           ),

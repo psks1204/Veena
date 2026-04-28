@@ -240,7 +240,7 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
               ),
               const SizedBox(height: 2),
               Text(
-                media.artistName ?? 'Unknown Artist',
+                media.artistName,
                 style: TextStyle(
                   color: isDark
                       ? Colors.white.withOpacity(0.7)

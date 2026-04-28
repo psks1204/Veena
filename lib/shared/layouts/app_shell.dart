@@ -46,7 +46,7 @@ class _AppShellState extends State<AppShell> {
     NavigationRailDestination(
       icon: Icon(Icons.upload_file_outlined),
       selectedIcon: Icon(Icons.upload_file_rounded),
-      label: Text('Uploads'),
+      label: Text('Feed'),
     ),
     NavigationRailDestination(
       icon: Icon(Icons.search_outlined),
@@ -192,12 +192,33 @@ class _AppShellState extends State<AppShell> {
   }
 
   Widget _buildMobileLayout(bool isDark) {
+    final showMiniPlayer =
+        widget.showMiniPlayer && widget.miniPlayerData != null;
+
     return Scaffold(
       extendBody: true,
       body: Stack(
         children: [
           // Main Content with nested navigators
-          SafeArea(bottom: false, child: _buildContent()),
+          Builder(
+            builder: (ctx) {
+              final mq = MediaQuery.of(ctx);
+              const kNavBarHeight = 64.0;
+              const kMiniPlayerHeight = 64.0;
+              final extraBottom =
+                  kNavBarHeight +
+                  (showMiniPlayer ? kMiniPlayerHeight : 0.0) +
+                  mq.padding.bottom;
+
+              return MediaQuery(
+                data: mq.copyWith(
+                  padding: mq.padding.copyWith(bottom: extraBottom),
+                  viewPadding: mq.viewPadding.copyWith(bottom: extraBottom),
+                ),
+                child: SafeArea(bottom: false, child: _buildContent()),
+              );
+            },
+          ),
 
           // Floating Player & Nav
           Positioned(
@@ -207,7 +228,7 @@ class _AppShellState extends State<AppShell> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (widget.showMiniPlayer && widget.miniPlayerData != null)
+                if (showMiniPlayer)
                   MiniPlayer(
                     trackTitle: widget.miniPlayerData!.trackTitle,
                     artistName: widget.miniPlayerData!.artistName,
@@ -239,7 +260,7 @@ class _AppShellState extends State<AppShell> {
                     BottomNavigationBarItem(
                       icon: Icon(Icons.upload_file_outlined),
                       activeIcon: Icon(Icons.upload_file_rounded),
-                      label: 'Uploads',
+                      label: 'Feed',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.search_outlined),
@@ -385,8 +406,8 @@ class _AppShellState extends State<AppShell> {
                       ),
                     ),
 
-                    // Right Now Playing Panel (only when open and has media)
-                    if (_isNowPlayingOpen && hasMedia)
+                    // Right Now Playing Panel (only when open, has media, and UI is enabled)
+                    if (widget.showMiniPlayer && _isNowPlayingOpen && hasMedia)
                       Container(
                         margin: const EdgeInsets.fromLTRB(0, 8, 8, 8),
                         decoration: BoxDecoration(

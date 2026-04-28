@@ -1,7 +1,7 @@
 // Helper file for web fullscreen API  
 // This uses JS interop to call browser fullscreen APIs
 @JS()
-library fullscreen_web;
+library;
 
 import 'package:js/js.dart';
 

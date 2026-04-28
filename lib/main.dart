@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/services/audio_handler.dart';
-import 'core/services/ads_service.dart';
 import 'core/services/push_notification_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -34,13 +33,9 @@ Future<void> main() async {
   // Initialize Firebase (only on mobile - web requires separate config)
   if (!kIsWeb) {
     await Firebase.initializeApp();
-    await AdsService.initialize();
 
     // Set up background message handler
     FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-
-    // Initialize Push Notification Service
-    await PushNotificationService().initialize();
   }
 
   final prefs = await SharedPreferences.getInstance();

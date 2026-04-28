@@ -6,18 +6,15 @@ import '../widgets/mini_player.dart';
 import '../../features/player/screens/unified_player_screen.dart';
 
 /// PlayerOverlayShell - Wraps any screen with a mini player at the bottom
-/// 
+///
 /// Use this to wrap detail screens (album, playlist, etc.) so users can see
 /// and control playback without returning to the main app shell.
-/// 
+///
 /// Tapping the mini player opens the UnifiedPlayerScreen.
 class PlayerOverlayShell extends StatelessWidget {
   final Widget child;
-  
-  const PlayerOverlayShell({
-    super.key,
-    required this.child,
-  });
+
+  const PlayerOverlayShell({super.key, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +29,7 @@ class PlayerOverlayShell extends StatelessWidget {
               ),
               child: child,
             ),
-            
+
             // Mini player at bottom
             if (player.hasMedia)
               Positioned(
@@ -41,14 +38,16 @@ class PlayerOverlayShell extends StatelessWidget {
                 bottom: 0,
                 child: MiniPlayer(
                   trackTitle: player.currentMedia!.title,
-                  artistName: player.currentMedia!.artistName ?? 'Unknown Artist',
+                  artistName: player.currentMedia!.artistName,
                   artworkUrl: player.currentMedia!.thumbnailUrl,
                   isPlaying: player.isPlaying,
                   progress: player.progress,
                   onTap: () {
                     // Navigate to unified player for both audio and video
                     Navigator.of(context, rootNavigator: true).push(
-                      MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const UnifiedPlayerScreen(),
+                      ),
                     );
                   },
                   onPlayPause: player.togglePlayPause,

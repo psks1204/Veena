@@ -2,6 +2,7 @@
 ///
 /// Matches the ChannelResponse and UserMediaResponse shapes from
 /// the backend API (UserChannelController).
+library;
 
 class ChannelResponse {
   final String id;

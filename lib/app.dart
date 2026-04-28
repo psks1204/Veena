@@ -36,7 +36,9 @@ import 'features/player/screens/unified_player_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/layouts/shop_shell.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/services/ads_service.dart';
 import 'core/navigation/app_navigation.dart';
+import 'core/navigation/app_tabs.dart';
 import 'features/channel/services/channel_service.dart';
 import 'features/channel/providers/channel_provider.dart';
 import 'features/channel/screens/channel_setup_screen.dart';
@@ -185,6 +187,30 @@ class _AppRouterState extends State<_AppRouter> {
   bool _profileInitTriggered = false;
   bool _nameSetupTriggered = false;
   bool _subscriptionInitTriggered = false;
+  bool _backgroundServicesInitialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Defer heavy background services to after the first frame so the UI can
+    // render immediately and Android does not show the "Close app / Wait" ANR dialog.
+    if (!kIsWeb) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _initBackgroundServices();
+      });
+    }
+  }
+
+  Future<void> _initBackgroundServices() async {
+    if (_backgroundServicesInitialized) return;
+    _backgroundServicesInitialized = true;
+    try {
+      await AdsService.initialize();
+    } catch (_) {}
+    try {
+      await PushNotificationService().initialize();
+    } catch (_) {}
+  }
 
   void _fetchSettingsOnce() {
     if (_settingsFetched) return;
@@ -416,6 +442,9 @@ class _AppRouterState extends State<_AppRouter> {
         // Show main app — music shell or shop shell based on AppMode
         return Consumer<AppModeProvider>(
           builder: (context, appMode, _) {
+            final hidePlayerUi =
+                _currentIndex == AppTabs.uploads || appMode.suppressPlayerUi;
+
             if (appMode.isShop) {
               return ShopShell(
                 miniPlayerData: miniPlayerData,
@@ -436,7 +465,7 @@ class _AppRouterState extends State<_AppRouter> {
                   setState(() => _currentIndex = index);
                 }
               },
-              showMiniPlayer: player.hasMedia,
+              showMiniPlayer: player.hasMedia && !hidePlayerUi,
               miniPlayerData: miniPlayerData,
               screens: _buildScreens(context),
             );

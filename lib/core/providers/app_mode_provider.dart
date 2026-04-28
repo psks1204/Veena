@@ -10,11 +10,13 @@ enum AppMode { music, shop }
 class AppModeProvider extends ChangeNotifier {
   AppMode _mode = AppMode.music;
   int _shopTabIndex = 0;
+  bool _suppressPlayerUi = false;
 
   AppMode get mode => _mode;
   bool get isShop => _mode == AppMode.shop;
   bool get isMusic => _mode == AppMode.music;
   int get shopTabIndex => _shopTabIndex;
+  bool get suppressPlayerUi => _suppressPlayerUi;
 
   void enterShop() {
     if (_mode != AppMode.shop) {
@@ -33,6 +35,13 @@ class AppModeProvider extends ChangeNotifier {
   void setShopTab(int index) {
     if (_shopTabIndex != index) {
       _shopTabIndex = index;
+      notifyListeners();
+    }
+  }
+
+  void setSuppressPlayerUi(bool value) {
+    if (_suppressPlayerUi != value) {
+      _suppressPlayerUi = value;
       notifyListeners();
     }
   }

@@ -356,7 +356,7 @@ class _AddressFormState extends State<_AddressForm> {
                         title: const Text('Set as Default'),
                         value: _isDefault,
                         onChanged: (v) => setState(() => _isDefault = v),
-                        activeColor: AppColors.primary,
+                        activeThumbColor: AppColors.primary,
                         contentPadding: EdgeInsets.zero,
                       ),
                       const SizedBox(height: AppSpacing.lg),

@@ -320,6 +320,17 @@ class ApiService {
           approximateTotal += bytes.length;
         }
 
+        // BrowserClient does not reliably support the custom streamed multipart
+        // path below and can fail with ERR_HTTP2_PROTOCOL_ERROR / Failed to fetch.
+        // Use the standard MultipartRequest send path on web.
+        if (kIsWeb) {
+          onProgress?.call(0.1);
+          final streamResponse = await request.send();
+          onProgress?.call(0.95);
+          onProgress?.call(1.0);
+          return await http.Response.fromStream(streamResponse);
+        }
+
         if (onProgress == null) {
           final streamResponse = await request.send();
           return await http.Response.fromStream(streamResponse);

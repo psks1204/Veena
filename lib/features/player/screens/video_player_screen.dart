@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -564,8 +563,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
         Consumer<ArtistService>(
           builder: (context, artistService, _) {
             final media = player.currentMedia;
-            if (media == null || media.artistId == null)
+            if (media == null || media.artistId == null) {
               return const SizedBox.shrink();
+            }
 
             // We need to know if we are following this artist.
             // The MediaItem doesn't have 'following' status usually.

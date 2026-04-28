@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/navigation/app_tabs.dart';
 import '../../core/providers/app_mode_provider.dart';
 import '../../features/auth/services/auth_service.dart';
 import '../../core/providers/profile_provider.dart';
@@ -136,7 +137,7 @@ class _WebHeaderState extends State<WebHeader> {
         children: [
           // Home Logo Button
           InkWell(
-            onTap: () => widget.onNavigateTo(0), // Go to Home
+            onTap: () => widget.onNavigateTo(AppTabs.home), // Go to Home
             borderRadius: BorderRadius.circular(12),
             child: Container(
               margin: const EdgeInsets.only(right: 32),
@@ -165,13 +166,23 @@ class _WebHeaderState extends State<WebHeader> {
           ),
 
           // Navigation Links
-          _buildNavLink(0, 'Home', Icons.home_filled, isDark),
+          _buildNavLink(AppTabs.home, 'Home', Icons.home_filled, isDark),
           const SizedBox(width: 8),
-          _buildNavLink(1, 'Uploads', Icons.upload_file_rounded, isDark),
+          _buildNavLink(
+            AppTabs.uploads,
+            'Feed',
+            Icons.upload_file_rounded,
+            isDark,
+          ),
           const SizedBox(width: 8),
-          _buildNavLink(2, 'Search', Icons.search_rounded, isDark),
+          _buildNavLink(AppTabs.search, 'Search', Icons.search_rounded, isDark),
           const SizedBox(width: 8),
-          _buildNavLink(3, 'Your Library', Icons.library_music_rounded, isDark),
+          _buildNavLink(
+            AppTabs.library,
+            'Your Library',
+            Icons.library_music_rounded,
+            isDark,
+          ),
           const SizedBox(width: 8),
           _buildShopNavLink(isDark),
 
@@ -429,7 +440,7 @@ class _WebHeaderState extends State<WebHeader> {
             label: 'Profile',
             onTap: () {
               _toggleUserMenu();
-              widget.onNavigateTo(3); // Profile tab
+              widget.onNavigateTo(AppTabs.profile);
             },
             textColor: textColor,
             iconColor: iconColor,

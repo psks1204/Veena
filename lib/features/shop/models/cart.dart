@@ -1,4 +1,5 @@
 /// Shop Cart Models
+library;
 
 class CartItem {
   final int id;
