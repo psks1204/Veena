@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -9,66 +9,113 @@ import 'package:video_player/video_player.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_spacing.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
-import 'channel_reels_screen.dart';
-import 'public_channel_screen.dart';
 import '../services/channel_interaction_service.dart';
 import '../services/channel_service.dart';
+import 'public_channel_screen.dart';
 
-/// Feed screen — vertical-scroll reels UI.
-///
-/// Playback is fully independent of PlayerProvider; each reel owns its
-/// own VideoPlayerController so the mini-player / main queue are unaffected.
-class UploadsScreen extends StatefulWidget {
-  const UploadsScreen({super.key});
+enum ChannelReelsMode { publicChannel, myChannel }
 
-  static VoidCallback? _pauseActiveReel;
+class ChannelReelsScreen extends StatefulWidget {
+  const ChannelReelsScreen.publicChannel({
+    super.key,
+    required this.channelId,
+    this.channelName,
+    this.initialIndex = 0,
+    this.seedItems = const <channel_models.UserMediaResponse>[],
+    this.seedHasMore = true,
+    this.seedPage = 0,
+  }) : mode = ChannelReelsMode.publicChannel,
+       approvalStatus = null;
 
-  static void pauseReelPlayback() {
-    _pauseActiveReel?.call();
-  }
+  const ChannelReelsScreen.myChannel({
+    super.key,
+    this.channelName,
+    this.approvalStatus,
+    this.initialIndex = 0,
+    this.seedItems = const <channel_models.UserMediaResponse>[],
+    this.seedHasMore = true,
+    this.seedPage = 0,
+  }) : mode = ChannelReelsMode.myChannel,
+       channelId = null;
+
+  final ChannelReelsMode mode;
+  final String? channelId;
+  final String? channelName;
+  final String? approvalStatus;
+  final int initialIndex;
+  final List<channel_models.UserMediaResponse> seedItems;
+  final bool seedHasMore;
+  final int seedPage;
 
   @override
-  State<UploadsScreen> createState() => _UploadsScreenState();
+  State<ChannelReelsScreen> createState() => _ChannelReelsScreenState();
 }
 
-class _UploadsScreenState extends State<UploadsScreen> {
-  final PageController _pageController = PageController();
+class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
+  late final PageController _pageController;
   final List<channel_models.UserMediaResponse> _items = [];
   final Map<int, VideoPlayerController> _controllers = {};
   final Map<String, bool> _showHeartBurst = {};
 
+  channel_models.ChannelResponse? _channel;
   int _currentPage = 0;
+  int _page = 0;
   bool _isLoading = false;
+  bool _isDeleting = false;
   bool _hasMore = true;
-  int _feedPage = 0;
 
   @override
   void initState() {
     super.initState();
-    UploadsScreen._pauseActiveReel = _pauseAllControllers;
-    _loadMore(refresh: true);
+
+    final safeInitialIndex = widget.initialIndex < 0 ? 0 : widget.initialIndex;
+    _currentPage = safeInitialIndex;
+    _pageController = PageController(initialPage: safeInitialIndex);
     _pageController.addListener(_onScrollListener);
+
+    _items.addAll(widget.seedItems);
+    _hasMore = widget.seedHasMore;
+    _page = widget.seedPage;
+
+    _loadChannelMeta();
+
+    if (_items.isEmpty) {
+      _loadMore(refresh: true);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_initController(_currentPage));
+        unawaited(_initController(_currentPage + 1));
+      });
+    }
   }
 
   @override
   void dispose() {
-    if (UploadsScreen._pauseActiveReel == _pauseAllControllers) {
-      UploadsScreen._pauseActiveReel = null;
-    }
     _pageController.dispose();
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
+    _disposeAllControllers();
     super.dispose();
   }
 
-  @override
-  void deactivate() {
-    _pauseAllControllers();
-    super.deactivate();
+  bool get _isMine => widget.mode == ChannelReelsMode.myChannel;
+
+  String get _screenTitle {
+    if (_isMine) return widget.channelName ?? _channel?.channelName ?? 'My Reels';
+    return widget.channelName ?? _channel?.channelName ?? 'Channel';
+  }
+
+  Future<void> _loadChannelMeta() async {
+    try {
+      final service = context.read<ChannelService>();
+      final data = _isMine
+          ? await service.getOrCreateChannel()
+          : await service.getPublicChannel(widget.channelId!);
+      if (!mounted) return;
+      setState(() => _channel = data);
+    } catch (_) {}
   }
 
   void _onScrollListener() {
@@ -82,6 +129,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
   void _onPageChanged(int page) {
     _controllers[_currentPage]?.pause();
     setState(() => _currentPage = page);
+
     final c = _controllers[page];
     if (c != null && c.value.isInitialized) {
       c.play();
@@ -89,71 +137,47 @@ class _UploadsScreenState extends State<UploadsScreen> {
     } else {
       unawaited(_initController(page));
     }
+
     unawaited(_initController(page + 1));
+
     _controllers.keys
         .where((k) => (k - page).abs() > 2)
         .toList()
         .forEach((k) {
-      _controllers[k]?.dispose();
-      _controllers.remove(k);
-    });
-  }
-
-  Future<void> _initController(int index) async {
-    if (index < 0 || index >= _items.length) return;
-    if (_controllers.containsKey(index)) return;
-    final item = _items[index];
-    final url = item.hlsUrl;
-    if (url == null || url.isEmpty) return;
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-    _controllers[index] = controller;
-    await controller.initialize();
-    controller.setLooping(true);
-    if (!mounted) return;
-    if (index == _currentPage) {
-      await controller.play();
-      unawaited(_recordPlay(index));
-    }
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _recordPlay(int index) async {
-    if (index < 0 || index >= _items.length) return;
-    await context
-        .read<ChannelInteractionService>()
-        .recordPlay(_items[index].id);
+          _controllers[k]?.dispose();
+          _controllers.remove(k);
+        });
   }
 
   Future<void> _loadMore({bool refresh = false}) async {
     if (_isLoading) return;
     if (!refresh && !_hasMore) return;
+
     setState(() {
       _isLoading = true;
       if (refresh) {
-        for (final c in _controllers.values) {
-          c.dispose();
-        }
-        _controllers.clear();
+        _disposeAllControllers();
         _items.clear();
         _hasMore = true;
-        _feedPage = 0;
+        _page = 0;
         _currentPage = 0;
       }
     });
+
     try {
-      final result = await context
-          .read<ChannelService>()
-          .getPublicFeed(page: _feedPage);
+      final service = context.read<ChannelService>();
+      final result = _isMine
+          ? await service.getMyMedia(status: widget.approvalStatus, page: _page)
+          : await service.getPublicChannelMedia(widget.channelId!, page: _page);
+
       if (!mounted) return;
       final oldLength = _items.length;
       setState(() {
         _items.addAll(result.content);
         _hasMore = !result.isLast;
-        _feedPage++;
+        _page++;
       });
+
       if (refresh && _items.isNotEmpty) {
         unawaited(_initController(0));
         if (_items.length > 1) unawaited(_initController(1));
@@ -167,11 +191,53 @@ class _UploadsScreenState extends State<UploadsScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load feed')),
+        const SnackBar(content: Text('Failed to load reels')),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _disposeAllControllers() {
+    for (final c in _controllers.values) {
+      c.dispose();
+    }
+    _controllers.clear();
+  }
+
+  Future<void> _initController(int index) async {
+    if (index < 0 || index >= _items.length) return;
+    if (_controllers.containsKey(index)) return;
+
+    final item = _items[index];
+    final url = item.hlsUrl;
+    if (url == null || url.isEmpty) return;
+
+    final controller = VideoPlayerController.networkUrl(
+      Uri.parse(url),
+      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+    );
+    _controllers[index] = controller;
+
+    try {
+      await controller.initialize();
+      controller.setLooping(true);
+
+      if (!mounted) return;
+      if (index == _currentPage) {
+        await controller.play();
+        unawaited(_recordPlay(index));
+      }
+      setState(() {});
+    } catch (_) {
+      _controllers[index]?.dispose();
+      _controllers.remove(index);
+    }
+  }
+
+  Future<void> _recordPlay(int index) async {
+    if (index < 0 || index >= _items.length) return;
+    await context.read<ChannelInteractionService>().recordPlay(_items[index].id);
   }
 
   MediaItem _toMediaItem(channel_models.UserMediaResponse item) {
@@ -192,8 +258,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
       playedCount: item.playCount,
       artist: ArtistInfo(
         id: 0,
-        name:
-            (item.uploadedByName ?? item.channelName ?? 'Veena Creator').trim(),
+        name: (item.uploadedByName ?? item.channelName ?? 'Veena Creator').trim(),
       ),
     );
   }
@@ -229,8 +294,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
       useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) =>
-          CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
+      builder: (_) => CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
     );
     if (mounted) _controllers[_currentPage]?.play();
   }
@@ -253,7 +317,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
     await Share.share('Listen to "${media.title}" on Veena Music: $url');
   }
 
-  Future<void> _openCreatorChannel(channel_models.UserMediaResponse item) async {
+  Future<void> _openArtistChannel(channel_models.UserMediaResponse item) async {
     final channelId = item.channelId;
     if (channelId == null || channelId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -262,7 +326,11 @@ class _UploadsScreenState extends State<UploadsScreen> {
       return;
     }
 
-    _pauseAllControllers();
+    if (_isMine && _channel?.id == channelId) {
+      return;
+    }
+
+    _controllers[_currentPage]?.pause();
 
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -274,11 +342,82 @@ class _UploadsScreenState extends State<UploadsScreen> {
     );
   }
 
-  void _pauseAllControllers() {
-    for (final controller in _controllers.values) {
-      if (controller.value.isPlaying) {
-        controller.pause();
+  bool _canDelete(channel_models.UserMediaResponse item) {
+    if (!_isMine) return false;
+    return item.approvalStatus != channel_models.ApprovalStatus.approved;
+  }
+
+  Future<void> _deleteCurrent(channel_models.UserMediaResponse item) async {
+    if (!_canDelete(item) || _isDeleting) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Reel'),
+        content: const Text(
+          'Delete this reel? Only pending/rejected reels can be deleted.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isDeleting = true);
+    try {
+      await context.read<ChannelService>().deleteMedia(item.id);
+      if (!mounted) return;
+
+      _disposeAllControllers();
+      final removedIndex = _currentPage;
+      setState(() {
+        _items.removeAt(removedIndex);
+        if (_currentPage >= _items.length && _items.isNotEmpty) {
+          _currentPage = _items.length - 1;
+        }
+      });
+
+      if (_items.isEmpty) {
+        if (_hasMore) {
+          await _loadMore(refresh: true);
+        }
+        if (!mounted) return;
+        if (_items.isEmpty) {
+          Navigator.of(context).pop();
+          return;
+        }
       }
+
+      if (_pageController.hasClients) {
+        _pageController.jumpToPage(_currentPage);
+      }
+      unawaited(_initController(_currentPage));
+      unawaited(_initController(_currentPage + 1));
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reel deleted')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            msg.contains('APPROVED')
+                ? 'Approved reels cannot be deleted'
+                : 'Failed to delete reel',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isDeleting = false);
     }
   }
 
@@ -287,9 +426,10 @@ class _UploadsScreenState extends State<UploadsScreen> {
     final interactionService = context.watch<ChannelInteractionService>();
 
     if (_items.isEmpty && _isLoading) {
-      return const Scaffold(
+      return Scaffold(
+        appBar: AppBar(title: Text(_screenTitle)),
         backgroundColor: Colors.black,
-        body: Center(
+        body: const Center(
           child: CircularProgressIndicator(color: AppColors.primary),
         ),
       );
@@ -297,8 +437,8 @@ class _UploadsScreenState extends State<UploadsScreen> {
 
     if (_items.isEmpty) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Feed')),
-        body: const Center(child: Text('No approved media in feed yet')),
+        appBar: AppBar(title: Text(_screenTitle)),
+        body: const Center(child: Text('No reels available')),
       );
     }
 
@@ -310,9 +450,9 @@ class _UploadsScreenState extends State<UploadsScreen> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text(
-            'Feed',
-            style: TextStyle(
+          title: Text(
+            _screenTitle,
+            style: const TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
             ),
@@ -330,13 +470,18 @@ class _UploadsScreenState extends State<UploadsScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary),
               );
             }
+
             final item = _items[index];
             final media = _toMediaItem(item);
             final controller = _controllers[index];
             final isVideo = item.mediaType == channel_models.MediaType.video;
             final isLiked = interactionService.isLiked(item.id);
             final showBurst = _showHeartBurst[item.id] == true;
-            if (controller == null) unawaited(_initController(index));
+
+            if (controller == null) {
+              unawaited(_initController(index));
+            }
+
             return _ReelPage(
               item: item,
               media: media,
@@ -344,13 +489,15 @@ class _UploadsScreenState extends State<UploadsScreen> {
               isVideo: isVideo,
               isLiked: isLiked,
               showHeartBurst: showBurst,
-              onDoubleTap: () =>
-                  _toggleLike(item, interactionService, forceLike: true),
+              canDelete: _canDelete(item),
+              isDeleting: _isDeleting,
+              onDoubleTap: () => _toggleLike(item, interactionService, forceLike: true),
               onLike: () => _toggleLike(item, interactionService),
               onComment: () => _openComments(media),
               onShare: () => _share(media),
               onAddToPlaylist: () => _openAddToPlaylist(media),
-              onArtistTap: () => _openCreatorChannel(item),
+              onArtistTap: () => _openArtistChannel(item),
+              onDelete: () => _deleteCurrent(item),
             );
           },
         ),
@@ -358,8 +505,6 @@ class _UploadsScreenState extends State<UploadsScreen> {
     );
   }
 }
-
-// ─── Reel page ────────────────────────────────────────────────────────────────
 
 class _ReelPage extends StatefulWidget {
   const _ReelPage({
@@ -369,12 +514,15 @@ class _ReelPage extends StatefulWidget {
     required this.isVideo,
     required this.isLiked,
     required this.showHeartBurst,
+    required this.canDelete,
+    required this.isDeleting,
     required this.onDoubleTap,
     required this.onLike,
     required this.onComment,
     required this.onShare,
     required this.onAddToPlaylist,
     required this.onArtistTap,
+    required this.onDelete,
   });
 
   final channel_models.UserMediaResponse item;
@@ -383,12 +531,15 @@ class _ReelPage extends StatefulWidget {
   final bool isVideo;
   final bool isLiked;
   final bool showHeartBurst;
+  final bool canDelete;
+  final bool isDeleting;
   final VoidCallback onDoubleTap;
   final VoidCallback onLike;
   final VoidCallback onComment;
   final VoidCallback onShare;
   final VoidCallback onAddToPlaylist;
   final VoidCallback onArtistTap;
+  final VoidCallback onDelete;
 
   @override
   State<_ReelPage> createState() => _ReelPageState();
@@ -397,6 +548,12 @@ class _ReelPage extends StatefulWidget {
 class _ReelPageState extends State<_ReelPage> {
   bool _showPauseIcon = false;
   Timer? _pauseIconTimer;
+
+  @override
+  void dispose() {
+    _pauseIconTimer?.cancel();
+    super.dispose();
+  }
 
   void _onTap() {
     final c = widget.controller;
@@ -415,12 +572,6 @@ class _ReelPageState extends State<_ReelPage> {
   }
 
   @override
-  void dispose() {
-    _pauseIconTimer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final c = widget.controller;
     final isReady = c != null && c.value.isInitialized;
@@ -436,10 +587,7 @@ class _ReelPageState extends State<_ReelPage> {
             color: Colors.black,
             child: isReady && widget.isVideo
                 ? _VideoBackground(controller: c!)
-                : _ThumbnailBackground(
-                    media: widget.media,
-                    isVideo: widget.isVideo,
-                  ),
+                : _ThumbnailBackground(media: widget.media, isVideo: widget.isVideo),
           ),
           if (!widget.isVideo && isReady) _AudioPulse(controller: c!),
           if (_showPauseIcon)
@@ -447,24 +595,13 @@ class _ReelPageState extends State<_ReelPage> {
               child: Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.pause_rounded,
-                  color: Colors.white,
-                  size: 40,
-                ),
+                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
+                child: const Icon(Icons.pause_rounded, color: Colors.white, size: 40),
               ),
             ),
           if (widget.showHeartBurst)
             const Center(
-              child: Icon(
-                Icons.favorite_rounded,
-                color: Colors.white,
-                size: 92,
-              ),
+              child: Icon(Icons.favorite_rounded, color: Colors.white, size: 92),
             ),
           Positioned.fill(
             child: DecoratedBox(
@@ -473,10 +610,7 @@ class _ReelPageState extends State<_ReelPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   stops: const [0.55, 1.0],
-                  colors: [
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.80),
-                  ],
+                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.80)],
                 ),
               ),
             ),
@@ -520,10 +654,7 @@ class _ReelPageState extends State<_ReelPage> {
                   const SizedBox(height: 4),
                   Text(
                     widget.media.description!.trim(),
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -538,9 +669,7 @@ class _ReelPageState extends State<_ReelPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _ActionButton(
-                  icon: widget.isLiked
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
+                  icon: widget.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
                   color: widget.isLiked ? Colors.redAccent : Colors.white,
                   onTap: widget.onLike,
                 ),
@@ -562,6 +691,14 @@ class _ReelPageState extends State<_ReelPage> {
                   color: Colors.white,
                   onTap: widget.onAddToPlaylist,
                 ),
+                if (widget.canDelete) ...[
+                  const SizedBox(height: 20),
+                  _ActionButton(
+                    icon: widget.isDeleting ? Icons.hourglass_empty_rounded : Icons.delete_outline_rounded,
+                    color: Colors.white,
+                    onTap: widget.isDeleting ? () {} : widget.onDelete,
+                  ),
+                ],
               ],
             ),
           ),
@@ -570,8 +707,6 @@ class _ReelPageState extends State<_ReelPage> {
     );
   }
 }
-
-// ─── Supporting widgets ───────────────────────────────────────────────────────
 
 class _VideoBackground extends StatelessWidget {
   const _VideoBackground({required this.controller});
@@ -646,10 +781,7 @@ class _AudioPulseState extends State<_AudioPulse>
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    );
+    _anim = AnimationController(vsync: this, duration: const Duration(seconds: 2));
     widget.controller.addListener(_onControllerChanged);
     _updateAnimation();
   }
@@ -690,11 +822,7 @@ class _AudioPulseState extends State<_AudioPulse>
           child: child,
         ),
         child: const Center(
-          child: Icon(
-            Icons.music_note_rounded,
-            color: Colors.white70,
-            size: 36,
-          ),
+          child: Icon(Icons.music_note_rounded, color: Colors.white70, size: 36),
         ),
       ),
     );
@@ -702,44 +830,22 @@ class _AudioPulseState extends State<_AudioPulse>
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.label,
-  });
+  const _ActionButton({required this.icon, required this.color, required this.onTap});
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final String? label;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 28,
-            shadows: const [Shadow(blurRadius: 4, color: Colors.black87)],
-          ),
-          if (label != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              label!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                shadows: [Shadow(blurRadius: 3, color: Colors.black87)],
-              ),
-            ),
-          ],
-        ],
+      child: Icon(
+        icon,
+        color: color,
+        size: 28,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black87)],
       ),
     );
   }

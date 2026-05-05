@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import '../../../core/constants/auth_config.dart';
 import '../../../core/services/push_notification_service.dart';
@@ -89,6 +88,18 @@ class AuthService extends ChangeNotifier {
     }
   }
 
+  Future<void> _completeSessionRestore() async {
+    await _fetchUserProfile();
+
+    if (!kIsWeb) {
+      try {
+        await PushNotificationService().registerFcmToken();
+      } catch (e) {
+        debugPrint('[AuthService] FCM registration skipped during restore: $e');
+      }
+    }
+  }
+
   Future<void> initialize() async {
     // Don't reset state if OAuth is in progress (app may restart during Chrome Custom Tab)
     if (_isAuthInProgress) {
@@ -125,13 +136,11 @@ class AuthService extends ChangeNotifier {
             return;
           }
         }
+
         _state = AuthState.authenticated;
-        await _fetchUserProfile(); // Fetch real Google profile data
-        
-        // Register FCM token after successful auth restore
-        if (!kIsWeb) {
-          PushNotificationService().registerFcmToken();
-        }
+        notifyListeners();
+        unawaited(_completeSessionRestore());
+        return;
       } else {
         _state = AuthState.unauthenticated;
       }
@@ -164,17 +173,9 @@ class AuthService extends ChangeNotifier {
         );
 
         _state = AuthState.authenticated;
-        await _fetchUserProfile(); // Fetch real Google profile data
-        
         notifyListeners();
-        
-        // Register FCM token AFTER state change (ensures ApiService has token set)
-        if (!kIsWeb) {
-          // Use post-frame callback to ensure UI has rebuilt and ApiService has token
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            PushNotificationService().registerFcmToken();
-          });
-        }
+
+        unawaited(_completeSessionRestore());
         
         return true;
       } else {

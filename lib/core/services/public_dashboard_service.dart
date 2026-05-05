@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -25,6 +27,7 @@ class PublicDashboardService extends ChangeNotifier {
   List<MediaItem> get featuredActive => _featuredActive;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool _isLoadingSecondary = false;
 
   /// Fetch public dashboard data (no auth token)
   Future<void> fetchPublicDashboard() async {
@@ -62,7 +65,23 @@ class PublicDashboardService extends ChangeNotifier {
         _error = 'Failed to load content (${response.statusCode})';
       }
 
-      // Fetch videos and audios concurrently via public /media endpoint
+      _isLoading = false;
+      notifyListeners();
+
+      unawaited(_loadSecondarySections());
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Public dashboard fetch error: $e');
+    }
+  }
+
+  Future<void> _loadSecondarySections() async {
+    if (_isLoadingSecondary) return;
+    _isLoadingSecondary = true;
+
+    try {
       await Future.wait([
         (() async {
           try {
@@ -128,14 +147,9 @@ class PublicDashboardService extends ChangeNotifier {
           }
         })(),
       ]);
-
-      _isLoading = false;
+    } finally {
+      _isLoadingSecondary = false;
       notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Public dashboard fetch error: $e');
     }
   }
 }

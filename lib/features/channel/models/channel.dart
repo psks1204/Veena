@@ -185,3 +185,48 @@ class UserMediaResponse {
     }
   }
 }
+
+class InitiateUploadResponse {
+  final String uploadId;
+  final String key;
+  final String mediaId;
+
+  const InitiateUploadResponse({
+    required this.uploadId,
+    required this.key,
+    required this.mediaId,
+  });
+
+  factory InitiateUploadResponse.fromJson(Map<String, dynamic> json) {
+    return InitiateUploadResponse(
+      uploadId: json['uploadId'] as String? ?? '',
+      key: json['key'] as String? ?? '',
+      mediaId: json['mediaId'] as String? ?? '',
+    );
+  }
+}
+
+class S3PresignedPartUrl {
+  final int partNumber;
+  final String url;
+
+  const S3PresignedPartUrl({required this.partNumber, required this.url});
+
+  factory S3PresignedPartUrl.fromJson(Map<String, dynamic> json) {
+    return S3PresignedPartUrl(
+      partNumber: json['partNumber'] as int? ?? 0,
+      url: json['url'] as String? ?? '',
+    );
+  }
+}
+
+class S3CompletedPart {
+  final int partNumber;
+  final String eTag;
+
+  const S3CompletedPart({required this.partNumber, required this.eTag});
+
+  Map<String, dynamic> toJson() {
+    return {'partNumber': partNumber, 'eTag': eTag};
+  }
+}

@@ -20,6 +20,10 @@ class OrderDetailScreen extends StatefulWidget {
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
   bool _invoiceLoading = false;
 
+  bool _canDownloadInvoice(OrderResponse order) {
+    return order.status == OrderStatus.delivered;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -98,6 +102,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Future<void> _showInvoice(OrderResponse order) async {
+    if (!_canDownloadInvoice(order)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invoice will be available after order completion.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _invoiceLoading = true);
     try {
       final invoiceService = context.read<InvoiceService>();
@@ -187,17 +200,18 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: theme.textTheme.headlineMedium,
         ),
         actions: [
-          IconButton(
-            tooltip: 'Invoice',
-            onPressed: _invoiceLoading ? null : () => _showInvoice(order),
-            icon: _invoiceLoading
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.receipt_long_rounded),
-          ),
+          if (_canDownloadInvoice(order))
+            IconButton(
+              tooltip: 'Invoice',
+              onPressed: _invoiceLoading ? null : () => _showInvoice(order),
+              icon: _invoiceLoading
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.receipt_long_rounded),
+            ),
           if (order.canCancel)
             TextButton(
               onPressed: () => _cancelOrder(order),

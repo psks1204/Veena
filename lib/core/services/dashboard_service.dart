@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
@@ -35,6 +37,7 @@ class DashboardService extends ChangeNotifier {
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool _isLoadingSecondary = false;
 
   /// Fetch all dashboard data
   Future<void> fetchDashboard() async {
@@ -55,7 +58,23 @@ class DashboardService extends ChangeNotifier {
         _podcasts = parsed['podcasts']!;
       }
 
-      // Fetch artists, videos, and audios concurrently
+      _isLoading = false;
+      notifyListeners();
+
+      unawaited(_loadSecondarySections());
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Dashboard fetch error: $e');
+    }
+  }
+
+  Future<void> _loadSecondarySections() async {
+    if (_isLoadingSecondary) return;
+    _isLoadingSecondary = true;
+
+    try {
       await Future.wait([
         // Artists
         (() async {
@@ -122,14 +141,9 @@ class DashboardService extends ChangeNotifier {
           }
         })(),
       ]);
-
-      _isLoading = false;
+    } finally {
+      _isLoadingSecondary = false;
       notifyListeners();
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Dashboard fetch error: $e');
     }
   }
 

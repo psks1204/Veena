@@ -30,6 +30,7 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   AddressResponse? _selectedAddress;
+  OrderResponse? _stagedOrder;
   bool _placing = false;
   String? _error;
   String? _paymentInfo;
@@ -64,6 +65,11 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   }
 
   Future<void> _placeOrder() async {
+    if (_stagedOrder != null) {
+      await _payForCreatedOrder();
+      return;
+    }
+
     if (_selectedAddress == null) {
       setState(() => _error = 'Please select a delivery address');
       return;
@@ -81,30 +87,42 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     if (!mounted) return;
 
     if (order != null) {
-      final paymentOk = await _startOrderPayment(order);
-
-      if (!mounted) return;
-      setState(() => _placing = false);
-
-      if (!paymentOk) {
-        await context.read<CartProvider>().loadCart();
-        if (!mounted) return;
-        return;
-      }
-
-      // Clear the cart first after successful payment verification
-      await context.read<CartProvider>().clearCart();
-      if (!mounted) return;
-
-      // Show the order success screen — replaces the checkout route so the
-      // user can't go "back to checkout" after placing the order.
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => _OrderSuccessScreen(order: order)),
-      );
+      setState(() {
+        _placing = false;
+        _stagedOrder = order;
+        _paymentInfo =
+            'Shipping and final total are ready. Please review and tap Pay Now.';
+      });
     } else {
       setState(() => _placing = false);
       setState(() => _error = 'Failed to place order. Please try again.');
     }
+  }
+
+  Future<void> _payForCreatedOrder() async {
+    final order = _stagedOrder;
+    if (order == null) return;
+
+    setState(() {
+      _placing = true;
+      _error = null;
+    });
+
+    final paymentOk = await _startOrderPayment(order);
+
+    if (!mounted) return;
+    setState(() => _placing = false);
+
+    if (!paymentOk) {
+      return;
+    }
+
+    await context.read<CartProvider>().clearCart();
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => _OrderSuccessScreen(order: order)),
+    );
   }
 
   Future<bool> _startOrderPayment(OrderResponse order) async {
@@ -277,6 +295,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     final isDark = theme.brightness == Brightness.dark;
     final cart = context.watch<CartProvider>();
     final addrProvider = context.watch<AddressProvider>();
+    final stagedOrder = _stagedOrder;
 
     return Scaffold(
       appBar: AppBar(
@@ -306,21 +325,27 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   address: addr,
                   selected: _selectedAddress?.id == addr.id,
                   isDark: isDark,
-                  onTap: () => setState(() => _selectedAddress = addr),
+                  onTap: stagedOrder == null
+                      ? () => setState(() => _selectedAddress = addr)
+                      : null,
                 ),
               ),
               TextButton.icon(
-                onPressed: () async {
-                  await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const AddressScreen()),
-                  );
-                  if (mounted) {
-                    await addrProvider.loadAddresses();
-                    setState(() {
-                      _selectedAddress = addrProvider.defaultAddress;
-                    });
-                  }
-                },
+                onPressed: stagedOrder == null
+                    ? () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const AddressScreen(),
+                          ),
+                        );
+                        if (mounted) {
+                          await addrProvider.loadAddresses();
+                          setState(() {
+                            _selectedAddress = addrProvider.defaultAddress;
+                          });
+                        }
+                      }
+                    : null,
                 icon: const Icon(Icons.add_rounded),
                 label: const Text('Add New Address'),
               ),
@@ -350,33 +375,65 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               ),
               child: Column(
                 children: [
-                  ...cart.items.map(
-                    (item) => Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${item.productName}${item.variantName != null ? " (${item.variantName})" : ""} × ${item.quantity}',
+                  if (stagedOrder != null)
+                    ...stagedOrder.items.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.productName}${item.variantName != null ? " (${item.variantName})" : ""} × ${item.quantity}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            Text(
+                              '₹${item.totalPrice.toStringAsFixed(0)}',
                               style: theme.textTheme.bodySmall,
                             ),
-                          ),
-                          Text(
-                            '₹${item.totalPrice.toStringAsFixed(0)}',
-                            style: theme.textTheme.bodySmall,
-                          ),
-                        ],
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                    ...cart.items.map(
+                      (item) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${item.productName}${item.variantName != null ? " (${item.variantName})" : ""} × ${item.quantity}',
+                                style: theme.textTheme.bodySmall,
+                              ),
+                            ),
+                            Text(
+                              '₹${item.totalPrice.toStringAsFixed(0)}',
+                              style: theme.textTheme.bodySmall,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
                   const Divider(),
-                  if ((cart.cart?.taxAmount ?? 0) > 0)
+                  if (stagedOrder != null)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Subtotal', style: theme.textTheme.bodyMedium),
+                        Text(
+                          '₹${stagedOrder.subtotal.toStringAsFixed(0)}',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      ],
+                    ),
+                  if ((stagedOrder?.taxAmount ?? cart.cart?.taxAmount ?? 0) > 0)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text('Tax', style: theme.textTheme.bodyMedium),
                         Text(
-                          '₹${cart.cart?.taxAmount.toStringAsFixed(0) ?? "0"}',
+                          '₹${(stagedOrder?.taxAmount ?? cart.cart?.taxAmount ?? 0).toStringAsFixed(0)}',
                           style: theme.textTheme.bodyMedium,
                         ),
                       ],
@@ -385,15 +442,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text('Shipping', style: theme.textTheme.bodyMedium),
-                      Text(
-                        'Calculated at order',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
+                      stagedOrder == null
+                          ? Text(
+                              'Calculated at order',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            )
+                          : Text(
+                              '₹${stagedOrder.shippingCharge.toStringAsFixed(0)}',
+                              style: theme.textTheme.bodyMedium,
+                            ),
                     ],
                   ),
                   const SizedBox(height: 4),
@@ -407,7 +469,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ),
                       ),
                       Text(
-                        '₹${cart.totalAmount.toStringAsFixed(0)}',
+                        '₹${(stagedOrder?.totalAmount ?? cart.totalAmount).toStringAsFixed(0)}',
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.primary,
@@ -452,6 +514,23 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 
             const SizedBox(height: AppSpacing.lg),
 
+            if (stagedOrder != null) ...[
+              TextButton.icon(
+                onPressed: _placing
+                    ? null
+                    : () {
+                        setState(() {
+                          _stagedOrder = null;
+                          _paymentInfo = null;
+                          _error = null;
+                        });
+                      },
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Recalculate Charges'),
+              ),
+              const SizedBox(height: AppSpacing.sm),
+            ],
+
             // ── Place Order button — lives in the scroll body so it clears the
             // FloatingNavBar (ShopShell handles padding via MediaQuery override)
             SafeArea(
@@ -474,7 +553,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Place Order'),
+                    : Text(stagedOrder == null ? 'Review Charges' : 'Pay Now'),
               ),
             ),
 
@@ -491,12 +570,12 @@ class _AddressTile extends StatelessWidget {
     required this.address,
     required this.selected,
     required this.isDark,
-    required this.onTap,
+    this.onTap,
   });
   final AddressResponse address;
   final bool selected;
   final bool isDark;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

@@ -40,6 +40,7 @@ import 'core/services/ads_service.dart';
 import 'core/navigation/app_navigation.dart';
 import 'core/navigation/app_tabs.dart';
 import 'features/channel/services/channel_service.dart';
+import 'features/channel/services/channel_interaction_service.dart';
 import 'features/channel/providers/channel_provider.dart';
 import 'features/channel/screens/channel_setup_screen.dart';
 import 'features/shop/services/shop_catalog_service.dart';
@@ -122,6 +123,11 @@ class VeenaApp extends StatelessWidget {
 
         // Channel feature
         Provider<ChannelService>(create: (_) => ChannelService(apiService)),
+        ChangeNotifierProxyProvider<ChannelService, ChannelInteractionService>(
+          create: (ctx) =>
+              ChannelInteractionService(ctx.read<ChannelService>()),
+          update: (ctx, svc, prev) => prev ?? ChannelInteractionService(svc),
+        ),
         ChangeNotifierProxyProvider<ChannelService, ChannelProvider>(
           create: (ctx) => ChannelProvider(ctx.read<ChannelService>(), prefs),
           update: (ctx, svc, prev) => prev ?? ChannelProvider(svc, prefs),
@@ -442,8 +448,7 @@ class _AppRouterState extends State<_AppRouter> {
         // Show main app — music shell or shop shell based on AppMode
         return Consumer<AppModeProvider>(
           builder: (context, appMode, _) {
-            final hidePlayerUi =
-                _currentIndex == AppTabs.uploads || appMode.suppressPlayerUi;
+            final hidePlayerUi = appMode.suppressPlayerUi;
 
             if (appMode.isShop) {
               return ShopShell(
@@ -462,6 +467,10 @@ class _AppRouterState extends State<_AppRouter> {
                 if (_currentIndex == index) {
                   AppNavigation.popToFirst();
                 } else {
+                  if (_currentIndex == AppTabs.uploads &&
+                      index != AppTabs.uploads) {
+                    UploadsScreen.pauseReelPlayback();
+                  }
                   setState(() => _currentIndex = index);
                 }
               },

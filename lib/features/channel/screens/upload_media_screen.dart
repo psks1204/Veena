@@ -12,10 +12,7 @@ import '../models/channel.dart';
 /// Allows creators to upload audio or video files with an optional thumbnail.
 /// Displays real-time upload progress and supports retry on failure.
 class UploadMediaScreen extends StatefulWidget {
-  const UploadMediaScreen({
-    super.key,
-    this.initialMediaType = MediaType.audio,
-  });
+  const UploadMediaScreen({super.key, this.initialMediaType = MediaType.audio});
 
   final MediaType initialMediaType;
 
@@ -159,8 +156,14 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
       ),
       body: Consumer<ChannelProvider>(
         builder: (context, provider, _) {
+          final bottomInset = MediaQuery.of(context).padding.bottom;
           return SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.screenPadding),
+            padding: EdgeInsets.fromLTRB(
+              AppSpacing.screenPadding,
+              AppSpacing.screenPadding,
+              AppSpacing.screenPadding,
+              AppSpacing.screenPadding + bottomInset,
+            ),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 600),
               child: Form(
@@ -302,16 +305,17 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
                         value: _uploadDone
                             ? 1.0
                             : (provider.uploadProgress > 0
-                                ? provider.uploadProgress
-                                : null),
+                                  ? provider.uploadProgress
+                                  : null),
                         backgroundColor: isDark
                             ? AppColors.darkSurfaceVariant
                             : AppColors.lightSurfaceVariant,
                         color: _uploadDone
                             ? AppColors.success
                             : AppColors.primary,
-                        borderRadius:
-                            BorderRadius.circular(AppSpacing.radiusFull),
+                        borderRadius: BorderRadius.circular(
+                          AppSpacing.radiusFull,
+                        ),
                         minHeight: 8,
                       ),
                       const SizedBox(height: AppSpacing.sm),
@@ -319,42 +323,45 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
                         _uploadDone
                             ? '100% — Done!'
                             : (provider.uploadProgress > 0
-                                ? '${(provider.uploadProgress * 100).toStringAsFixed(0)}%'
-                                : 'Preparing…'),
+                                  ? '${(provider.uploadProgress * 100).toStringAsFixed(0)}%'
+                                  : 'Preparing…'),
                         textAlign: TextAlign.center,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: _uploadDone
                               ? AppColors.success
                               : (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary),
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xl),
                     ],
 
                     // ── Error + Retry ─────────────────────────────────
-                    if (provider.uploadError != null && !provider.isUploading) ...[
+                    if (provider.uploadError != null &&
+                        !provider.isUploading) ...[
                       Container(
                         padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(
                           color: AppColors.error.withOpacity(0.1),
-                          borderRadius:
-                              BorderRadius.circular(AppSpacing.radiusMd),
+                          borderRadius: BorderRadius.circular(
+                            AppSpacing.radiusMd,
+                          ),
                           border: Border.all(
                             color: AppColors.error.withOpacity(0.3),
                           ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline_rounded,
-                                color: AppColors.error),
+                            const Icon(
+                              Icons.error_outline_rounded,
+                              color: AppColors.error,
+                            ),
                             const SizedBox(width: AppSpacing.sm),
                             Expanded(
                               child: Text(
                                 'Upload failed. Please try again.',
-                                style:
-                                    TextStyle(color: AppColors.error),
+                                style: TextStyle(color: AppColors.error),
                               ),
                             ),
                           ],
@@ -368,17 +375,20 @@ class _UploadMediaScreenState extends State<UploadMediaScreen> {
                       FilledButton.icon(
                         onPressed: _upload,
                         icon: const Icon(Icons.cloud_upload_rounded),
-                        label: Text(provider.uploadError != null
-                            ? 'Retry Upload'
-                            : 'Upload'),
+                        label: Text(
+                          provider.uploadError != null
+                              ? 'Retry Upload'
+                              : 'Upload',
+                        ),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           padding: const EdgeInsets.symmetric(
                             vertical: AppSpacing.md,
                           ),
                           shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppSpacing.radiusLg),
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusLg,
+                            ),
                           ),
                         ),
                       ),
@@ -401,10 +411,9 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: Theme.of(context)
-          .textTheme
-          .labelMedium
-          ?.copyWith(fontWeight: FontWeight.w600),
+      style: Theme.of(
+        context,
+      ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -444,8 +453,8 @@ class _FilePicker extends StatelessWidget {
             color: hasFile
                 ? AppColors.primary.withOpacity(0.5)
                 : (isDark
-                    ? Colors.white.withOpacity(0.1)
-                    : Colors.black.withOpacity(0.1)),
+                      ? Colors.white.withOpacity(0.1)
+                      : Colors.black.withOpacity(0.1)),
           ),
         ),
         child: Row(
@@ -465,8 +474,8 @@ class _FilePicker extends StatelessWidget {
                       color: hasFile
                           ? null
                           : (isDark
-                              ? AppColors.darkTextSecondary
-                              : AppColors.lightTextSecondary),
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

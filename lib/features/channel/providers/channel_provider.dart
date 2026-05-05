@@ -195,7 +195,7 @@ class ChannelProvider extends ChangeNotifier {
 
     try {
       final result = await _service.getMyMedia(
-        approvalStatus: _mediaApprovalFilter,
+        status: _mediaApprovalFilter,
         page: _mediaPage,
       );
       if (refresh) {

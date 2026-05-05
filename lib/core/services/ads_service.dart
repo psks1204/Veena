@@ -4,6 +4,11 @@ import 'package:google_mobile_ads/google_mobile_ads.dart';
 class AdsService {
   AdsService._();
 
+  static const String _androidTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/6300978111';
+  static const String _iosTestBannerAdUnitId =
+      'ca-app-pub-3940256099942544/2934735716';
+
   // ─── Platform guard ────────────────────────────────────────────────────────
   static bool get isSupportedPlatform {
     if (kIsWeb) return false;
@@ -16,17 +21,25 @@ class AdsService {
   // is generated and your AdMob account stays healthy.
   // In release mode, swap in your real unit IDs from the AdMob dashboard.
 
+  // Real Android banner unit ID
+  static const String _androidLiveBannerAdUnitId =
+      'ca-app-pub-8580707712580721/5206425957';
+
+  // Real iOS banner unit ID — get this from AdMob dashboard → Apps → [iOS app] → Ad units
+  // It will be a different ID from the Android one even for the same placement.
+  static const String _iosLiveBannerAdUnitId =
+      'ca-app-pub-8580707712580721/5206425957'; // TODO: replace with iOS banner unit ID
+
   static String get bannerAdUnitId {
     if (kDebugMode) {
       // Google test banner IDs — safe to use during development
       return defaultTargetPlatform == TargetPlatform.android
-          ? 'ca-app-pub-3940256099942544/6300978111'
-          : 'ca-app-pub-3940256099942544/2934735716';
+          ? _androidTestBannerAdUnitId
+          : _iosTestBannerAdUnitId;
     }
-    // ⚠️ TODO: Replace with your real AdMob banner unit IDs before release
     return defaultTargetPlatform == TargetPlatform.android
-        ? 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX' // Android live banner
-        : 'ca-app-pub-XXXXXXXXXXXXXXXX/XXXXXXXXXX'; // iOS live banner
+        ? _androidLiveBannerAdUnitId
+        : _iosLiveBannerAdUnitId;
   }
 
   // ─── Test device IDs ───────────────────────────────────────────────────────

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -7,10 +9,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/models/media_item.dart';
-import '../../../core/providers/app_mode_provider.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/services/app_settings_service.dart';
-import '../../../core/services/media_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/media_options_sheet.dart';
@@ -19,7 +19,9 @@ import '../../player/screens/unified_player_screen.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
 import '../providers/channel_provider.dart';
+import '../services/channel_interaction_service.dart';
 import '../services/channel_service.dart';
+import 'channel_reels_screen.dart';
 import 'upload_media_screen.dart';
 
 /// My Channel Screen
@@ -50,7 +52,6 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AppModeProvider>().setSuppressPlayerUi(true);
       _loadChannelAndFeed(refresh: true);
     });
     _scrollController.addListener(_onScroll);
@@ -58,9 +59,6 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
 
   @override
   void dispose() {
-    try {
-      context.read<AppModeProvider>().setSuppressPlayerUi(false);
-    } catch (_) {}
     _scrollController.dispose();
     super.dispose();
   }
@@ -74,12 +72,13 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
 
   String? _approvalStatusForTab(_MyChannelTab tab) {
     switch (tab) {
+      case _MyChannelTab.approved:
+        return 'APPROVED';
       case _MyChannelTab.pending:
         return 'PENDING';
       case _MyChannelTab.rejected:
         return 'REJECTED';
       case _MyChannelTab.all:
-      case _MyChannelTab.approved:
         return null;
     }
   }
@@ -118,15 +117,10 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
       // Fallback so this screen still works if provider was not hydrated yet.
       channel ??= await channelService.getOrCreateChannel();
 
-      final result = _activeTab == _MyChannelTab.approved
-          ? await channelService.getPublicChannelMedia(
-              channel.id,
-              page: _feedPage,
-            )
-          : await channelService.getMyMedia(
-              approvalStatus: _approvalStatusForTab(_activeTab),
-              page: _feedPage,
-            );
+      final result = await channelService.getMyMedia(
+        status: _approvalStatusForTab(_activeTab),
+        page: _feedPage,
+      );
 
       if (!mounted) return;
       setState(() {
@@ -223,6 +217,7 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
     final media = _toMediaItem(item);
     if (media.hlsUrl == null || media.hlsUrl!.isEmpty) return;
     await context.read<PlayerProvider>().play(media);
+    unawaited(context.read<ChannelInteractionService>().recordPlay(item.id));
   }
 
   Future<void> _onTapMedia(
@@ -239,12 +234,12 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
 
   Future<void> _toggleLike(
     channel_models.UserMediaResponse item,
-    MediaService mediaService, {
+    ChannelInteractionService interactionService, {
     bool forceLike = false,
   }) async {
-    final currentlyLiked = mediaService.isLiked(item.id);
+    final currentlyLiked = interactionService.isLiked(item.id);
     if (!(forceLike && currentlyLiked)) {
-      await mediaService.toggleLike(item.id, initial: currentlyLiked);
+      await interactionService.toggleLike(item.id, initial: currentlyLiked);
     }
     if (!mounted) return;
     setState(() => _showHeartBurst[item.id] = true);
@@ -277,7 +272,8 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
       useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CommentsSheet(mediaId: media.id),
+      builder: (_) =>
+          CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
     );
   }
 
@@ -305,6 +301,55 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
     ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
   }
 
+  void _showUploadPicker() {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        final theme = Theme.of(context);
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(AppSpacing.screenPadding),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: AppSpacing.sm),
+                ListTile(
+                  leading: const Icon(
+                    Icons.audio_file_rounded,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Upload Music'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _navigateToUpload(channel_models.MediaType.audio);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.video_file_rounded,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text('Upload Video'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _navigateToUpload(channel_models.MediaType.video);
+                  },
+                ),
+                const SizedBox(height: AppSpacing.md),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _showEditChannelSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -323,12 +368,21 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final player = context.watch<PlayerProvider>();
-    final mediaService = context.watch<MediaService>();
+    final interactionService = context.watch<ChannelInteractionService>();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final gridColumns = _gridColumnsForWidth(
+      screenWidth - (AppSpacing.screenPadding * 2),
+    );
 
     return Scaffold(
       appBar: AppBar(
         title: Text('My Channel', style: theme.textTheme.headlineMedium),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'Upload',
+            onPressed: _showUploadPicker,
+          ),
           IconButton(
             icon: const Icon(Icons.edit_rounded),
             tooltip: 'Edit channel',
@@ -342,239 +396,115 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
 
           return RefreshIndicator(
             onRefresh: () => _loadChannelAndFeed(refresh: true),
-            child: ListView(
+            child: CustomScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.all(AppSpacing.screenPadding),
-              children: [
-                _ChannelHeader(
-                  channel: channel,
-                  isDark: isDark,
-                  onEditImage: _pickAndUploadImage,
-                  isLoading: provider.isLoading,
-                ),
-                const SizedBox(height: AppSpacing.xl),
-
-                Text('Upload Content', style: theme.textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.sm),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _UploadButton(
-                        icon: Icons.audio_file_rounded,
-                        label: 'Upload Music',
-                        onTap: () =>
-                            _navigateToUpload(channel_models.MediaType.audio),
-                      ),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.screenPadding,
+                      AppSpacing.screenPadding,
+                      AppSpacing.screenPadding,
+                      0,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Expanded(
-                      child: _UploadButton(
-                        icon: Icons.video_file_rounded,
-                        label: 'Upload Video',
-                        onTap: () =>
-                            _navigateToUpload(channel_models.MediaType.video),
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _ChannelHeader(
+                          channel: channel,
+                          isDark: isDark,
+                          onEditImage: _pickAndUploadImage,
+                          isLoading: provider.isLoading,
+                        ),
+                        const SizedBox(height: AppSpacing.xl),
+                        Text('My Feed', style: theme.textTheme.titleMedium),
+                        const SizedBox(height: AppSpacing.sm),
+                        _MyChannelTabChips(
+                          selectedTab: _activeTab,
+                          onTabSelected: _onTabChanged,
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
-                const SizedBox(height: AppSpacing.xl),
-
-                Text('My Feed', style: theme.textTheme.titleMedium),
-                const SizedBox(height: AppSpacing.sm),
-                _MyChannelTabChips(
-                  selectedTab: _activeTab,
-                  onTabSelected: _onTabChanged,
-                ),
-                const SizedBox(height: AppSpacing.md),
-
                 if (_feedLoading && _feedItems.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(AppSpacing.xl),
+                  const SliverFillRemaining(
                     child: Center(child: CircularProgressIndicator()),
                   )
                 else if (_feedItems.isEmpty)
-                  _EmptyFeed(activeTab: _activeTab)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _EmptyFeed(activeTab: _activeTab),
+                  )
                 else
-                  ..._feedItems.map((item) {
-                    final media = _toMediaItem(item);
-                    final isCurrent = player.currentMedia?.id == item.id;
-                    final isPlaying = isCurrent && player.isPlaying;
-                    final isLiked = mediaService.isLiked(item.id);
-
-                    final isVideo =
-                        item.mediaType == channel_models.MediaType.video;
-                    final videoController = player.videoController;
-                    final showVideo =
-                        isVideo &&
-                        isCurrent &&
-                        videoController != null &&
-                        videoController.value.isInitialized;
-
-                    return Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: kIsWeb ? 760 : double.infinity,
-                        ),
-                        child: Container(
-                          margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.darkSurface
-                                : AppColors.lightSurface,
-                            borderRadius: BorderRadius.circular(
-                              AppSpacing.radiusLg,
-                            ),
-                            border: Border.all(
-                              color: isDark
-                                  ? Colors.white.withValues(alpha: 0.06)
-                                  : Colors.black.withValues(alpha: 0.06),
-                            ),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  AppSpacing.md,
-                                  AppSpacing.md,
-                                  AppSpacing.sm,
-                                  AppSpacing.sm,
-                                ),
-                                child: Row(
-                                  children: [
-                                    CircleAvatar(
-                                      radius: 18,
-                                      backgroundColor: AppColors.primary
-                                          .withValues(alpha: 0.15),
-                                      child: const Icon(
-                                        Icons.person_rounded,
-                                        color: AppColors.primary,
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            media.title,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: theme.textTheme.titleMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                          ),
-                                          Text(
-                                            media.artistName,
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: theme.textTheme.bodySmall,
-                                          ),
-                                          const SizedBox(height: 2),
-                                          _ApprovalBadge(
-                                            status: item.approvalStatus,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () {
-                                        MediaOptionsSheet.show(
-                                          context,
-                                          mediaItem: media,
-                                        );
-                                      },
-                                      icon: const Icon(Icons.more_vert_rounded),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              _FeedMediaSurface(
-                                media: media,
-                                isVideo: isVideo,
-                                isPlaying: isPlaying,
-                                showVideo: showVideo,
-                                videoController: videoController,
-                                showHeartBurst:
-                                    _showHeartBurst[item.id] == true,
-                                onTap: () => _onTapMedia(item, player),
-                                onDoubleTap: () => _toggleLike(
-                                  item,
-                                  mediaService,
-                                  forceLike: true,
-                                ),
-                                onFullscreenTap: isVideo
-                                    ? () => _openFullscreen(item)
-                                    : null,
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.xs,
-                                  vertical: 2,
-                                ),
-                                child: Row(
-                                  children: [
-                                    IconButton(
-                                      onPressed: () =>
-                                          _toggleLike(item, mediaService),
-                                      tooltip: 'Like',
-                                      icon: Icon(
-                                        isLiked
-                                            ? Icons.favorite_rounded
-                                            : Icons.favorite_border_rounded,
-                                        color: isLiked ? AppColors.error : null,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _openComments(media),
-                                      tooltip: 'Comment',
-                                      icon: const Icon(
-                                        Icons.chat_bubble_outline_rounded,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      onPressed: () => _share(media),
-                                      tooltip: 'Share',
-                                      icon: const Icon(Icons.share_rounded),
-                                    ),
-                                    IconButton(
-                                      onPressed: () =>
-                                          _openAddToPlaylist(media),
-                                      tooltip: 'Add to playlist',
-                                      icon: const Icon(
-                                        Icons.playlist_add_rounded,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              if ((media.description ?? '').trim().isNotEmpty)
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    AppSpacing.md,
-                                    0,
-                                    AppSpacing.md,
-                                    AppSpacing.md,
-                                  ),
-                                  child: Text(
-                                    media.description!.trim(),
-                                    style: theme.textTheme.bodyMedium,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
+                  SliverPadding(
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.screenPadding,
+                      0,
+                      AppSpacing.screenPadding,
+                      MediaQuery.of(context).padding.bottom + 80,
+                    ),
+                    sliver: SliverGrid.builder(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: gridColumns,
+                        crossAxisSpacing: 4,
+                        mainAxisSpacing: 4,
+                        childAspectRatio: 1,
                       ),
-                    );
-                  }),
-
-                if (_feedLoading && _feedItems.isNotEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(AppSpacing.md),
-                    child: Center(child: CircularProgressIndicator()),
+                      itemCount: _feedItems.length + (_feedLoading ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == _feedItems.length) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+                        final item = _feedItems[index];
+                        final isVideo =
+                            item.mediaType == channel_models.MediaType.video;
+                        return GestureDetector(
+                          onTap: () => _onTapGridItem(index),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(
+                              AppSpacing.radiusMd,
+                            ),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                _GridThumbnail(
+                                  thumbnailUrl: item.thumbnailUrl,
+                                  isVideo: isVideo,
+                                ),
+                                Positioned(
+                                  left: 4,
+                                  bottom: 4,
+                                  child: Icon(
+                                    isVideo
+                                        ? Icons.videocam_rounded
+                                        : Icons.music_note_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                    shadows: const [
+                                      Shadow(
+                                        blurRadius: 3,
+                                        color: Colors.black87,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 4,
+                                  top: 4,
+                                  child: _ApprovalBadge(
+                                    status: item.approvalStatus,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
               ],
             ),
@@ -583,130 +513,242 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
       ),
     );
   }
+
+  int _gridColumnsForWidth(double width) {
+    if (width >= 1500) return 7;
+    if (width >= 1200) return 6;
+    if (width >= 900) return 5;
+    if (width >= 700) return 4;
+    return 3;
+  }
 }
 
-class _FeedMediaSurface extends StatelessWidget {
-  const _FeedMediaSurface({
-    required this.media,
-    required this.isVideo,
-    required this.isPlaying,
-    required this.showVideo,
-    required this.videoController,
-    required this.showHeartBurst,
-    required this.onTap,
-    required this.onDoubleTap,
-    this.onFullscreenTap,
-  });
+// Grid helpers extracted to keep build clean
+extension on _MyChannelScreenState {
+  Future<void> _onTapGridItem(int index) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChannelReelsScreen.myChannel(
+          channelName: _channelSnapshot?.channelName,
+          approvalStatus: _approvalStatusForTab(_activeTab),
+          initialIndex: index,
+          seedItems: List<channel_models.UserMediaResponse>.from(_feedItems),
+          seedHasMore: _feedHasMore,
+          seedPage: _feedPage,
+        ),
+      ),
+    );
 
-  final MediaItem media;
+    if (!mounted) return;
+    _loadChannelAndFeed(refresh: true);
+  }
+}
+
+// ─── New grid / detail helpers ───────────────────────────────────────────────
+
+// Placeholder: keep old code temporarily in a dead class to locate the end.
+class _GridThumbnail extends StatelessWidget {
+  const _GridThumbnail({required this.thumbnailUrl, required this.isVideo});
+
+  final String? thumbnailUrl;
   final bool isVideo;
-  final bool isPlaying;
-  final bool showVideo;
-  final VideoPlayerController? videoController;
-  final bool showHeartBurst;
-  final VoidCallback onTap;
-  final VoidCallback onDoubleTap;
-  final VoidCallback? onFullscreenTap;
 
   @override
   Widget build(BuildContext context) {
-    final isWebAudio = kIsWeb && !isVideo;
+    if (thumbnailUrl != null && thumbnailUrl!.isNotEmpty) {
+      return Image.network(
+        thumbnailUrl!,
+        fit: BoxFit.cover,
+        width: double.infinity,
+        height: double.infinity,
+        errorBuilder: (_, __, ___) => _placeholder(),
+      );
+    }
+    return _placeholder();
+  }
 
-    return GestureDetector(
-      onTap: onTap,
-      onDoubleTap: onDoubleTap,
-      child: AspectRatio(
-        aspectRatio: isVideo
-            ? (showVideo
-                  ? (videoController!.value.aspectRatio > 0
-                        ? videoController!.value.aspectRatio
-                        : (16 / 9))
-                  : (16 / 9))
-            : (isWebAudio ? (16 / 9) : (1 / 1)),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              color: Colors.black,
-              child: showVideo
-                  ? VideoPlayer(videoController!)
-                  : _FallbackArtwork(media: media, isVideo: isVideo),
-            ),
-            if (showHeartBurst)
-              const Center(
-                child: Icon(
-                  Icons.favorite_rounded,
-                  color: Colors.white,
-                  size: 92,
-                ),
-              ),
-            Align(
-              alignment: Alignment.center,
-              child: Container(
-                width: 56,
-                height: 56,
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.42),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                  size: 34,
-                  color: Colors.white,
-                ),
-              ),
-            ),
-            if (onFullscreenTap != null)
-              Positioned(
-                right: AppSpacing.sm,
-                bottom: AppSpacing.sm,
-                child: IconButton.filledTonal(
-                  onPressed: onFullscreenTap,
-                  icon: const Icon(Icons.fullscreen_rounded),
-                ),
-              ),
-          ],
+  Widget _placeholder() {
+    return Container(
+      color: Colors.black12,
+      child: Center(
+        child: Icon(
+          isVideo ? Icons.videocam_rounded : Icons.music_note_rounded,
+          color: Colors.white54,
+          size: 32,
         ),
       ),
     );
   }
 }
 
-class _FallbackArtwork extends StatelessWidget {
-  const _FallbackArtwork({required this.media, required this.isVideo});
+class _MediaDetailSheet extends StatelessWidget {
+  const _MediaDetailSheet({
+    required this.item,
+    required this.media,
+    required this.player,
+    required this.interactionService,
+    required this.onPlay,
+    required this.onFullscreen,
+    required this.onLike,
+    required this.onComment,
+    required this.onShare,
+    required this.onAddToPlaylist,
+  });
 
+  final channel_models.UserMediaResponse item;
   final MediaItem media;
-  final bool isVideo;
+  final PlayerProvider player;
+  final ChannelInteractionService interactionService;
+  final VoidCallback onPlay;
+  final VoidCallback onFullscreen;
+  final VoidCallback onLike;
+  final VoidCallback onComment;
+  final VoidCallback onShare;
+  final VoidCallback onAddToPlaylist;
 
   @override
   Widget build(BuildContext context) {
-    final thumbnail = media.thumbnailUrl;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final isCurrent = player.currentMedia?.id == item.id;
+    final isPlaying = isCurrent && player.isPlaying;
+    final isLiked = interactionService.isLiked(item.id);
+    final isVideo = item.mediaType == channel_models.MediaType.video;
 
-    if (thumbnail != null && thumbnail.isNotEmpty) {
-      return Image.network(
-        thumbnail,
-        fit: BoxFit.cover,
-        errorBuilder: (_, error, stackTrace) =>
-            _PlaceholderIcon(isVideo: isVideo),
-      );
-    }
-
-    return _PlaceholderIcon(isVideo: isVideo);
-  }
-}
-
-class _PlaceholderIcon extends StatelessWidget {
-  const _PlaceholderIcon({required this.isVideo});
-
-  final bool isVideo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Icon(
-        isVideo ? Icons.video_library_rounded : Icons.music_note_rounded,
-        color: Colors.white70,
-        size: 68,
+    return Container(
+      margin: const EdgeInsets.fromLTRB(
+        AppSpacing.screenPadding,
+        0,
+        AppSpacing.screenPadding,
+        AppSpacing.screenPadding,
+      ),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(AppSpacing.radiusXl),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.md,
+              AppSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        media.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        media.artistName,
+                        style: theme.textTheme.bodySmall,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      _ApprovalBadge(status: item.approvalStatus),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  onPressed: Navigator.of(context).pop,
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onPlay();
+                  },
+                  tooltip: isPlaying ? 'Pause' : 'Play',
+                  icon: Icon(
+                    isPlaying
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.play_circle_filled_rounded,
+                    size: 36,
+                    color: AppColors.primary,
+                  ),
+                ),
+                if (isVideo)
+                  IconButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      onFullscreen();
+                    },
+                    tooltip: 'Fullscreen',
+                    icon: const Icon(Icons.fullscreen_rounded),
+                  ),
+                const Spacer(),
+                IconButton(
+                  onPressed: onLike,
+                  tooltip: 'Like',
+                  icon: Icon(
+                    isLiked
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                    color: isLiked ? AppColors.error : null,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onComment();
+                  },
+                  tooltip: 'Comments',
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                ),
+                IconButton(
+                  onPressed: onShare,
+                  tooltip: 'Share',
+                  icon: const Icon(Icons.share_rounded),
+                ),
+                IconButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onAddToPlaylist();
+                  },
+                  tooltip: 'Add to playlist',
+                  icon: const Icon(Icons.playlist_add_rounded),
+                ),
+              ],
+            ),
+          ),
+          if ((media.description ?? '').trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                0,
+                AppSpacing.md,
+                AppSpacing.md,
+              ),
+              child: Text(
+                media.description!.trim(),
+                style: theme.textTheme.bodySmall,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            )
+          else
+            const SizedBox(height: AppSpacing.md),
+        ],
       ),
     );
   }

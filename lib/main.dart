@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -14,7 +16,38 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 
 /// Global audio handler - initialized once at app startup
-late AudioHandler audioHandler;
+AudioHandler? audioHandler;
+Future<AudioHandler?>? _audioHandlerFuture;
+
+Future<AudioHandler?> ensureAudioHandlerInitialized() {
+  if (audioHandler != null) {
+    return Future.value(audioHandler);
+  }
+  return _audioHandlerFuture ??= _createAudioHandler();
+}
+
+Future<AudioHandler?> _createAudioHandler() async {
+  try {
+    final handler = await AudioService.init(
+      builder: () => VeenaAudioHandler(),
+      config: const AudioServiceConfig(
+        androidNotificationChannelId: 'com.veena.app.channel.audio',
+        androidNotificationChannelName: 'Veena Music',
+        androidNotificationOngoing: true,
+        androidNotificationIcon: 'mipmap/ic_launcher',
+        androidShowNotificationBadge: true,
+        notificationColor: Color(0xFF6366F1),
+      ),
+    );
+    audioHandler = handler;
+    return handler;
+  } catch (e, stackTrace) {
+    debugPrint('[Startup] AudioService init failed: $e');
+    debugPrint('$stackTrace');
+    _audioHandlerFuture = null;
+    return null;
+  }
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,26 +65,18 @@ Future<void> main() async {
 
   // Initialize Firebase (only on mobile - web requires separate config)
   if (!kIsWeb) {
-    await Firebase.initializeApp();
+    try {
+      await Firebase.initializeApp();
 
-    // Set up background message handler
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+      // Set up background message handler
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e, stackTrace) {
+      debugPrint('[Startup] Firebase init failed: $e');
+      debugPrint('$stackTrace');
+    }
   }
 
   final prefs = await SharedPreferences.getInstance();
-
-  // Initialize AudioService BEFORE runApp
-  audioHandler = await AudioService.init(
-    builder: () => VeenaAudioHandler(),
-    config: const AudioServiceConfig(
-      androidNotificationChannelId: 'com.veena.app.channel.audio',
-      androidNotificationChannelName: 'Veena Music',
-      androidNotificationOngoing: true,
-      androidNotificationIcon: 'mipmap/ic_launcher',
-      androidShowNotificationBadge: true,
-      notificationColor: Color(0xFF6366F1),
-    ),
-  );
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
@@ -70,4 +95,7 @@ Future<void> main() async {
   );
 
   runApp(VeenaApp(prefs: prefs));
+
+  // Keep native-heavy startup work off the critical first-frame path.
+  unawaited(ensureAudioHandlerInitialized());
 }

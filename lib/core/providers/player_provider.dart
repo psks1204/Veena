@@ -6,7 +6,7 @@ import '../models/media_item.dart' as app_models;
 import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
-import '../../../main.dart' show audioHandler;
+import '../../../main.dart' show audioHandler, ensureAudioHandlerInitialized;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Repeat mode for playback
@@ -50,6 +50,7 @@ class PlayerProvider extends ChangeNotifier {
 
   // Throttle for position updates to prevent excessive rebuilds
   DateTime _lastPositionNotify = DateTime.now();
+  Future<void>? _audioSetupFuture;
 
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
@@ -91,16 +92,34 @@ class PlayerProvider extends ChangeNotifier {
   bool get isAudio => _currentMedia?.isAudio ?? false;
 
   PlayerProvider() {
-    _setupAudioListeners();
-    _setupSkipCallbacks();
+    _ensureAudioReady();
+  }
+
+  Future<void> _ensureAudioReady() {
+    return _audioSetupFuture ??= _initializeAudioHandler();
+  }
+
+  Future<void> _initializeAudioHandler() async {
+    final handler = await ensureAudioHandlerInitialized();
+    if (handler == null) {
+      debugPrint('[PlayerProvider] Audio handler unavailable during startup');
+      return;
+    }
+    _setupAudioListeners(handler);
+    _setupSkipCallbacks(handler);
+  }
+
+  Future<audio_service.AudioHandler?> _getAudioHandler() async {
+    await _ensureAudioReady();
+    return audioHandler;
   }
 
   /// Wire notification bar skip controls to PlayerProvider
-  void _setupSkipCallbacks() {
-    final handler = audioHandler as dynamic;
+  void _setupSkipCallbacks(audio_service.AudioHandler handler) {
+    final dynamicHandler = handler as dynamic;
     try {
-      handler.onSkipToNext = () => next();
-      handler.onSkipToPrevious = () => previous();
+      dynamicHandler.onSkipToNext = () => next();
+      dynamicHandler.onSkipToPrevious = () => previous();
     } catch (e) {
       debugPrint('[PlayerProvider] Could not set skip callbacks: $e');
     }
@@ -116,9 +135,9 @@ class PlayerProvider extends ChangeNotifier {
     _authService = service;
   }
 
-  void _setupAudioListeners() {
+  void _setupAudioListeners(audio_service.AudioHandler handler) {
     // Listen to playback state from AudioService
-    audioHandler.playbackState.listen((state) {
+    handler.playbackState.listen((state) {
       _isPlaying = state.playing;
       _isLoading =
           state.processingState == audio_service.AudioProcessingState.loading ||
@@ -152,8 +171,8 @@ class PlayerProvider extends ChangeNotifier {
 
     // Listen to position updates directly from handler's player
     // Throttle to ~15fps to prevent excessive widget rebuilds
-    final handler = audioHandler as dynamic;
-    handler.positionStream.listen((Duration pos) {
+    final dynamicHandler = handler as dynamic;
+    dynamicHandler.positionStream.listen((Duration pos) {
       if (_currentMedia?.isAudio ?? false) {
         _position = pos;
         _updateLyricIndex();
@@ -166,7 +185,7 @@ class PlayerProvider extends ChangeNotifier {
     });
 
     // Listen to media item (for duration)
-    audioHandler.mediaItem.listen((item) {
+    handler.mediaItem.listen((item) {
       if (item?.duration != null) {
         _duration = item!.duration!;
         notifyListeners();
@@ -391,8 +410,15 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   Future<void> _playVideo(String url, {Duration? startPosition}) async {
+    final handler = await _getAudioHandler();
+    if (handler == null) {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     // Stop audio playback but keep notification capability
-    await audioHandler.stop();
+    await handler.stop();
 
     // Set up audio service notification for video (enables lock screen controls)
     if (_currentMedia != null) {
@@ -406,7 +432,7 @@ class PlayerProvider extends ChangeNotifier {
             : null,
         duration: Duration.zero, // Will update after video initializes
       );
-      await audioHandler.updateMediaItem(item);
+      await handler.updateMediaItem(item);
     }
 
     // Clean up video controller if it exists
@@ -472,7 +498,7 @@ class PlayerProvider extends ChangeNotifier {
             : null,
         duration: _duration,
       );
-      await audioHandler.updateMediaItem(itemWithDuration);
+      await handler.updateMediaItem(itemWithDuration);
     }
 
     // Listen to video position
@@ -522,6 +548,13 @@ class PlayerProvider extends ChangeNotifier {
     app_models.MediaItem media, {
     Duration? startPosition,
   }) async {
+    final handler = await _getAudioHandler();
+    if (handler == null) {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
     // Create audio_service MediaItem for notification
     final item = audio_service.MediaItem(
       id: media.id,
@@ -536,31 +569,31 @@ class PlayerProvider extends ChangeNotifier {
     );
 
     // Set media item for notification (cast to our handler type)
-    (audioHandler as dynamic).setMediaItem(item);
+    (handler as dynamic).setMediaItem(item);
 
     // Load audio URL (does NOT auto-play anymore)
-    await audioHandler.playFromUri(Uri.parse(media.hlsUrl!));
+    await handler.playFromUri(Uri.parse(media.hlsUrl!));
 
     // Seek to position BEFORE playing (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
       debugPrint(
         '[PlayerProvider] Seeking audio to: ${startPosition.inSeconds}s BEFORE play',
       );
-      await audioHandler.seek(startPosition);
+      await handler.seek(startPosition);
       debugPrint('[PlayerProvider] Audio seeked, now starting playback');
     }
 
     // NOW start playback from the seeked position
     // Apply current volume/mute state to audio handler (esp. for web)
     try {
-      await audioHandler.customAction('setVolume', {
+      await handler.customAction('setVolume', {
         'volume': _isMuted ? 0.0 : _volume,
       });
     } catch (e) {
       debugPrint('[PlayerProvider] Error applying volume to audio handler: $e');
     }
 
-    await audioHandler.play();
+    await handler.play();
     debugPrint('[PlayerProvider] Audio playback started');
 
     _isLoading = false;
@@ -581,7 +614,9 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.pause();
     } else {
-      await audioHandler.pause();
+      final handler = await _getAudioHandler();
+      if (handler == null) return;
+      await handler.pause();
     }
   }
 
@@ -590,7 +625,9 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.play();
     } else {
-      await audioHandler.play();
+      final handler = await _getAudioHandler();
+      if (handler == null) return;
+      await handler.play();
     }
   }
 
@@ -602,7 +639,8 @@ class PlayerProvider extends ChangeNotifier {
       _videoController = null;
     }
 
-    await audioHandler.stop();
+    final handler = await _getAudioHandler();
+    await handler?.stop();
 
     _isPlaying = false;
     _position = Duration.zero;
@@ -626,7 +664,9 @@ class PlayerProvider extends ChangeNotifier {
     if (_currentMedia?.isVideo ?? false) {
       await _videoController?.seekTo(position);
     } else {
-      await audioHandler.seek(position);
+      final handler = await _getAudioHandler();
+      if (handler == null) return;
+      await handler.seek(position);
     }
     _position = position;
     notifyListeners();
@@ -648,7 +688,9 @@ class PlayerProvider extends ChangeNotifier {
     } else {
       // Send volume to audio handler for web support
       try {
-        await audioHandler.customAction('setVolume', {'volume': _volume});
+        final handler = await _getAudioHandler();
+        if (handler == null) return;
+        await handler.customAction('setVolume', {'volume': _volume});
       } catch (e) {
         debugPrint('[PlayerProvider] Error setting volume: $e');
       }

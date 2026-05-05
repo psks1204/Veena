@@ -7,11 +7,19 @@ import '../../../core/models/paged_response.dart';
 import '../../../core/models/comment.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../channel/services/channel_service.dart';
+
+enum CommentsSource { mainMedia, channel }
 
 class CommentsSheet extends StatefulWidget {
   final String mediaId;
+  final CommentsSource source;
 
-  const CommentsSheet({super.key, required this.mediaId});
+  const CommentsSheet({
+    super.key,
+    required this.mediaId,
+    this.source = CommentsSource.mainMedia,
+  });
 
   @override
   State<CommentsSheet> createState() => _CommentsSheetState();
@@ -33,27 +41,38 @@ class _CommentsSheetState extends State<CommentsSheet> {
   Future<void> _loadComments() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
+
     try {
-      final commentService = context.read<CommentService>();
-      final results = await Future.wait([
-        commentService.getComments(widget.mediaId),
-        commentService.getCommentCount(widget.mediaId),
-      ]);
+      final PagedResponse<Comment> commentsPage;
+      int count;
+
+      if (widget.source == CommentsSource.channel) {
+        final channelService = context.read<ChannelService>();
+        commentsPage = await channelService.getMediaComments(widget.mediaId);
+        count = commentsPage.totalElements;
+      } else {
+        final commentService = context.read<CommentService>();
+        final results = await Future.wait([
+          commentService.getComments(widget.mediaId),
+          commentService.getCommentCount(widget.mediaId),
+        ]);
+        commentsPage = results[0] as PagedResponse<Comment>;
+        count = results[1] as int;
+      }
 
       if (mounted) {
         setState(() {
-          _comments = (results[0] as PagedResponse<Comment>).content;
-          _commentCount = results[1] as int;
+          _comments = commentsPage.content;
+          _commentCount = count;
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading comments: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error loading comments: $e')));
       }
     }
   }
@@ -64,19 +83,27 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
     setState(() => _isPosting = true);
     try {
-      final success = await context.read<CommentService>().postComment(widget.mediaId, content);
+      final success = widget.source == CommentsSource.channel
+          ? await context.read<ChannelService>().postMediaComment(
+              widget.mediaId,
+              content,
+            )
+          : await context.read<CommentService>().postComment(
+              widget.mediaId,
+              content,
+            );
       if (success) {
         _commentController.clear();
         await _loadComments();
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to post comment')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Failed to post comment')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       if (mounted) setState(() => _isPosting = false);
     }
@@ -102,16 +129,28 @@ class _CommentsSheetState extends State<CommentsSheet> {
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('Delete Comment', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to delete this comment?', style: TextStyle(color: Colors.white70)),
+        title: const Text(
+          'Delete Comment',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'Are you sure you want to delete this comment?',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white60),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.redAccent),
+            ),
           ),
         ],
       ),
@@ -119,7 +158,15 @@ class _CommentsSheetState extends State<CommentsSheet> {
 
     if (confirmed == true) {
       try {
-        final success = await context.read<CommentService>().deleteComment(widget.mediaId, commentId);
+        final success = widget.source == CommentsSource.channel
+            ? await context.read<ChannelService>().deleteMediaComment(
+                widget.mediaId,
+                commentId,
+              )
+            : await context.read<CommentService>().deleteComment(
+                widget.mediaId,
+                commentId,
+              );
         if (success) {
           if (mounted) {
             setState(() {
@@ -136,9 +183,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
         }
       } catch (e) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       }
     }
@@ -168,7 +215,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          
+
           // Header
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -177,7 +224,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
               children: [
                 Text(
                   'Comments ($_commentCount)',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
@@ -186,22 +235,36 @@ class _CommentsSheetState extends State<CommentsSheet> {
               ],
             ),
           ),
-          
+
           const Divider(height: 1),
 
           // Comments List
           Expanded(
-            child: _isLoading 
-              ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-              : _comments.isEmpty
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  )
+                : _comments.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.chat_bubble_outline_rounded, size: 48, color: isDark ? Colors.white24 : Colors.black12),
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 48,
+                          color: isDark ? Colors.white24 : Colors.black12,
+                        ),
                         const SizedBox(height: 16),
-                        Text('No comments yet', style: TextStyle(color: isDark ? Colors.white54 : Colors.black54)),
-                        const Text('Be the first to share your thoughts!', style: TextStyle(color: Colors.grey)),
+                        Text(
+                          'No comments yet',
+                          style: TextStyle(
+                            color: isDark ? Colors.white54 : Colors.black54,
+                          ),
+                        ),
+                        const Text(
+                          'Be the first to share your thoughts!',
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   )
@@ -235,7 +298,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 Expanded(
                   child: Container(
                     decoration: BoxDecoration(
-                      color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[100],
+                      color: isDark
+                          ? Colors.white.withOpacity(0.05)
+                          : Colors.grey[100],
                       borderRadius: BorderRadius.circular(24),
                     ),
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -254,9 +319,16 @@ class _CommentsSheetState extends State<CommentsSheet> {
                 const SizedBox(width: 8),
                 IconButton(
                   onPressed: _isPosting ? null : _postComment,
-                  icon: _isPosting 
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.send_rounded, color: AppColors.primary),
+                  icon: _isPosting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(
+                          Icons.send_rounded,
+                          color: AppColors.primary,
+                        ),
                 ),
               ],
             ),
@@ -274,7 +346,7 @@ class _CommentTile extends StatelessWidget {
   final VoidCallback onDelete;
 
   const _CommentTile({
-    required this.comment, 
+    required this.comment,
     required this.formatTime,
     required this.isOwnComment,
     required this.onDelete,
@@ -283,7 +355,7 @@ class _CommentTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
       child: Row(
@@ -293,15 +365,21 @@ class _CommentTile extends StatelessWidget {
           CircleAvatar(
             radius: 18,
             backgroundColor: AppColors.primary.withOpacity(0.1),
-            backgroundImage: comment.userImageUrl != null 
-              ? CachedNetworkImageProvider(comment.userImageUrl!)
-              : null,
+            backgroundImage: comment.userImageUrl != null
+                ? CachedNetworkImageProvider(comment.userImageUrl!)
+                : null,
             child: comment.userImageUrl == null
-              ? Text(comment.username[0].toUpperCase(), style: const TextStyle(fontSize: 14, color: AppColors.primary))
-              : null,
+                ? Text(
+                    comment.username[0].toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.primary,
+                    ),
+                  )
+                : null,
           ),
           const SizedBox(width: 12),
-          
+
           // Comment Content
           Expanded(
             child: Column(
@@ -311,12 +389,16 @@ class _CommentTile extends StatelessWidget {
                   children: [
                     Text(
                       comment.username,
-                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.bold),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
                       formatTime(comment.createdAt),
-                      style: theme.textTheme.labelSmall?.copyWith(color: Colors.grey),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: Colors.grey,
+                      ),
                     ),
                   ],
                 ),
@@ -328,12 +410,16 @@ class _CommentTile extends StatelessWidget {
               ],
             ),
           ),
-          
+
           // Delete option for comment creator
           if (isOwnComment)
             IconButton(
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                size: 20,
+                color: Colors.redAccent,
+              ),
             ),
         ],
       ),
