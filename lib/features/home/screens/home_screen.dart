@@ -32,6 +32,7 @@ import '../../../core/services/birthday_service.dart';
 import '../../../shared/widgets/birthday_celebration_overlay.dart';
 import '../../../shared/widgets/birthday_banner.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../shared/widgets/featured_youtube_channels_section.dart';
 
 /// Home Screen - Premium Studio Design
 ///
@@ -176,6 +177,16 @@ class _HomeScreenState extends State<HomeScreen> {
           final videos = dashboard.videos;
           final podcasts = dashboard.podcasts;
           final popularPlaylists = dashboard.popularPlaylists;
+          final hasVisibleContent =
+              recentlyPlayed.isNotEmpty ||
+              popularPlaylists.isNotEmpty ||
+              audios.isNotEmpty ||
+              latestReleases.isNotEmpty ||
+              popularTracks.isNotEmpty ||
+              podcasts.isNotEmpty ||
+              videos.isNotEmpty ||
+              dashboard.artists.isNotEmpty ||
+              dashboard.featuredActive.isNotEmpty;
 
           return RefreshIndicator(
             color: AppColors.primary,
@@ -375,10 +386,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       items: dashboard.audios,
                     ),
 
-                  if (latestReleases.isEmpty &&
-                      popularTracks.isEmpty &&
-                      recentlyPlayed.isEmpty)
-                    _buildEmptyState(),
+                  const FeaturedYoutubeChannelsSection(),
+
+                  if (!hasVisibleContent) _buildEmptyState(),
                 ],
 
                 const SliverToBoxAdapter(child: AppFooter()),
@@ -468,10 +478,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         onTap: () => _playMedia(items.cast<MediaItem>(), index),
                         onLikeTap: () => _toggleLike(item),
                         onMoreTap: () {
-                          MediaOptionsSheet.show(
-                            context,
-                            mediaItem: item,
-                          );
+                          MediaOptionsSheet.show(context, mediaItem: item);
                         },
                       ),
                     );

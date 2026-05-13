@@ -8,6 +8,7 @@ import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
 import '../widgets/featured_carousel.dart';
 import '../../../shared/widgets/app_footer.dart';
+import '../../../shared/widgets/featured_youtube_channels_section.dart';
 
 /// Public Landing Screen
 ///
@@ -187,6 +188,11 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
           // Audio and video come from dedicated API calls (no client-side filtering)
           final videos = dashboard.videos;
           final audios = dashboard.audios;
+          final hasVisibleContent =
+              latestReleases.isNotEmpty ||
+              popularTracks.isNotEmpty ||
+              videos.isNotEmpty ||
+              audios.isNotEmpty;
 
           return RefreshIndicator(
             color: AppColors.primary,
@@ -251,9 +257,10 @@ class _PublicLandingScreenState extends State<PublicLandingScreen> {
                       items: audios,
                     ),
 
+                  const FeaturedYoutubeChannelsSection(),
+
                   // Empty state
-                  if (latestReleases.isEmpty && popularTracks.isEmpty)
-                    _buildEmptyState(),
+                  if (!hasVisibleContent) _buildEmptyState(),
                 ],
 
                 // Footer

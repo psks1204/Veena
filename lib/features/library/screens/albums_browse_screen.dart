@@ -8,7 +8,7 @@ import '../../../core/navigation/app_navigation.dart';
 import 'album_detail_screen.dart';
 
 /// Albums Browse Screen
-/// 
+///
 /// Spotify-like grid display of all albums with search capability.
 class AlbumsBrowseScreen extends StatefulWidget {
   const AlbumsBrowseScreen({super.key});
@@ -19,27 +19,93 @@ class AlbumsBrowseScreen extends StatefulWidget {
 
 class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
   bool _isSearching = false;
   String _searchQuery = '';
+  final List<AlbumSummary> _albums = [];
+  bool _isInitialLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  String? _error;
+
+  static const int _pageSize = 20;
 
   @override
   void initState() {
     super.initState();
     // Defer to post-frame to avoid notifyListeners during build
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadAlbums();
+      _loadAlbums(reset: true);
     });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadAlbums() async {
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 240) {
+      _loadAlbums();
+    }
+  }
+
+  Future<void> _loadAlbums({bool reset = false}) async {
+    if (_isLoadingMore) return;
+    if (!reset && !_hasMore) return;
+
+    if (reset) {
+      setState(() {
+        _albums.clear();
+        _error = null;
+        _currentPage = 0;
+        _hasMore = true;
+        _isInitialLoading = true;
+        _isLoadingMore = false;
+      });
+    } else {
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
+
     final albumService = context.read<AlbumService>();
-    await albumService.getAllAlbums();
+
+    try {
+      final response = await albumService.getAllAlbums(
+        page: _currentPage,
+        size: _pageSize,
+      );
+
+      if (!mounted) return;
+
+      final existingIds = _albums.map((a) => a.id).toSet();
+      final newAlbums = response.content
+          .where((album) => !existingIds.contains(album.id))
+          .toList();
+
+      setState(() {
+        _albums.addAll(newAlbums);
+        _currentPage++;
+        _hasMore = response.hasMore && newAlbums.isNotEmpty;
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+        _error = null;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString();
+        _isInitialLoading = false;
+        _isLoadingMore = false;
+      });
+    }
   }
 
   void _onSearch(String query) {
@@ -52,7 +118,7 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
     if (_searchQuery.isEmpty) return albums;
     return albums.where((album) {
       return album.title.toLowerCase().contains(_searchQuery) ||
-             album.artistName.toLowerCase().contains(_searchQuery);
+          album.artistName.toLowerCase().contains(_searchQuery);
     }).toList();
   }
 
@@ -61,9 +127,11 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final isDark = theme.brightness == Brightness.dark;
-    
+    final filteredAlbums = _getFilteredAlbums(_albums);
+
     return Scaffold(
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           // App Bar with search
           SliverAppBar(
@@ -109,99 +177,102 @@ class _AlbumsBrowseScreenState extends State<AlbumsBrowseScreen> {
           ),
 
           // Albums Grid
-          Consumer<AlbumService>(
-            builder: (context, albumService, _) {
-              if (albumService.isLoading) {
-                return const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                );
-              }
-
-              if (albumService.error != null) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.error_outline,
-                          size: 64,
-                          color: colorScheme.error,
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          'Failed to load albums',
-                          style: theme.textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: AppSpacing.sm),
-                        ElevatedButton(
-                          onPressed: _loadAlbums,
-                          child: const Text('Retry'),
-                        ),
-                      ],
+          if (_isInitialLoading)
+            const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (_error != null && _albums.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 64,
+                      color: colorScheme.error,
                     ),
-                  ),
-                );
-              }
-
-              final albums = _getFilteredAlbums(albumService.albums);
-
-              if (albums.isEmpty) {
-                return SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.album_outlined,
-                          size: 64,
-                          color: colorScheme.onSurface.withOpacity(0.3),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        Text(
-                          _searchQuery.isEmpty
-                              ? 'No albums available'
-                              : 'No albums found for "$_searchQuery"',
-                          style: theme.textTheme.bodyLarge?.copyWith(
-                            color: colorScheme.onSurface.withOpacity(0.6),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      'Failed to load albums',
+                      style: theme.textTheme.titleMedium,
                     ),
-                  ),
-                );
-              }
-
-              return SliverPadding(
-                padding: const EdgeInsets.all(AppSpacing.screenPadding),
-                sliver: SliverGrid(
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 200,
-                    childAspectRatio: 0.75,
-                    crossAxisSpacing: AppSpacing.md,
-                    mainAxisSpacing: AppSpacing.lg,
-                  ),
-                  delegate: SliverChildBuilderDelegate(
-                    (context, index) {
-                      final album = albums[index];
-                      return _AlbumCard(
-                        album: album,
-                        onTap: () => _navigateToAlbum(album),
-                      );
-                    },
-                    childCount: albums.length,
-                  ),
+                    const SizedBox(height: AppSpacing.sm),
+                    ElevatedButton(
+                      onPressed: () => _loadAlbums(reset: true),
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            )
+          else if (filteredAlbums.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.album_outlined,
+                      size: 64,
+                      color: colorScheme.onSurface.withOpacity(0.3),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      _searchQuery.isEmpty
+                          ? 'No albums available'
+                          : 'No albums found for "$_searchQuery"',
+                      style: theme.textTheme.bodyLarge?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            SliverPadding(
+              padding: const EdgeInsets.all(AppSpacing.screenPadding),
+              sliver: SliverGrid(
+                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 200,
+                  childAspectRatio: 0.75,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.lg,
+                ),
+                delegate: SliverChildBuilderDelegate((context, index) {
+                  final album = filteredAlbums[index];
+                  return _AlbumCard(
+                    album: album,
+                    onTap: () => _navigateToAlbum(album),
+                  );
+                }, childCount: filteredAlbums.length),
+              ),
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                child: Center(
+                  child: _isLoadingMore
+                      ? const Padding(
+                          padding: EdgeInsets.symmetric(
+                            vertical: AppSpacing.md,
+                          ),
+                          child: CircularProgressIndicator(
+                            color: AppColors.primary,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ],
 
           // Bottom padding for mini player
-          const SliverToBoxAdapter(
-            child: SizedBox(height: 140),
-          ),
+          const SliverToBoxAdapter(child: SizedBox(height: 140)),
         ],
       ),
     );
@@ -227,10 +298,7 @@ class _AlbumCard extends StatelessWidget {
   final AlbumSummary album;
   final VoidCallback onTap;
 
-  const _AlbumCard({
-    required this.album,
-    required this.onTap,
-  });
+  const _AlbumCard({required this.album, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -267,11 +335,13 @@ class _AlbumCard extends StatelessWidget {
                         ? CachedNetworkImage(
                             imageUrl: album.coverUrl!,
                             fit: BoxFit.cover,
-                            placeholder: (_, __) => _buildPlaceholder(colorScheme),
-                            errorWidget: (_, __, ___) => _buildPlaceholder(colorScheme),
+                            placeholder: (_, __) =>
+                                _buildPlaceholder(colorScheme),
+                            errorWidget: (_, __, ___) =>
+                                _buildPlaceholder(colorScheme),
                           )
                         : _buildPlaceholder(colorScheme),
-                    
+
                     // Play button overlay on hover/tap
                     Positioned(
                       right: 8,
@@ -309,9 +379,9 @@ class _AlbumCard extends StatelessWidget {
               ),
             ),
           ),
-          
+
           const SizedBox(height: AppSpacing.sm),
-          
+
           // Album title
           Text(
             album.title,
@@ -322,9 +392,9 @@ class _AlbumCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          
+
           const SizedBox(height: 2),
-          
+
           // Artist name and track count
           Text(
             '${album.artistName} • ${album.trackCount} ${album.trackCount == 1 ? 'song' : 'songs'}',

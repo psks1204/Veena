@@ -183,60 +183,104 @@
   </div>
 
   <script src="flutter_bootstrap.js" async></script>
-  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
   <script>
+    function loadRazorpaySdk() {
+      if (typeof Razorpay !== 'undefined') {
+        return Promise.resolve();
+      }
+
+      var existing = document.querySelector('script[data-razorpay-sdk="1"]');
+      if (existing) {
+        return new Promise(function (resolve, reject) {
+          if (existing.getAttribute('data-loaded') === '1') {
+            resolve();
+            return;
+          }
+          existing.addEventListener('load', function () {
+            existing.setAttribute('data-loaded', '1');
+            resolve();
+          }, { once: true });
+          existing.addEventListener('error', function () {
+            reject(new Error('Razorpay SDK failed to load.'));
+          }, { once: true });
+        });
+      }
+
+      return new Promise(function (resolve, reject) {
+        var script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.defer = true;
+        script.setAttribute('data-razorpay-sdk', '1');
+        script.onload = function () {
+          script.setAttribute('data-loaded', '1');
+          resolve();
+        };
+        script.onerror = function () {
+          reject(new Error('Razorpay SDK failed to load.'));
+        };
+        document.head.appendChild(script);
+      });
+    }
+
     // Web payment bridge used by Flutter (lib/core/services/razorpay_web_checkout_web.dart)
     window.openRazorpayCheckout = function (options) {
-      try {
-        if (typeof Razorpay === 'undefined') {
-          if (options && options.onError) {
-            options.onError('Razorpay SDK failed to load.');
-          }
-          return;
-        }
-
-        var rzp = new Razorpay({
-          key: options.key,
-          amount: options.amount,
-          currency: options.currency,
-          name: options.name,
-          description: options.description,
-          order_id: options.orderId,
-          prefill: {
-            name: options.prefillName || '',
-            email: options.prefillEmail || '',
-            contact: options.prefillContact || '',
-          },
-          handler: function (response) {
-            if (options.onSuccess) {
-              options.onSuccess(response);
+      loadRazorpaySdk().then(function () {
+        try {
+          if (typeof Razorpay === 'undefined') {
+            if (options && options.onError) {
+              options.onError('Razorpay SDK failed to load.');
             }
-          },
-          modal: {
-            ondismiss: function () {
-              if (options.onDismiss) {
-                options.onDismiss();
+            return;
+          }
+
+          var rzp = new Razorpay({
+            key: options.key,
+            amount: options.amount,
+            currency: options.currency,
+            name: options.name,
+            description: options.description,
+            order_id: options.orderId,
+            prefill: {
+              name: options.prefillName || '',
+              email: options.prefillEmail || '',
+              contact: options.prefillContact || '',
+            },
+            handler: function (response) {
+              if (options.onSuccess) {
+                options.onSuccess(response);
               }
+            },
+            modal: {
+              ondismiss: function () {
+                if (options.onDismiss) {
+                  options.onDismiss();
+                }
+              }
+            },
+            theme: { color: '#FF6B00' }
+          });
+
+          rzp.on('payment.failed', function (resp) {
+            var message =
+              (resp && resp.error && (resp.error.description || resp.error.reason)) ||
+              'Payment failed';
+            if (options.onError) {
+              options.onError(message);
             }
-          },
-          theme: { color: '#FF6B00' }
-        });
+          });
 
-        rzp.on('payment.failed', function (resp) {
-          var message =
-            (resp && resp.error && (resp.error.description || resp.error.reason)) ||
-            'Payment failed';
-          if (options.onError) {
-            options.onError(message);
+          rzp.open();
+        } catch (e) {
+          if (options && options.onError) {
+            options.onError(e && e.message ? e.message : 'Unable to open checkout.');
           }
-        });
-
-        rzp.open();
-      } catch (e) {
-        if (options && options.onError) {
-          options.onError(e && e.message ? e.message : 'Unable to open checkout.');
         }
-      }
+      }).catch(function () {
+        if (options && options.onError) {
+          options.onError('Razorpay SDK failed to load.');
+        }
+      });
     };
   </script>
   <script>
