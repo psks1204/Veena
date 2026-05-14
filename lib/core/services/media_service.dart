@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'api_service.dart';
 import '../models/media_item.dart';
 import '../models/artist.dart';
+import '../models/search_channel.dart';
 
 /// Media Service
 ///
@@ -13,6 +14,7 @@ class MediaService extends ChangeNotifier {
 
   List<MediaItem> _searchResults = [];
   List<Artist> _searchArtists = [];
+  List<SearchChannel> _searchChannels = [];
   List<MediaItem> _allMedia = [];
   Set<String> _likedMediaIds = {};
   final Set<String> _unlikedMediaIds = {};
@@ -28,6 +30,7 @@ class MediaService extends ChangeNotifier {
 
   List<MediaItem> get searchResults => _searchResults;
   List<Artist> get searchArtists => _searchArtists;
+  List<SearchChannel> get searchChannels => _searchChannels;
   List<MediaItem> get allMedia => _allMedia;
   bool get isLoading => _isLoading;
   bool get isSearching => _isSearching;
@@ -42,7 +45,9 @@ class MediaService extends ChangeNotifier {
   }
 
   /// Get like count for a media item
-  int getLikeCount(String mediaId) => _likeCounts[mediaId] ?? 0;
+  int getLikeCount(String mediaId, {int initial = 0}) {
+    return _likeCounts[mediaId] ?? initial;
+  }
 
   // ==================== SEARCH ====================
 
@@ -52,6 +57,7 @@ class MediaService extends ChangeNotifier {
     if (query.trim().isEmpty) {
       _searchResults = [];
       _searchArtists = [];
+      _searchChannels = [];
       _hasMoreSearchResults = false;
       notifyListeners();
       return [];
@@ -93,6 +99,15 @@ class MediaService extends ChangeNotifier {
         } else {
           _searchArtists = [];
         }
+
+        // Parse channels
+        if (data['channels'] != null && data['channels'] is List) {
+          _searchChannels = (data['channels'] as List)
+              .map((item) => SearchChannel.fromJson(item))
+              .toList();
+        } else {
+          _searchChannels = [];
+        }
       } else if (data != null && data['content'] != null) {
         // Fallback: old paginated response (just media)
         _searchResults = (data['content'] as List)
@@ -101,14 +116,17 @@ class MediaService extends ChangeNotifier {
         _searchTotalPages = data['totalPages'] as int? ?? 1;
         _hasMoreSearchResults = !(data['last'] as bool? ?? true);
         _searchArtists = [];
+        _searchChannels = [];
       } else if (data != null && data is List) {
         // Fallback for direct list response
         _searchResults = data.map((item) => MediaItem.fromJson(item)).toList();
         _hasMoreSearchResults = false;
         _searchArtists = [];
+        _searchChannels = [];
       } else {
         _searchResults = [];
         _searchArtists = [];
+        _searchChannels = [];
         _hasMoreSearchResults = false;
       }
 
@@ -210,6 +228,7 @@ class MediaService extends ChangeNotifier {
   void clearSearch() {
     _searchResults = [];
     _searchArtists = [];
+    _searchChannels = [];
     _searchPage = 0;
     _hasMoreSearchResults = false;
     notifyListeners();
@@ -400,7 +419,10 @@ class MediaService extends ChangeNotifier {
         if (mediaType != null) 'type': mediaType,
       };
 
-      final data = await _api.get('/media/latest-releases', queryParams: queryParams);
+      final data = await _api.get(
+        '/media/latest-releases',
+        queryParams: queryParams,
+      );
 
       if (data != null && data['content'] != null) {
         return PagedResponse<MediaItem>.fromJson(

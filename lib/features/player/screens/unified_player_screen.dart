@@ -19,9 +19,11 @@ import '../../../core/models/artist.dart';
 import '../../library/screens/artist_detail_screen.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../../core/services/app_settings_service.dart';
+import '../../../core/services/media_service.dart';
 import '../widgets/comments_sheet.dart';
 import '../../../shared/widgets/player_artwork_ad_swap.dart';
 import '../../../shared/widgets/player_ad_rotator.dart';
+import '../../../shared/utils/count_formatter.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
 ///
@@ -621,6 +623,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
+                      const SizedBox(height: 6),
+                      _buildEngagementStats(media),
                       _buildCreditsSection(media),
                     ],
                   ),
@@ -986,6 +990,56 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     );
   }
 
+  Widget _buildEngagementStats(MediaItem media, {bool centered = false}) {
+    return Consumer<MediaService>(
+      builder: (context, mediaService, _) {
+        final likeCount = mediaService.getLikeCount(
+          media.id,
+          initial: media.likeCount,
+        );
+        final labelColor = Colors.white.withOpacity(0.78);
+
+        return Row(
+          mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
+          mainAxisAlignment: centered
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
+          children: [
+            Icon(Icons.play_arrow_rounded, color: labelColor, size: 14),
+            const SizedBox(width: 2),
+            Text(
+              formatCompactCount(media.playedCount),
+              style: TextStyle(
+                color: labelColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '·',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.55),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.favorite_rounded, color: labelColor, size: 12),
+            const SizedBox(width: 4),
+            Text(
+              formatCompactCount(likeCount),
+              style: TextStyle(
+                color: labelColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   /// Mobile top bar widget
   Widget _buildMobileTopBar(
     PlayerProvider player,
@@ -1071,6 +1125,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 8),
+                _buildEngagementStats(media),
                 _buildCreditsSection(media),
               ],
             ),
@@ -1747,6 +1803,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             ),
                             textAlign: TextAlign.center,
                           ),
+                          const SizedBox(height: 8),
+                          _buildEngagementStats(media, centered: true),
                           _buildCreditsSection(media, centered: true),
                         ],
                       ),

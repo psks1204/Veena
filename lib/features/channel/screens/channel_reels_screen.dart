@@ -10,6 +10,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/utils/count_formatter.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
@@ -103,7 +104,8 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
   bool get _isMine => widget.mode == ChannelReelsMode.myChannel;
 
   String get _screenTitle {
-    if (_isMine) return widget.channelName ?? _channel?.channelName ?? 'My Reels';
+    if (_isMine)
+      return widget.channelName ?? _channel?.channelName ?? 'My Reels';
     return widget.channelName ?? _channel?.channelName ?? 'Channel';
   }
 
@@ -129,6 +131,8 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
   void _onPageChanged(int page) {
     _controllers[_currentPage]?.pause();
     setState(() => _currentPage = page);
+    unawaited(_primeLikeStatus(page));
+    unawaited(_primeLikeStatus(page + 1));
 
     final c = _controllers[page];
     if (c != null && c.value.isInitialized) {
@@ -140,13 +144,21 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
 
     unawaited(_initController(page + 1));
 
-    _controllers.keys
-        .where((k) => (k - page).abs() > 2)
-        .toList()
-        .forEach((k) {
-          _controllers[k]?.dispose();
-          _controllers.remove(k);
-        });
+    _controllers.keys.where((k) => (k - page).abs() > 2).toList().forEach((k) {
+      final mediaId = (k >= 0 && k < _items.length) ? _items[k].id : null;
+      _controllers[k]?.dispose();
+      _controllers.remove(k);
+      if (mediaId != null) {
+        context.read<ChannelInteractionService>().removeMediaState(mediaId);
+      }
+    });
+  }
+
+  Future<void> _primeLikeStatus(int index) async {
+    if (index < 0 || index >= _items.length) return;
+    await context.read<ChannelInteractionService>().checkLikeStatus(
+      _items[index].id,
+    );
   }
 
   Future<void> _loadMore({bool refresh = false}) async {
@@ -181,18 +193,23 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       if (refresh && _items.isNotEmpty) {
         unawaited(_initController(0));
         if (_items.length > 1) unawaited(_initController(1));
+        unawaited(_primeLikeStatus(0));
+        unawaited(_primeLikeStatus(1));
       } else {
-        for (int i = oldLength;
-            i < (oldLength + 2).clamp(0, _items.length);
-            i++) {
+        for (
+          int i = oldLength;
+          i < (oldLength + 2).clamp(0, _items.length);
+          i++
+        ) {
           unawaited(_initController(i));
+          unawaited(_primeLikeStatus(i));
         }
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load reels')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load reels')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -237,7 +254,9 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
 
   Future<void> _recordPlay(int index) async {
     if (index < 0 || index >= _items.length) return;
-    await context.read<ChannelInteractionService>().recordPlay(_items[index].id);
+    await context.read<ChannelInteractionService>().recordPlay(
+      _items[index].id,
+    );
   }
 
   MediaItem _toMediaItem(channel_models.UserMediaResponse item) {
@@ -258,7 +277,8 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       playedCount: item.playCount,
       artist: ArtistInfo(
         id: 0,
-        name: (item.uploadedByName ?? item.channelName ?? 'Veena Creator').trim(),
+        name: (item.uploadedByName ?? item.channelName ?? 'Veena Creator')
+            .trim(),
       ),
     );
   }
@@ -294,7 +314,8 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       useSafeArea: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
+      builder: (_) =>
+          CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
     );
     if (mounted) _controllers[_currentPage]?.play();
   }
@@ -320,9 +341,9 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
   Future<void> _openArtistChannel(channel_models.UserMediaResponse item) async {
     final channelId = item.channelId;
     if (channelId == null || channelId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Channel not available')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Channel not available')));
       return;
     }
 
@@ -358,7 +379,10 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
           'Delete this reel? Only pending/rejected reels can be deleted.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: FilledButton.styleFrom(backgroundColor: AppColors.error),
@@ -401,9 +425,9 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       unawaited(_initController(_currentPage));
       unawaited(_initController(_currentPage + 1));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reel deleted')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Reel deleted')));
     } catch (e) {
       if (!mounted) return;
       final msg = e.toString();
@@ -476,6 +500,7 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
             final controller = _controllers[index];
             final isVideo = item.mediaType == channel_models.MediaType.video;
             final isLiked = interactionService.isLiked(item.id);
+            final likeCount = interactionService.getLikeCount(item.id);
             final showBurst = _showHeartBurst[item.id] == true;
 
             if (controller == null) {
@@ -488,10 +513,13 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
               controller: controller,
               isVideo: isVideo,
               isLiked: isLiked,
+              likeCount: likeCount,
+              playCount: item.playCount,
               showHeartBurst: showBurst,
               canDelete: _canDelete(item),
               isDeleting: _isDeleting,
-              onDoubleTap: () => _toggleLike(item, interactionService, forceLike: true),
+              onDoubleTap: () =>
+                  _toggleLike(item, interactionService, forceLike: true),
               onLike: () => _toggleLike(item, interactionService),
               onComment: () => _openComments(media),
               onShare: () => _share(media),
@@ -513,6 +541,8 @@ class _ReelPage extends StatefulWidget {
     required this.controller,
     required this.isVideo,
     required this.isLiked,
+    required this.likeCount,
+    required this.playCount,
     required this.showHeartBurst,
     required this.canDelete,
     required this.isDeleting,
@@ -530,6 +560,8 @@ class _ReelPage extends StatefulWidget {
   final VideoPlayerController? controller;
   final bool isVideo;
   final bool isLiked;
+  final int likeCount;
+  final int playCount;
   final bool showHeartBurst;
   final bool canDelete;
   final bool isDeleting;
@@ -587,7 +619,10 @@ class _ReelPageState extends State<_ReelPage> {
             color: Colors.black,
             child: isReady && widget.isVideo
                 ? _VideoBackground(controller: c!)
-                : _ThumbnailBackground(media: widget.media, isVideo: widget.isVideo),
+                : _ThumbnailBackground(
+                    media: widget.media,
+                    isVideo: widget.isVideo,
+                  ),
           ),
           if (!widget.isVideo && isReady) _AudioPulse(controller: c!),
           if (_showPauseIcon)
@@ -595,13 +630,24 @@ class _ReelPageState extends State<_ReelPage> {
               child: Container(
                 width: 72,
                 height: 72,
-                decoration: const BoxDecoration(color: Colors.black54, shape: BoxShape.circle),
-                child: const Icon(Icons.pause_rounded, color: Colors.white, size: 40),
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.pause_rounded,
+                  color: Colors.white,
+                  size: 40,
+                ),
               ),
             ),
           if (widget.showHeartBurst)
             const Center(
-              child: Icon(Icons.favorite_rounded, color: Colors.white, size: 92),
+              child: Icon(
+                Icons.favorite_rounded,
+                color: Colors.white,
+                size: 92,
+              ),
             ),
           Positioned.fill(
             child: DecoratedBox(
@@ -610,7 +656,10 @@ class _ReelPageState extends State<_ReelPage> {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   stops: const [0.55, 1.0],
-                  colors: [Colors.transparent, Colors.black.withValues(alpha: 0.80)],
+                  colors: [
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.80),
+                  ],
                 ),
               ),
             ),
@@ -668,8 +717,15 @@ class _ReelPageState extends State<_ReelPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _EngagementCountBadge(
+                  playCount: widget.playCount,
+                  likeCount: widget.likeCount,
+                ),
+                const SizedBox(height: 10),
                 _ActionButton(
-                  icon: widget.isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                  icon: widget.isLiked
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
                   color: widget.isLiked ? Colors.redAccent : Colors.white,
                   onTap: widget.onLike,
                 ),
@@ -694,7 +750,9 @@ class _ReelPageState extends State<_ReelPage> {
                 if (widget.canDelete) ...[
                   const SizedBox(height: 20),
                   _ActionButton(
-                    icon: widget.isDeleting ? Icons.hourglass_empty_rounded : Icons.delete_outline_rounded,
+                    icon: widget.isDeleting
+                        ? Icons.hourglass_empty_rounded
+                        : Icons.delete_outline_rounded,
                     color: Colors.white,
                     onTap: widget.isDeleting ? () {} : widget.onDelete,
                   ),
@@ -781,7 +839,10 @@ class _AudioPulseState extends State<_AudioPulse>
   @override
   void initState() {
     super.initState();
-    _anim = AnimationController(vsync: this, duration: const Duration(seconds: 2));
+    _anim = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
     widget.controller.addListener(_onControllerChanged);
     _updateAnimation();
   }
@@ -815,14 +876,20 @@ class _AudioPulseState extends State<_AudioPulse>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: (1 - _anim.value) * 0.6),
+              color: AppColors.primary.withValues(
+                alpha: (1 - _anim.value) * 0.6,
+              ),
               width: 2,
             ),
           ),
           child: child,
         ),
         child: const Center(
-          child: Icon(Icons.music_note_rounded, color: Colors.white70, size: 36),
+          child: Icon(
+            Icons.music_note_rounded,
+            color: Colors.white70,
+            size: 36,
+          ),
         ),
       ),
     );
@@ -830,7 +897,11 @@ class _AudioPulseState extends State<_AudioPulse>
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.icon, required this.color, required this.onTap});
+  const _ActionButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
 
   final IconData icon;
   final Color color;
@@ -846,6 +917,63 @@ class _ActionButton extends StatelessWidget {
         color: color,
         size: 28,
         shadows: const [Shadow(blurRadius: 4, color: Colors.black87)],
+      ),
+    );
+  }
+}
+
+class _EngagementCountBadge extends StatelessWidget {
+  const _EngagementCountBadge({
+    required this.playCount,
+    required this.likeCount,
+  });
+
+  final int playCount;
+  final int likeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_arrow_rounded, size: 12, color: Colors.white),
+          const SizedBox(width: 2),
+          Text(
+            formatCompactCount(playCount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            '·',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
+          const SizedBox(width: 2),
+          Text(
+            formatCompactCount(likeCount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }

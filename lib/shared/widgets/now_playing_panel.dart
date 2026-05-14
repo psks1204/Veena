@@ -10,6 +10,7 @@ import 'lyrics_card.dart';
 import '../../core/services/artist_service.dart';
 import '../../core/services/library_service.dart';
 import '../../core/services/app_settings_service.dart';
+import '../../core/services/media_service.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/player/widgets/comments_sheet.dart';
 import 'share_song_button.dart';
@@ -353,6 +354,10 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
 
           const SizedBox(height: 8),
 
+          _buildEngagementStats(media, isDark),
+
+          const SizedBox(height: 10),
+
           // Credits Section
           _buildCreditsSection(media, isDark),
 
@@ -364,6 +369,56 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildEngagementStats(MediaItem media, bool isDark) {
+    final iconColor = isDark
+        ? Colors.white.withOpacity(0.75)
+        : AppColors.lightTextSecondary;
+
+    return Consumer<MediaService>(
+      builder: (context, mediaService, _) {
+        final likeCount = mediaService.getLikeCount(
+          media.id,
+          initial: media.likeCount,
+        );
+
+        return Row(
+          children: [
+            Icon(Icons.play_arrow_rounded, size: 14, color: iconColor),
+            const SizedBox(width: 2),
+            Text(
+              _formatCount(media.playedCount),
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '·',
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(Icons.favorite_rounded, size: 12, color: iconColor),
+            const SizedBox(width: 3),
+            Text(
+              _formatCount(likeCount),
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

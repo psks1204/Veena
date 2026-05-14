@@ -6,6 +6,7 @@ import '../../core/providers/player_provider.dart' as player_provider;
 import '../../core/models/media_item.dart';
 import '../../core/services/media_service.dart';
 import '../../core/services/library_service.dart';
+import '../utils/count_formatter.dart';
 
 /// Spotify-style Desktop Player Bar
 ///
@@ -250,6 +251,8 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 3),
+              _buildEngagementMeta(media, isDark),
             ],
           ),
         ),
@@ -258,6 +261,56 @@ class _DesktopPlayerBarState extends State<DesktopPlayerBar> {
         // Like button
         _buildLikeButton(media, isDark),
       ],
+    );
+  }
+
+  Widget _buildEngagementMeta(MediaItem media, bool isDark) {
+    final iconColor = isDark
+        ? Colors.white.withOpacity(0.65)
+        : AppColors.lightTextSecondary.withOpacity(0.9);
+
+    return Consumer<MediaService>(
+      builder: (context, mediaService, _) {
+        final likeCount = mediaService.getLikeCount(
+          media.id,
+          initial: media.likeCount,
+        );
+
+        return Row(
+          children: [
+            Icon(Icons.play_arrow_rounded, size: 11, color: iconColor),
+            const SizedBox(width: 1),
+            Text(
+              formatCompactCount(media.playedCount),
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              '·',
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(Icons.favorite_rounded, size: 10, color: iconColor),
+            const SizedBox(width: 3),
+            Text(
+              formatCompactCount(likeCount),
+              style: TextStyle(
+                color: iconColor,
+                fontSize: 10,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 

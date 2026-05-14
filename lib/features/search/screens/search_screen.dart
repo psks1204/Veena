@@ -9,22 +9,24 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/models/artist.dart';
+import '../../../core/models/search_channel.dart';
 import '../../../core/services/media_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/utils/count_formatter.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../../shared/widgets/media_options_sheet.dart';
 import '../../../core/services/library_service.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../library/screens/artist_detail_screen.dart';
+import '../../channel/screens/public_channel_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 /// Search Screen
 ///
 /// Premium search experience with:
 /// - Real-time API search with debouncing
-/// - Browse categories
-/// - Search results with tracks, artists, albums
+/// - Search results with tracks, artists, and channels
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -40,6 +42,7 @@ class _SearchScreenState extends State<SearchScreen> {
 
   List<MediaItem> _searchResults = [];
   List<Artist> _searchArtists = [];
+  List<SearchChannel> _searchChannels = [];
   bool _isSearching = false;
   bool _hasSearched = false;
   bool _isListening = false;
@@ -69,6 +72,7 @@ class _SearchScreenState extends State<SearchScreen> {
         _hasSearched = false;
         _searchResults = [];
         _searchArtists = [];
+        _searchChannels = [];
       });
       return;
     }
@@ -88,6 +92,7 @@ class _SearchScreenState extends State<SearchScreen> {
       setState(() {
         _searchResults = results;
         _searchArtists = mediaService.searchArtists;
+        _searchChannels = mediaService.searchChannels;
         _isSearching = false;
         _hasSearched = true;
       });
@@ -137,6 +142,7 @@ class _SearchScreenState extends State<SearchScreen> {
       _hasSearched = false;
       _searchResults = [];
       _searchArtists = [];
+      _searchChannels = [];
     });
   }
 
@@ -340,7 +346,8 @@ class _SearchScreenState extends State<SearchScreen> {
     final player = context.watch<PlayerProvider>();
     final isDark = theme.brightness == Brightness.dark;
 
-    final totalResults = _searchResults.length + _searchArtists.length;
+    final totalResults =
+        _searchResults.length + _searchArtists.length + _searchChannels.length;
 
     if (totalResults == 0) {
       return SliverFillRemaining(
@@ -410,6 +417,36 @@ class _SearchScreenState extends State<SearchScreen> {
                 itemBuilder: (context, index) {
                   final artist = _searchArtists[index];
                   return _buildArtistSearchCard(context, artist, isDark, theme);
+                },
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
+
+          // Channels section
+          if (_searchChannels.isNotEmpty) ...[
+            Text(
+              'Channels',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            SizedBox(
+              height: 172,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _searchChannels.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(width: AppSpacing.md),
+                itemBuilder: (context, index) {
+                  final channel = _searchChannels[index];
+                  return _buildChannelSearchCard(
+                    context,
+                    channel,
+                    isDark,
+                    theme,
+                  );
                 },
               ),
             ),
@@ -618,6 +655,109 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
+  Widget _buildChannelSearchCard(
+    BuildContext context,
+    SearchChannel channel,
+    bool isDark,
+    ThemeData theme,
+  ) {
+    return GestureDetector(
+      onTap: () {
+        if (channel.id.isEmpty) return;
+        AppNavigation.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PublicChannelScreen(
+              channelId: channel.id,
+              channelName: channel.channelName,
+            ),
+          ),
+        );
+      },
+      child: SizedBox(
+        width: 128,
+        child: Column(
+          children: [
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: channel.imageUrl != null && channel.imageUrl!.isNotEmpty
+                    ? CachedNetworkImage(
+                        imageUrl: channel.imageUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: isDark ? Colors.grey[800] : Colors.grey[200],
+                          child: const Icon(Icons.person_rounded),
+                        ),
+                        errorWidget: (_, __, ___) =>
+                            _channelAvatarFallback(isDark, channel.channelName),
+                      )
+                    : _channelAvatarFallback(isDark, channel.channelName),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              channel.channelName,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _channelMeta(channel),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: isDark ? Colors.grey[400] : Colors.grey[600],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _channelAvatarFallback(bool isDark, String channelName) {
+    return Container(
+      color: isDark ? Colors.grey[800] : Colors.grey[200],
+      child: Center(
+        child: Text(
+          channelName.isNotEmpty ? channelName[0].toUpperCase() : '?',
+          style: TextStyle(
+            fontSize: 36,
+            fontWeight: FontWeight.bold,
+            color: isDark ? Colors.grey[400] : Colors.grey[500],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _channelMeta(SearchChannel channel) {
+    if (channel.subscriberCount > 0) {
+      return '${formatCompactCount(channel.subscriberCount)} subscribers';
+    }
+    if (channel.totalViews > 0) {
+      return '${formatCompactCount(channel.totalViews)} views';
+    }
+    return 'Channel';
+  }
+
   Widget _buildBrowseCategories(ThemeData theme, ColorScheme colorScheme) {
     final isDark = theme.brightness == Brightness.dark;
 
@@ -650,7 +790,7 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
               const SizedBox(height: 10),
               Text(
-                'Find your favourite songs, artists\nand albums',
+                'Find your favourite songs, artists,\nalbums and channels',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,

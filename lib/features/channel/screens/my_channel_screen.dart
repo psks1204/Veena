@@ -13,6 +13,7 @@ import '../../../core/providers/player_provider.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/utils/count_formatter.dart';
 import '../../../shared/widgets/media_options_sheet.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/screens/unified_player_screen.dart';
@@ -488,6 +489,35 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
                                       Shadow(
                                         blurRadius: 3,
                                         color: Colors.black87,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Positioned(
+                                  right: 6,
+                                  bottom: 6,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.play_arrow_rounded,
+                                        color: Colors.white,
+                                        size: 14,
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Text(
+                                        formatCompactCount(item.playCount),
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          shadows: [
+                                            Shadow(
+                                              blurRadius: 3,
+                                              color: Colors.black87,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ],
                                   ),

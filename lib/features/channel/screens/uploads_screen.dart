@@ -9,6 +9,7 @@ import 'package:video_player/video_player.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/utils/count_formatter.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
@@ -82,6 +83,8 @@ class _UploadsScreenState extends State<UploadsScreen> {
   void _onPageChanged(int page) {
     _controllers[_currentPage]?.pause();
     setState(() => _currentPage = page);
+    unawaited(_primeLikeStatus(page));
+    unawaited(_primeLikeStatus(page + 1));
     final c = _controllers[page];
     if (c != null && c.value.isInitialized) {
       c.play();
@@ -90,13 +93,21 @@ class _UploadsScreenState extends State<UploadsScreen> {
       unawaited(_initController(page));
     }
     unawaited(_initController(page + 1));
-    _controllers.keys
-        .where((k) => (k - page).abs() > 2)
-        .toList()
-        .forEach((k) {
+    _controllers.keys.where((k) => (k - page).abs() > 2).toList().forEach((k) {
+      final mediaId = (k >= 0 && k < _items.length) ? _items[k].id : null;
       _controllers[k]?.dispose();
       _controllers.remove(k);
+      if (mediaId != null) {
+        context.read<ChannelInteractionService>().removeMediaState(mediaId);
+      }
     });
+  }
+
+  Future<void> _primeLikeStatus(int index) async {
+    if (index < 0 || index >= _items.length) return;
+    await context.read<ChannelInteractionService>().checkLikeStatus(
+      _items[index].id,
+    );
   }
 
   Future<void> _initController(int index) async {
@@ -122,9 +133,9 @@ class _UploadsScreenState extends State<UploadsScreen> {
 
   Future<void> _recordPlay(int index) async {
     if (index < 0 || index >= _items.length) return;
-    await context
-        .read<ChannelInteractionService>()
-        .recordPlay(_items[index].id);
+    await context.read<ChannelInteractionService>().recordPlay(
+      _items[index].id,
+    );
   }
 
   Future<void> _loadMore({bool refresh = false}) async {
@@ -144,9 +155,9 @@ class _UploadsScreenState extends State<UploadsScreen> {
       }
     });
     try {
-      final result = await context
-          .read<ChannelService>()
-          .getPublicFeed(page: _feedPage);
+      final result = await context.read<ChannelService>().getPublicFeed(
+        page: _feedPage,
+      );
       if (!mounted) return;
       final oldLength = _items.length;
       setState(() {
@@ -157,18 +168,23 @@ class _UploadsScreenState extends State<UploadsScreen> {
       if (refresh && _items.isNotEmpty) {
         unawaited(_initController(0));
         if (_items.length > 1) unawaited(_initController(1));
+        unawaited(_primeLikeStatus(0));
+        unawaited(_primeLikeStatus(1));
       } else {
-        for (int i = oldLength;
-            i < (oldLength + 2).clamp(0, _items.length);
-            i++) {
+        for (
+          int i = oldLength;
+          i < (oldLength + 2).clamp(0, _items.length);
+          i++
+        ) {
           unawaited(_initController(i));
+          unawaited(_primeLikeStatus(i));
         }
       }
     } catch (_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load feed')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to load feed')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -192,8 +208,8 @@ class _UploadsScreenState extends State<UploadsScreen> {
       playedCount: item.playCount,
       artist: ArtistInfo(
         id: 0,
-        name:
-            (item.uploadedByName ?? item.channelName ?? 'Veena Creator').trim(),
+        name: (item.uploadedByName ?? item.channelName ?? 'Veena Creator')
+            .trim(),
       ),
     );
   }
@@ -253,12 +269,14 @@ class _UploadsScreenState extends State<UploadsScreen> {
     await Share.share('Listen to "${media.title}" on Veena Music: $url');
   }
 
-  Future<void> _openCreatorChannel(channel_models.UserMediaResponse item) async {
+  Future<void> _openCreatorChannel(
+    channel_models.UserMediaResponse item,
+  ) async {
     final channelId = item.channelId;
     if (channelId == null || channelId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Channel not available')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Channel not available')));
       return;
     }
 
@@ -312,10 +330,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
           elevation: 0,
           title: const Text(
             'Feed',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
           ),
         ),
         body: PageView.builder(
@@ -335,6 +350,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
             final controller = _controllers[index];
             final isVideo = item.mediaType == channel_models.MediaType.video;
             final isLiked = interactionService.isLiked(item.id);
+            final likeCount = interactionService.getLikeCount(item.id);
             final showBurst = _showHeartBurst[item.id] == true;
             if (controller == null) unawaited(_initController(index));
             return _ReelPage(
@@ -343,6 +359,8 @@ class _UploadsScreenState extends State<UploadsScreen> {
               controller: controller,
               isVideo: isVideo,
               isLiked: isLiked,
+              likeCount: likeCount,
+              playCount: item.playCount,
               showHeartBurst: showBurst,
               onDoubleTap: () =>
                   _toggleLike(item, interactionService, forceLike: true),
@@ -368,6 +386,8 @@ class _ReelPage extends StatefulWidget {
     required this.controller,
     required this.isVideo,
     required this.isLiked,
+    required this.likeCount,
+    required this.playCount,
     required this.showHeartBurst,
     required this.onDoubleTap,
     required this.onLike,
@@ -382,6 +402,8 @@ class _ReelPage extends StatefulWidget {
   final VideoPlayerController? controller;
   final bool isVideo;
   final bool isLiked;
+  final int likeCount;
+  final int playCount;
   final bool showHeartBurst;
   final VoidCallback onDoubleTap;
   final VoidCallback onLike;
@@ -520,10 +542,7 @@ class _ReelPageState extends State<_ReelPage> {
                   const SizedBox(height: 4),
                   Text(
                     widget.media.description!.trim(),
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: Colors.white60, fontSize: 12),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -537,6 +556,11 @@ class _ReelPageState extends State<_ReelPage> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                _EngagementCountBadge(
+                  playCount: widget.playCount,
+                  likeCount: widget.likeCount,
+                ),
+                const SizedBox(height: 10),
                 _ActionButton(
                   icon: widget.isLiked
                       ? Icons.favorite_rounded
@@ -683,7 +707,9 @@ class _AudioPulseState extends State<_AudioPulse>
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
-              color: AppColors.primary.withValues(alpha: (1 - _anim.value) * 0.6),
+              color: AppColors.primary.withValues(
+                alpha: (1 - _anim.value) * 0.6,
+              ),
               width: 2,
             ),
           ),
@@ -739,6 +765,63 @@ class _ActionButton extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EngagementCountBadge extends StatelessWidget {
+  const _EngagementCountBadge({
+    required this.playCount,
+    required this.likeCount,
+  });
+
+  final int playCount;
+  final int likeCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.black.withOpacity(0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.play_arrow_rounded, size: 12, color: Colors.white),
+          const SizedBox(width: 2),
+          Text(
+            formatCompactCount(playCount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Text(
+            '·',
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 6),
+          const Icon(Icons.favorite_rounded, size: 11, color: Colors.white),
+          const SizedBox(width: 2),
+          Text(
+            formatCompactCount(likeCount),
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
         ],
       ),
     );
