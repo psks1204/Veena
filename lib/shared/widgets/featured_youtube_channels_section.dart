@@ -1,9 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../utils/open_url.dart';
+import 'app_network_image.dart';
 import 'section_header.dart';
 
 class FeaturedYoutubeChannel {
@@ -248,30 +248,24 @@ class _FeaturedYoutubeChannelCard extends StatelessWidget {
                 ),
               ),
               child: ClipOval(
-                child: CachedNetworkImage(
+                child: AppNetworkImage(
                   imageUrl: primaryAvatarUrl,
-                  cacheKey: 'yt-channel-${channel.handle}',
+                  fallbackImageUrl: channel.avatarUrl,
                   fit: BoxFit.cover,
                   memCacheWidth: 220,
-                  placeholder: (_, __) => Container(
+                  placeholder: Container(
                     color: theme.colorScheme.surface,
                     child: const Icon(Icons.play_circle_fill_rounded),
                   ),
-                  errorWidget: (_, __, ___) => CachedNetworkImage(
-                    imageUrl: channel.avatarUrl,
-                    cacheKey: 'yt-channel-original-${channel.handle}',
-                    fit: BoxFit.cover,
-                    memCacheWidth: 220,
-                    errorWidget: (_, __, ___) => Container(
-                      color: theme.colorScheme.surface,
-                      child: Center(
-                        child: Text(
-                          _initials(channel.title),
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.onSurface.withOpacity(0.7),
-                          ),
+                  errorChild: Container(
+                    color: theme.colorScheme.surface,
+                    child: Center(
+                      child: Text(
+                        _initials(channel.title),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: theme.colorScheme.onSurface.withOpacity(0.7),
                         ),
                       ),
                     ),

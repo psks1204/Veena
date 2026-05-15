@@ -14,6 +14,7 @@ import '../../../core/services/library_service.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../shared/widgets/section_header.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../player/screens/unified_player_screen.dart';
 import '../../library/screens/artist_detail_screen.dart';
@@ -828,9 +829,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                   offset: const Offset(0, 4),
                                 ),
                               ],
-                              image: artist.imageUrl != null
+                              image:
+                                  artist.imageUrl != null &&
+                                      artist.imageUrl!.isNotEmpty
                                   ? DecorationImage(
-                                      image: CachedNetworkImageProvider(
+                                      image: _dashboardImageProvider(
                                         artist.imageUrl!,
                                       ),
                                       fit: BoxFit.cover,
@@ -840,7 +843,9 @@ class _HomeScreenState extends State<HomeScreen> {
                                   ? Colors.grey[800]
                                   : Colors.grey[200],
                             ),
-                            child: artist.imageUrl == null
+                            child:
+                                artist.imageUrl == null ||
+                                    artist.imageUrl!.isEmpty
                                 ? Center(
                                     child: Text(
                                       artist.name.isNotEmpty
@@ -910,14 +915,14 @@ class _HomeScreenState extends State<HomeScreen> {
               aspectRatio: 1,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: CachedNetworkImage(
+                child: AppNetworkImage(
                   imageUrl: playlist.coverUrl ?? '',
                   fit: BoxFit.cover,
                   memCacheWidth: 280,
-                  placeholder: (_, __) => Container(
+                  placeholder: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                   ),
-                  errorWidget: (_, __, ___) => Container(
+                  errorChild: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                     child: const Icon(Icons.playlist_play_rounded, size: 40),
                   ),
@@ -976,14 +981,14 @@ class _HomeScreenState extends State<HomeScreen> {
               aspectRatio: 1,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-                child: CachedNetworkImage(
+                child: AppNetworkImage(
                   imageUrl: album.coverUrl ?? '',
                   fit: BoxFit.cover,
                   memCacheWidth: 280,
-                  placeholder: (_, __) => Container(
+                  placeholder: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                   ),
-                  errorWidget: (_, __, ___) => Container(
+                  errorChild: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                     child: const Icon(Icons.album_rounded, size: 40),
                   ),
@@ -1009,5 +1014,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  ImageProvider<Object> _dashboardImageProvider(String url) {
+    if (kIsWeb) {
+      return NetworkImage(url);
+    }
+    return CachedNetworkImageProvider(url);
   }
 }

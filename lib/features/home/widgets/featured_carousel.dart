@@ -8,6 +8,7 @@ import '../../../core/providers/subscription_provider.dart';
 import '../../../core/services/ads_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/google_banner_ad.dart';
 import '../../../shared/widgets/subscription_modal.dart';
 
@@ -176,15 +177,15 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
             fit: StackFit.expand,
             children: [
               // Ambient blurred background matching the image color
-              if (item.featuredImageUrl != null) ...[
+              if ((item.featuredImageUrl ?? '').isNotEmpty) ...[
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(24),
-                    child: Image.network(
-                      item.featuredImageUrl!,
+                    child: AppNetworkImage(
+                      imageUrl: item.featuredImageUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(color: Colors.grey[900]),
+                      placeholder: Container(color: Colors.grey[900]),
+                      errorChild: Container(color: Colors.grey[900]),
                     ),
                   ),
                 ),
@@ -210,12 +211,13 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
               // Hero Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(24),
-                child: Image.network(
-                  item.featuredImageUrl ?? '',
+                child: AppNetworkImage(
+                  imageUrl: item.featuredImageUrl ?? '',
                   fit: BoxFit.contain,
                   alignment: Alignment.center,
-                  errorBuilder: (_, __, ___) =>
-                      Container(color: Colors.grey[900]),
+                  filterQuality: FilterQuality.medium,
+                  placeholder: Container(color: Colors.grey[900]),
+                  errorChild: Container(color: Colors.grey[900]),
                 ),
               ),
               // Gradient Overlay
