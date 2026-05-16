@@ -98,9 +98,9 @@ Future<RazorpayWebCheckoutResult> openRazorpayWebCheckout({
     'prefillName': prefillName,
     'prefillEmail': prefillEmail,
     'prefillContact': prefillContact,
-    'onSuccess': onSuccess,
-    'onError': onError,
-    'onDismiss': onDismiss,
+    'onSuccess': js.allowInterop(onSuccess),
+    'onError': js.allowInterop(onError),
+    'onDismiss': js.allowInterop(onDismiss),
   });
 
   try {
