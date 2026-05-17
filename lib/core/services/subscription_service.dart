@@ -50,10 +50,17 @@ class SubscriptionService {
   }
 
   Future<UserSubscription> cancelSubscription(int id, {String? reason}) async {
-    final data = await _api.post(
-      '/subscriptions/$id/cancel',
-      body: reason == null ? null : {'reason': reason},
-    );
+    final normalizedReason = reason?.trim();
+    final reasonQuery = normalizedReason == null || normalizedReason.isEmpty
+        ? ''
+        : '?reason=${Uri.encodeQueryComponent(normalizedReason)}';
+    final data = await _api.post('/subscriptions/$id/cancel$reasonQuery');
+    final map = _extractMap(data);
+    return UserSubscription.fromJson(map);
+  }
+
+  Future<UserSubscription> reverifyPayment(int id) async {
+    final data = await _api.post('/subscriptions/$id/re-verify');
     final map = _extractMap(data);
     return UserSubscription.fromJson(map);
   }

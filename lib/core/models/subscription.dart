@@ -94,6 +94,17 @@ class SubscriptionPlanSnapshot {
       currency: json['currency'] as String? ?? 'INR',
     );
   }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'planType': planType,
+      'durationMonths': durationMonths,
+      'price': price,
+      'currency': currency,
+    };
+  }
 }
 
 class UserSubscription {
@@ -135,7 +146,12 @@ class UserSubscription {
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
-  bool get isActive => status.toUpperCase() == 'ACTIVE';
+  String get normalizedStatus => status.trim().toUpperCase();
+  bool get isActive => normalizedStatus == 'ACTIVE';
+  bool get isPending => normalizedStatus == 'PENDING';
+  bool get isCancelled => normalizedStatus == 'CANCELLED';
+  bool get isExpired => normalizedStatus == 'EXPIRED';
+  bool get isPaymentFailed => normalizedStatus == 'PAYMENT_FAILED';
 
   factory UserSubscription.fromJson(Map<String, dynamic> json) {
     return UserSubscription(
@@ -164,6 +180,28 @@ class UserSubscription {
   static DateTime? _parseDate(dynamic raw) {
     if (raw == null) return null;
     return DateTime.tryParse(raw.toString());
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'status': status,
+      'autoRenew': autoRenew,
+      'plan': plan.toJson(),
+      'userId': userId,
+      'userName': userName,
+      'userEmail': userEmail,
+      'startDate': startDate?.toIso8601String(),
+      'endDate': endDate?.toIso8601String(),
+      'razorpayOrderId': razorpayOrderId,
+      'razorpayPaymentId': razorpayPaymentId,
+      'paymentAmount': paymentAmount,
+      'paymentCurrency': paymentCurrency,
+      'cancelledAt': cancelledAt?.toIso8601String(),
+      'cancelReason': cancelReason,
+      'createdAt': createdAt?.toIso8601String(),
+      'updatedAt': updatedAt?.toIso8601String(),
+    };
   }
 }
 
@@ -210,6 +248,14 @@ class SubscriptionStatus {
     );
   }
 
+  Map<String, dynamic> toJson() {
+    return {
+      'isSubscribed': isSubscribed,
+      'showAds': showAds,
+      'activeSubscription': activeSubscription?.toJson(),
+    };
+  }
+
   static bool? _readBool(Map<String, dynamic> json, List<String> keys) {
     for (final key in keys) {
       if (!json.containsKey(key)) continue;
@@ -228,5 +274,90 @@ class SubscriptionStatus {
       }
     }
     return null;
+  }
+}
+
+class PendingSubscriptionVerification {
+  const PendingSubscriptionVerification({
+    required this.subscriptionId,
+    this.razorpayOrderId,
+    this.razorpayPaymentId,
+    this.razorpaySignature,
+    required this.createdAt,
+    required this.updatedAt,
+    this.lastError,
+    this.attemptCount = 0,
+  });
+
+  final int subscriptionId;
+  final String? razorpayOrderId;
+  final String? razorpayPaymentId;
+  final String? razorpaySignature;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  final String? lastError;
+  final int attemptCount;
+
+  factory PendingSubscriptionVerification.fromSubscription(
+    UserSubscription subscription,
+  ) {
+    final now = DateTime.now();
+    return PendingSubscriptionVerification(
+      subscriptionId: subscription.id,
+      razorpayOrderId: subscription.razorpayOrderId,
+      razorpayPaymentId: subscription.razorpayPaymentId,
+      createdAt: subscription.createdAt ?? now,
+      updatedAt: now,
+    );
+  }
+
+  factory PendingSubscriptionVerification.fromJson(Map<String, dynamic> json) {
+    final now = DateTime.now();
+    return PendingSubscriptionVerification(
+      subscriptionId: (json['subscriptionId'] as num?)?.toInt() ?? 0,
+      razorpayOrderId: json['razorpayOrderId'] as String?,
+      razorpayPaymentId: json['razorpayPaymentId'] as String?,
+      razorpaySignature: json['razorpaySignature'] as String?,
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? now,
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ?? now,
+      lastError: json['lastError'] as String?,
+      attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  PendingSubscriptionVerification copyWith({
+    int? subscriptionId,
+    String? razorpayOrderId,
+    String? razorpayPaymentId,
+    String? razorpaySignature,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? lastError,
+    bool clearLastError = false,
+    int? attemptCount,
+  }) {
+    return PendingSubscriptionVerification(
+      subscriptionId: subscriptionId ?? this.subscriptionId,
+      razorpayOrderId: razorpayOrderId ?? this.razorpayOrderId,
+      razorpayPaymentId: razorpayPaymentId ?? this.razorpayPaymentId,
+      razorpaySignature: razorpaySignature ?? this.razorpaySignature,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      lastError: clearLastError ? null : (lastError ?? this.lastError),
+      attemptCount: attemptCount ?? this.attemptCount,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'subscriptionId': subscriptionId,
+      'razorpayOrderId': razorpayOrderId,
+      'razorpayPaymentId': razorpayPaymentId,
+      'razorpaySignature': razorpaySignature,
+      'createdAt': createdAt.toIso8601String(),
+      'updatedAt': updatedAt.toIso8601String(),
+      'lastError': lastError,
+      'attemptCount': attemptCount,
+    };
   }
 }

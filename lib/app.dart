@@ -393,7 +393,7 @@ class _AppRouterState extends State<_AppRouter> {
           _subscriptionInitTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            subscriptionProvider.initialize(forceRefresh: true);
+            subscriptionProvider.initialize();
           });
         }
 

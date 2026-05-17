@@ -88,6 +88,8 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.workspace_premium_rounded,
                 title: subscription.isNoAdsSubscribed
                     ? 'No Ads Plan • Active (${subscription.activeSubscription?.plan.name ?? subscription.monthlyPlanLabel})'
+                    : subscription.hasPendingVerification
+                    ? 'No Ads Plan • Payment verification pending'
                     : 'No Ads Plan • ${subscription.monthlyPlanLabel}',
                 onTap: () => showSubscriptionModal(context),
                 showDivider: false,
@@ -352,6 +354,37 @@ class _ProfileHeader extends StatelessWidget {
                   'Premium Active',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ] else if (subscription.hasPendingVerification) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.orange.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              border: Border.all(color: Colors.orange.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.sync_problem_rounded,
+                  size: 16,
+                  color: Colors.orange,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Payment Verification Pending',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.orange,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

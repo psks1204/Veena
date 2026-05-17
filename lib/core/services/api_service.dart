@@ -420,15 +420,57 @@ class ApiService {
       } else {
         debugPrint('🔒 Ignoring 401 - within grace period after login');
       }
-      throw ApiException('Unauthorized - Session expired', response.statusCode);
+      throw ApiException(
+        _extractErrorMessage(
+          response,
+          fallback: 'Unauthorized - Session expired',
+        ),
+        response.statusCode,
+      );
     } else if (response.statusCode == 404) {
-      throw ApiException('Resource not found', response.statusCode);
+      throw ApiException(
+        _extractErrorMessage(response, fallback: 'Resource not found'),
+        response.statusCode,
+      );
     } else {
       throw ApiException(
-        'Request failed: ${response.reasonPhrase}',
+        _extractErrorMessage(
+          response,
+          fallback:
+              'Request failed: ${response.reasonPhrase ?? 'Unknown error'}',
+        ),
         response.statusCode,
       );
     }
+  }
+
+  String _extractErrorMessage(
+    http.Response response, {
+    required String fallback,
+  }) {
+    final body = response.body.trim();
+    if (body.isEmpty) return fallback;
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        for (final key in const [
+          'message',
+          'error',
+          'details',
+          'description',
+        ]) {
+          final value = decoded[key];
+          if (value == null) continue;
+          final text = value.toString().trim();
+          if (text.isNotEmpty) return text;
+        }
+      }
+    } catch (_) {
+      // Ignore JSON parsing errors and fall back below.
+    }
+
+    return body;
   }
 }
 
