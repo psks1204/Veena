@@ -206,6 +206,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
       createdAt: item.createdAt ?? DateTime.now(),
       updatedAt: item.updatedAt ?? DateTime.now(),
       playedCount: item.playCount,
+      isChannelMedia: true,
       artist: ArtistInfo(
         id: 0,
         name: (item.uploadedByName ?? item.channelName ?? 'Veena Creator')

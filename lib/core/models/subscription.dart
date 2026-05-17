@@ -180,12 +180,53 @@ class SubscriptionStatus {
 
   factory SubscriptionStatus.fromJson(Map<String, dynamic> json) {
     final rawActive = json['activeSubscription'];
+    final activeSubscription = rawActive is Map
+        ? UserSubscription.fromJson(Map<String, dynamic>.from(rawActive))
+        : null;
+
+    final parsedSubscribed = _readBool(json, const [
+      'isSubscribed',
+      'subscribed',
+      'hasSubscription',
+      'noAdsSubscribed',
+      'is_subscribed',
+      'has_subscription',
+    ]);
+    final resolvedSubscribed =
+        parsedSubscribed ?? (activeSubscription?.isActive ?? false);
+
+    final parsedShowAds = _readBool(json, const [
+      'showAds',
+      'adsEnabled',
+      'show_ads',
+      'ads_enabled',
+    ]);
+    final resolvedShowAds = parsedShowAds ?? !resolvedSubscribed;
+
     return SubscriptionStatus(
-      isSubscribed: json['isSubscribed'] as bool? ?? false,
-      showAds: json['showAds'] as bool? ?? true,
-      activeSubscription: rawActive is Map
-          ? UserSubscription.fromJson(Map<String, dynamic>.from(rawActive))
-          : null,
+      isSubscribed: resolvedSubscribed,
+      showAds: resolvedShowAds,
+      activeSubscription: activeSubscription,
     );
+  }
+
+  static bool? _readBool(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      if (!json.containsKey(key)) continue;
+
+      final raw = json[key];
+      if (raw is bool) return raw;
+      if (raw is num) return raw != 0;
+      if (raw is String) {
+        final normalized = raw.trim().toLowerCase();
+        if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+          return true;
+        }
+        if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+          return false;
+        }
+      }
+    }
+    return null;
   }
 }

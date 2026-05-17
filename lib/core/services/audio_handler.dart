@@ -8,6 +8,10 @@ import 'package:rxdart/rxdart.dart';
 /// Manages background audio playback and notification/lock screen controls.
 class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
   final _player = AudioPlayer();
+  late final Stream<Duration> _positionStream = _player.createPositionStream(
+    minPeriod: const Duration(milliseconds: 200),
+    maxPeriod: const Duration(milliseconds: 200),
+  );
 
   // Callbacks for skip controls from notification bar
   VoidCallback? onSkipToNext;
@@ -26,7 +30,7 @@ class VeenaAudioHandler extends BaseAudioHandler with SeekHandler {
   BehaviorSubject<MediaItem?> get mediaItem => _mediaItemSubject;
 
   /// Get the position stream for UI updates
-  Stream<Duration> get positionStream => _player.positionStream;
+  Stream<Duration> get positionStream => _positionStream;
 
   /// Get the current duration
   Duration? get currentDuration => _player.duration;

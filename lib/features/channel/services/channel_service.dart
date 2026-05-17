@@ -287,16 +287,59 @@ class ChannelService {
     );
   }
 
-  Future<bool> postMediaComment(String mediaId, String content) async {
+  Future<bool> postMediaComment(
+    String mediaId,
+    String content, {
+    int parentCommentId = 0,
+  }) async {
     try {
       await _api.post(
         '/user/channel/media/$mediaId/comments',
-        body: {'content': content},
+        body: {'content': content, 'parentCommentId': parentCommentId},
       );
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  Future<PagedResponse<Comment>> getMediaCommentReplies(
+    String mediaId,
+    int commentId, {
+    int page = 0,
+    int size = 10,
+  }) async {
+    final data = await _api.get(
+      '/user/channel/media/$mediaId/comments/$commentId/replies',
+      queryParams: {
+        'page': page.toString(),
+        'size': size.toString(),
+        'sort': 'createdAt,asc',
+      },
+    );
+
+    if (data == null) {
+      return PagedResponse<Comment>(
+        content: const [],
+        totalPages: 0,
+        totalElements: 0,
+        size: size,
+        number: page,
+      );
+    }
+
+    final json = data as Map<String, dynamic>;
+    final content = (json['content'] as List<dynamic>? ?? const [])
+        .map((item) => Comment.fromJson(item as Map<String, dynamic>))
+        .toList();
+
+    return PagedResponse<Comment>(
+      content: content,
+      totalPages: json['totalPages'] as int? ?? 1,
+      totalElements: json['totalElements'] as int? ?? content.length,
+      size: json['size'] as int? ?? size,
+      number: json['number'] as int? ?? page,
+    );
   }
 
   Future<bool> deleteMediaComment(String mediaId, int commentId) async {

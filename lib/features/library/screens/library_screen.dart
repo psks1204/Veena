@@ -3,12 +3,17 @@ import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/media_download_models.dart';
 import '../../../core/models/artist.dart';
 import '../../../core/services/library_service.dart';
+import '../../../core/providers/download_provider.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/providers/profile_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../core/navigation/app_navigation.dart';
+import '../../../shared/widgets/subscription_modal.dart';
 import '../../auth/services/auth_service.dart';
+import '../../player/screens/unified_player_screen.dart';
 import 'playlist_detail_screen.dart';
 import 'artist_detail_screen.dart';
 import 'album_detail_screen.dart';
@@ -24,7 +29,13 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen> {
   bool _isLoading = true;
   String _selectedFilter = 'Playlists'; // Default to Playlists
-  final List<String> _filters = ['Playlists', 'Artists', 'Albums', 'Favorites'];
+  final List<String> _filters = [
+    'Playlists',
+    'Artists',
+    'Albums',
+    'Favorites',
+    'Downloads',
+  ];
 
   @override
   void initState() {
@@ -310,6 +321,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
         } else if (_selectedFilter == 'Favorites') {
           // Use special favorites view with Play All/Shuffle
           return _buildFavoritesView(library.favorites);
+        } else if (_selectedFilter == 'Downloads') {
+          return _buildDownloadsView();
         }
 
         return ListView.builder(
@@ -420,6 +433,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     required VoidCallback onTap,
     bool isLikedSongs = false,
     bool isPlaying = false,
+    Widget? trailing,
   }) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
@@ -512,10 +526,280 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 ],
               ),
             ),
+            if (trailing != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              trailing,
+            ],
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _retryDownload(String mediaId) async {
+    final result = await context.read<DownloadProvider>().retryDownload(
+      mediaId,
+    );
+    if (!mounted) return;
+
+    final message = switch (result.status) {
+      MediaDownloadStatus.success => 'Downloaded successfully',
+      MediaDownloadStatus.alreadyDownloaded => 'Already downloaded',
+      MediaDownloadStatus.inProgress => 'Download already in progress',
+      MediaDownloadStatus.notSubscribed =>
+        'Subscription is required for downloads',
+      MediaDownloadStatus.unsupportedPlatform =>
+        'Downloads are available on Android and iOS only',
+      MediaDownloadStatus.failed =>
+        result.message ?? 'Failed to retry download',
+    };
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  String _buildTaskSubtitle(DownloadTaskEntry task) {
+    final artist = task.media.artistName.isEmpty
+        ? 'Unknown Artist'
+        : task.media.artistName;
+    if (task.status == DownloadTaskStatus.downloading) {
+      return 'Downloading • $artist';
+    }
+
+    final error = task.errorMessage;
+    if (error == null || error.isEmpty) {
+      return 'Failed • $artist • Tap retry';
+    }
+
+    return 'Failed • $artist • $error';
+  }
+
+  Widget _buildDownloadTaskTile(DownloadTaskEntry task) {
+    final isDownloading = task.status == DownloadTaskStatus.downloading;
+
+    return _buildLibraryTile(
+      title: task.media.title,
+      subtitle: _buildTaskSubtitle(task),
+      imageUrl: task.media.thumbnailUrl,
+      isCircle: false,
+      onTap: isDownloading ? () {} : () => _retryDownload(task.media.id),
+      trailing: isDownloading
+          ? const SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppColors.primary,
+              ),
+            )
+          : IconButton(
+              onPressed: () => _retryDownload(task.media.id),
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.primary),
+              tooltip: 'Retry download',
+            ),
+    );
+  }
+
+  Widget _buildDownloadsView() {
+    return Consumer2<DownloadProvider, SubscriptionProvider>(
+      builder: (context, downloadsProvider, subscription, _) {
+        if (!downloadsProvider.isPlatformSupported) {
+          return _buildDownloadsState(
+            icon: Icons.phone_android_rounded,
+            title: 'Downloads are mobile only',
+            subtitle:
+                'In-app downloads are currently available on Android and iOS only.',
+          );
+        }
+
+        if (subscription.isLoading && !subscription.isInitialized) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
+        }
+
+        if (!subscription.isNoAdsSubscribed) {
+          return _buildDownloadsState(
+            icon: Icons.workspace_premium_rounded,
+            title: 'Subscription required',
+            subtitle: 'Subscribe to use in-app offline downloads.',
+            actionLabel: 'View Plans',
+            onActionTap: () => showSubscriptionModal(context),
+          );
+        }
+
+        if (downloadsProvider.isLoading && !downloadsProvider.isInitialized) {
+          return const Center(
+            child: CircularProgressIndicator(color: AppColors.primary),
+          );
+        }
+
+        final downloads = downloadsProvider.downloads;
+        final tasks = downloadsProvider.taskEntries;
+
+        if (downloads.isEmpty && tasks.isEmpty) {
+          return _buildDownloadsState(
+            icon: Icons.download_outlined,
+            title: 'No downloads yet',
+            subtitle:
+                'Use the media options menu on any song or video to download it.',
+          );
+        }
+
+        final queuedTaskIds = tasks.map((task) => task.media.id).toSet();
+        final persistedDownloads = downloads
+            .where((record) => !queuedTaskIds.contains(record.mediaId))
+            .toList(growable: false);
+
+        final totalItems = tasks.length + persistedDownloads.length;
+
+        return ListView.builder(
+          padding: const EdgeInsets.only(
+            left: AppSpacing.screenPadding,
+            right: AppSpacing.screenPadding,
+            bottom: 140,
+          ),
+          itemCount: totalItems,
+          itemBuilder: (context, index) {
+            if (index < tasks.length) {
+              final task = tasks[index];
+              return _buildDownloadTaskTile(task);
+            }
+
+            final record = persistedDownloads[index - tasks.length];
+            final mediaItem = MediaItem(
+              id: record.mediaId,
+              title: record.title,
+              description: record.artistName,
+              mediaType: record.mediaType,
+              status: MediaStatus.published,
+              visibility: MediaVisibility.public,
+              hlsUrl: null,
+              thumbnailUrl: record.thumbnailUrl,
+              lyricsUrl: null,
+              createdAt: record.downloadedAt,
+              updatedAt: record.downloadedAt,
+            );
+
+            return Dismissible(
+              key: ValueKey(record.mediaId),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.delete_rounded, color: Colors.white),
+              ),
+              onDismissed: (_) async {
+                final removed = await context
+                    .read<DownloadProvider>()
+                    .removeDownload(record.mediaId);
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      removed
+                          ? 'Removed from downloads'
+                          : 'Failed to remove download',
+                    ),
+                  ),
+                );
+              },
+              child: _buildLibraryTile(
+                title: record.title,
+                subtitle:
+                    'Downloaded • ${record.artistName.isEmpty ? 'Unknown Artist' : record.artistName} • ${_formatFileSize(record.fileSize)}',
+                imageUrl: record.thumbnailUrl,
+                isCircle: false,
+                onTap: () {
+                  context.read<PlayerProvider>().play(mediaItem);
+                  if (mediaItem.isVideo) {
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (_) => const UnifiedPlayerScreen(),
+                      ),
+                    );
+                  }
+                },
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildDownloadsState({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    String? actionLabel,
+    VoidCallback? onActionTap,
+  }) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenPadding,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 52,
+              color: isDark ? Colors.white38 : Colors.black38,
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              subtitle,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDark ? Colors.white60 : Colors.black54,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            if (actionLabel != null && onActionTap != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              ElevatedButton(
+                onPressed: onActionTap,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(actionLabel),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return '0 B';
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) {
+      return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    }
+    if (bytes < 1024 * 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
   /// Build favorites view with Play All/Shuffle buttons and queue support

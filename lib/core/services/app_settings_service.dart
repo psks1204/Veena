@@ -10,7 +10,7 @@ class AppSettingsService extends ChangeNotifier {
 
   bool _maintenanceMode = false;
   String _minimumAppVersion = '2.0.0';
-  bool _enableComments = false;
+  bool _enableComments = true;
   bool _enableUserNotifications = true;
   bool _defaultAutoplayForUsers = true;
   bool _allowUserDownloads = false;
@@ -19,7 +19,9 @@ class AppSettingsService extends ChangeNotifier {
 
   bool get maintenanceMode => _maintenanceMode;
   String get minimumAppVersion => _minimumAppVersion;
-  bool get enableComments => _enableComments;
+  // Until settings are fetched, keep comments enabled so delayed responses
+  // do not incorrectly block comment entry points.
+  bool get enableComments => !_hasLoaded ? true : _enableComments;
   bool get enableUserNotifications => _enableUserNotifications;
   bool get defaultAutoplayForUsers => _defaultAutoplayForUsers;
   bool get allowUserDownloads => _allowUserDownloads;
@@ -33,20 +35,47 @@ class AppSettingsService extends ChangeNotifier {
 
   /// Fetch settings from the authenticated API
   Future<void> fetchSettings() async {
+    if (_isLoading) return;
     _isLoading = true;
     notifyListeners();
 
     try {
       final data = await _api.get('/settings');
-      debugPrint('⚙️ Settings response: $data');
+      final settings = _extractSettingsMap(data);
+      debugPrint('⚙️ Settings response (normalized): $settings');
 
-      if (data != null) {
-        _maintenanceMode = data['maintenanceMode'] ?? false;
-        _minimumAppVersion = data['minimumAppVersion'] ?? '2.0.1';
-        _enableComments = data['enableComments'] ?? false;
-        _enableUserNotifications = data['enableUserNotifications'] ?? true;
-        _defaultAutoplayForUsers = data['defaultAutoplayForUsers'] ?? true;
-        _allowUserDownloads = data['allowUserDownloads'] ?? false;
+      if (settings != null) {
+        _maintenanceMode = _readBool(settings, const [
+          'maintenanceMode',
+          'maintenance_mode',
+        ], fallback: _maintenanceMode);
+
+        final minimumVersionRaw =
+            settings['minimumAppVersion'] ?? settings['minimum_app_version'];
+        if (minimumVersionRaw != null &&
+            minimumVersionRaw.toString().isNotEmpty) {
+          _minimumAppVersion = minimumVersionRaw.toString();
+        }
+
+        _enableComments = _readBool(settings, const [
+          'enableComments',
+          'enable_comments',
+        ], fallback: _enableComments);
+
+        _enableUserNotifications = _readBool(settings, const [
+          'enableUserNotifications',
+          'enable_user_notifications',
+        ], fallback: _enableUserNotifications);
+
+        _defaultAutoplayForUsers = _readBool(settings, const [
+          'defaultAutoplayForUsers',
+          'default_autoplay_for_users',
+        ], fallback: _defaultAutoplayForUsers);
+
+        _allowUserDownloads = _readBool(settings, const [
+          'allowUserDownloads',
+          'allow_user_downloads',
+        ], fallback: _allowUserDownloads);
 
         debugPrint('🔧 maintenanceMode: $_maintenanceMode');
         debugPrint('💬 enableComments: $_enableComments');
@@ -54,19 +83,54 @@ class AppSettingsService extends ChangeNotifier {
           '📱 minimumAppVersion: $_minimumAppVersion (current: $currentAppVersion)',
         );
       }
-
-      _isLoading = false;
-      _hasLoaded = true;
-      notifyListeners();
     } catch (e) {
       debugPrint('❌ Settings fetch error: $e');
-      // Don't block the app on settings error — default to safe values
-      _maintenanceMode = false;
-      _minimumAppVersion = '2.0.1';
+      // Keep last-known values to avoid toggling features off on transient failures.
+    } finally {
       _isLoading = false;
       _hasLoaded = true;
       notifyListeners();
     }
+  }
+
+  Map<String, dynamic>? _extractSettingsMap(dynamic data) {
+    if (data is Map<String, dynamic>) {
+      if (data['data'] is Map<String, dynamic>) {
+        return Map<String, dynamic>.from(data['data'] as Map<String, dynamic>);
+      }
+      return data;
+    }
+
+    if (data is Map && data['data'] is Map) {
+      return Map<String, dynamic>.from(data['data'] as Map);
+    }
+
+    return null;
+  }
+
+  bool _readBool(
+    Map<String, dynamic> json,
+    List<String> keys, {
+    required bool fallback,
+  }) {
+    for (final key in keys) {
+      if (!json.containsKey(key)) continue;
+
+      final raw = json[key];
+      if (raw is bool) return raw;
+      if (raw is num) return raw != 0;
+      if (raw is String) {
+        final normalized = raw.trim().toLowerCase();
+        if (normalized == 'true' || normalized == '1' || normalized == 'yes') {
+          return true;
+        }
+        if (normalized == 'false' || normalized == '0' || normalized == 'no') {
+          return false;
+        }
+      }
+    }
+
+    return fallback;
   }
 
   /// Compare version strings (e.g. "1.2.3" vs "1.3.0")

@@ -197,6 +197,7 @@ class MediaItem {
   final String? releaseDate;
   final LinkedMediaInfo? linkedMedia;
   final String? featuredImageUrl;
+  final bool isChannelMedia;
 
   const MediaItem({
     required this.id,
@@ -228,6 +229,7 @@ class MediaItem {
     this.releaseDate,
     this.linkedMedia,
     this.featuredImageUrl,
+    this.isChannelMedia = false,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {
@@ -283,6 +285,7 @@ class MediaItem {
               json['linkedMedia'] as Map<String, dynamic>,
             )
           : null,
+      isChannelMedia: json['isChannelMedia'] as bool? ?? false,
     );
   }
 
@@ -315,6 +318,7 @@ class MediaItem {
     'director': director?.toJson(),
     'album': album?.toJson(),
     'releaseDate': releaseDate,
+    'isChannelMedia': isChannelMedia,
   };
 
   /// Helper to get artist name

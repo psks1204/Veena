@@ -3,9 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/media_item.dart';
+import '../../core/models/media_download_models.dart';
+import '../../core/providers/download_provider.dart';
+import '../../core/providers/subscription_provider.dart';
 import '../../core/services/app_settings_service.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
 import '../../features/player/widgets/comments_sheet.dart';
+import 'subscription_modal.dart';
 
 class MediaOptionsSheet extends StatelessWidget {
   const MediaOptionsSheet({super.key, required this.mediaItem});
@@ -28,7 +32,18 @@ class MediaOptionsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final commentsEnabled = context.watch<AppSettingsService>().enableComments;
+    final appSettings = context.watch<AppSettingsService>();
+    final commentsEnabled = appSettings.enableComments;
+    final allowUserDownloads = appSettings.allowUserDownloads;
+    final downloadProvider = context.watch<DownloadProvider>();
+    final subscription = context.watch<SubscriptionProvider>();
+
+    final supportsDownloads = downloadProvider.isPlatformSupported;
+    final isSubscribed = subscription.isNoAdsSubscribed;
+    final canShowDownloadAction =
+        supportsDownloads && (allowUserDownloads || isSubscribed);
+    final isDownloaded = downloadProvider.isDownloaded(mediaItem.id);
+    final isDownloading = downloadProvider.isDownloading(mediaItem.id);
 
     return Container(
       decoration: BoxDecoration(
@@ -96,6 +111,108 @@ class MediaOptionsSheet extends StatelessWidget {
                 );
               },
             ),
+            if (canShowDownloadAction)
+              ListTile(
+                leading: isDownloaded
+                    ? const Icon(
+                        Icons.download_done_rounded,
+                        color: Colors.green,
+                      )
+                    : isDownloading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        isSubscribed
+                            ? Icons.download_rounded
+                            : Icons.lock_rounded,
+                      ),
+                title: Text(
+                  isDownloaded
+                      ? 'Downloaded'
+                      : isDownloading
+                      ? 'Downloading...'
+                      : isSubscribed
+                      ? 'Download'
+                      : 'Download (Premium)',
+                ),
+                onTap: (isDownloaded || isDownloading)
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        Future.microtask(() async {
+                          if (!context.mounted) return;
+
+                          final subscriptionProvider = context
+                              .read<SubscriptionProvider>();
+                          if (!subscriptionProvider.isNoAdsSubscribed) {
+                            await subscriptionProvider.refreshStatus();
+                            if (!context.mounted) return;
+                          }
+
+                          if (!subscriptionProvider.isNoAdsSubscribed) {
+                            await showSubscriptionModal(context);
+                            return;
+                          }
+
+                          final result = await context
+                              .read<DownloadProvider>()
+                              .downloadMedia(mediaItem);
+                          if (!context.mounted) return;
+
+                          final messenger = ScaffoldMessenger.of(context);
+                          switch (result.status) {
+                            case MediaDownloadStatus.success:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Downloaded for offline playback',
+                                  ),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.alreadyDownloaded:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Media already downloaded'),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.inProgress:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Download already in progress'),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.notSubscribed:
+                              await showSubscriptionModal(context);
+                              break;
+                            case MediaDownloadStatus.unsupportedPlatform:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Downloads are available on Android and iOS only',
+                                  ),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.failed:
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    result.message ??
+                                        'Failed to download media',
+                                  ),
+                                ),
+                              );
+                              break;
+                          }
+                        });
+                      },
+              ),
             ListTile(
               leading: Icon(
                 Icons.chat_bubble_outline_rounded,

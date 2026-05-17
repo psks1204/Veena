@@ -7,8 +7,8 @@ import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/services/library_service.dart';
 import '../../../shared/widgets/aura_cards.dart';
+import '../../../shared/widgets/media_options_sheet.dart';
 import '../../player/screens/unified_player_screen.dart';
-import '../../library/widgets/add_to_playlist_sheet.dart';
 
 /// Playlist Detail Screen
 ///
@@ -348,15 +348,8 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen>
                             : null,
                         likeCount: track.likeCount > 0 ? track.likeCount : null,
                         onTap: () => _playTrack(track, trackIndex: index),
-                        onMoreTap: () {
-                          showModalBottomSheet(
-                            context: context,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (context) =>
-                                AddToPlaylistSheet(mediaItem: track),
-                          );
-                        },
+                        onMoreTap: () =>
+                            MediaOptionsSheet.show(context, mediaItem: track),
                       ),
                     );
                   }, childCount: _tracks.length),
@@ -538,17 +531,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen>
                                     isPlaying: isPlaying,
                                     onTap: () =>
                                         _playTrack(track, trackIndex: index),
-                                    onMoreTap: () {
-                                      showModalBottomSheet(
-                                        context: context,
-                                        isScrollControlled: true,
-                                        backgroundColor: Colors.transparent,
-                                        builder: (context) =>
-                                            AddToPlaylistSheet(
-                                              mediaItem: track,
-                                            ),
-                                      );
-                                    },
+                                    onMoreTap: () => MediaOptionsSheet.show(
+                                      context,
+                                      mediaItem: track,
+                                    ),
                                   ),
                                 );
                               },

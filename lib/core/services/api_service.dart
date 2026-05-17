@@ -20,6 +20,9 @@ class ApiService {
   String? _accessToken;
   DateTime? _tokenSetTime; // Track when token was set for grace period
 
+  // Read-only token access for specialized requests (e.g., binary downloads).
+  String? get accessToken => _accessToken;
+
   /// Callback to be invoked when a 401 Unauthorized response is received
   /// This should trigger logout and redirect to login
   OnUnauthorizedCallback? onUnauthorized;

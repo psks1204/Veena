@@ -6,8 +6,10 @@ import 'core/providers/player_provider.dart';
 import 'core/providers/profile_provider.dart';
 import 'core/providers/app_mode_provider.dart';
 import 'core/providers/subscription_provider.dart';
+import 'core/providers/download_provider.dart';
 import 'core/services/api_service.dart';
 import 'core/services/media_service.dart';
+import 'core/services/media_download_service.dart';
 import 'core/services/dashboard_service.dart';
 import 'core/services/library_service.dart';
 import 'core/services/album_service.dart';
@@ -75,6 +77,7 @@ class VeenaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     // Create ApiService first as other services depend on it
     final apiService = ApiService();
+    final mediaDownloadService = MediaDownloadService(apiService, prefs);
 
     // Set ApiService on PushNotificationService for FCM token registration (mobile only)
     if (!kIsWeb) {
@@ -99,6 +102,7 @@ class VeenaApp extends StatelessWidget {
 
         // API-based services (share the same ApiService instance)
         Provider<ApiService>.value(value: apiService),
+        Provider<MediaDownloadService>.value(value: mediaDownloadService),
         ChangeNotifierProvider(create: (_) => DashboardService(apiService)),
         ChangeNotifierProvider(create: (_) => MediaService(apiService)),
         ChangeNotifierProvider(create: (_) => LibraryService(apiService)),
@@ -113,6 +117,18 @@ class VeenaApp extends StatelessWidget {
         Provider<InvoiceService>(create: (_) => InvoiceService(apiService)),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider(NotificationService(apiService)),
+        ),
+        ChangeNotifierProxyProvider<SubscriptionProvider, DownloadProvider>(
+          create: (_) => DownloadProvider(mediaDownloadService)..initialize(),
+          update: (_, subscription, downloadProvider) {
+            final provider =
+                downloadProvider ?? DownloadProvider(mediaDownloadService);
+            provider.updateSubscriptionStatus(subscription.isNoAdsSubscribed);
+            if (!provider.isInitialized && !provider.isLoading) {
+              provider.initialize();
+            }
+            return provider;
+          },
         ),
 
         // Deep link service
@@ -397,7 +413,9 @@ class _AppRouterState extends State<_AppRouter> {
         // Connect player to services
         final playerProvider = context.read<PlayerProvider>();
         final mediaService = context.read<MediaService>();
+        final mediaDownloadService = context.read<MediaDownloadService>();
         playerProvider.setMediaService(mediaService);
+        playerProvider.setMediaDownloadService(mediaDownloadService);
         playerProvider.setAuthService(authService);
 
         // ── Deep link: navigate to song after login ───────────────────────

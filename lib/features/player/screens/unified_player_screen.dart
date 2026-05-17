@@ -9,8 +9,11 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/player_provider.dart' hide RepeatMode;
 import '../../../core/providers/player_provider.dart' as pp show RepeatMode;
 import '../../../core/models/media_item.dart';
+import '../../../core/models/media_download_models.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
+import '../../../core/providers/download_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../../shared/widgets/lyrics_card.dart';
 import '../../../shared/widgets/share_song_button.dart';
@@ -23,6 +26,7 @@ import '../../../core/services/media_service.dart';
 import '../widgets/comments_sheet.dart';
 import '../../../shared/widgets/player_artwork_ad_swap.dart';
 import '../../../shared/widgets/player_ad_rotator.dart';
+import '../../../shared/widgets/subscription_modal.dart';
 import '../../../shared/utils/count_formatter.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
@@ -630,21 +634,27 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   ),
                 ),
                 // Add button
-                IconButton(
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) =>
-                          AddToPlaylistSheet(mediaItem: media),
-                    );
-                  },
-                  icon: const Icon(
-                    Icons.add_circle_outline_rounded,
-                    color: Colors.white,
-                    size: 28,
-                  ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPlayerDownloadButton(media),
+                    IconButton(
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) =>
+                              AddToPlaylistSheet(mediaItem: media),
+                        );
+                      },
+                      icon: const Icon(
+                        Icons.add_circle_outline_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1146,7 +1156,106 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               size: 28,
             ),
           ),
+          _buildPlayerDownloadButton(media),
         ],
+      ),
+    );
+  }
+
+  Future<void> _handleDownloadTap(MediaItem media) async {
+    if (media.isChannelMedia) return;
+
+    final subscription = context.read<SubscriptionProvider>();
+    if (!subscription.isNoAdsSubscribed) {
+      await subscription.refreshStatus();
+      if (!mounted) return;
+    }
+
+    if (!subscription.isNoAdsSubscribed) {
+      await showSubscriptionModal(context);
+      return;
+    }
+
+    final result = await context.read<DownloadProvider>().downloadMedia(media);
+    if (!mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    switch (result.status) {
+      case MediaDownloadStatus.success:
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Downloaded for offline playback')),
+        );
+        break;
+      case MediaDownloadStatus.alreadyDownloaded:
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Media already downloaded')),
+        );
+        break;
+      case MediaDownloadStatus.inProgress:
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Download already in progress')),
+        );
+        break;
+      case MediaDownloadStatus.notSubscribed:
+        await showSubscriptionModal(context);
+        break;
+      case MediaDownloadStatus.unsupportedPlatform:
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Downloads are available on Android and iOS only'),
+          ),
+        );
+        break;
+      case MediaDownloadStatus.failed:
+        messenger.showSnackBar(
+          SnackBar(content: Text(result.message ?? 'Failed to download media')),
+        );
+        break;
+    }
+  }
+
+  Widget _buildPlayerDownloadButton(MediaItem media) {
+    final downloadProvider = context.watch<DownloadProvider>();
+    final subscription = context.watch<SubscriptionProvider>();
+
+    if (!downloadProvider.isPlatformSupported || media.isChannelMedia) {
+      return const SizedBox.shrink();
+    }
+
+    final isDownloaded = downloadProvider.isDownloaded(media.id);
+    final isDownloading = downloadProvider.isDownloading(media.id);
+    final isSubscribed = subscription.isNoAdsSubscribed;
+
+    if (isDownloading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 8),
+        child: SizedBox(
+          width: 20,
+          height: 20,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    return IconButton(
+      onPressed: isDownloaded ? null : () => _handleDownloadTap(media),
+      tooltip: isDownloaded
+          ? 'Downloaded'
+          : isSubscribed
+          ? 'Download'
+          : 'Download (Premium)',
+      icon: Icon(
+        isDownloaded
+            ? Icons.download_done_rounded
+            : isSubscribed
+            ? Icons.download_rounded
+            : Icons.lock_rounded,
+        color: isDownloaded
+            ? Colors.greenAccent
+            : isSubscribed
+            ? Colors.white70
+            : Colors.white54,
+        size: 24,
       ),
     );
   }

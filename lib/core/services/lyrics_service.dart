@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/lyrics_model.dart';
@@ -9,10 +11,15 @@ class LyricsService {
     debugPrint('[LyricsService] Starting fetch from: $url');
     try {
       final response = await http.get(Uri.parse(url));
-      debugPrint('[LyricsService] HTTP response status: ${response.statusCode}');
+      debugPrint(
+        '[LyricsService] HTTP response status: ${response.statusCode}',
+      );
       if (response.statusCode == 200) {
-        debugPrint('[LyricsService] Response body length: ${response.body.length}');
-        return parse(response.body);
+        final decodedBody = _decodeLyricsBody(response);
+        debugPrint(
+          '[LyricsService] Response body length: ${decodedBody.length}',
+        );
+        return parse(decodedBody);
       }
       debugPrint('[LyricsService] Non-200 status, returning null');
       return null;
@@ -20,6 +27,16 @@ class LyricsService {
       debugPrint('[LyricsService] Error fetching lyrics: $e');
       debugPrint('[LyricsService] Stack: $stack');
       return null;
+    }
+  }
+
+  String _decodeLyricsBody(http.Response response) {
+    try {
+      // Some lyric files are UTF-8 without charset headers. Reading bodyBytes
+      // avoids mojibake for non-Latin scripts like Hindi.
+      return utf8.decode(response.bodyBytes, allowMalformed: true);
+    } catch (_) {
+      return response.body;
     }
   }
 
@@ -32,15 +49,16 @@ class LyricsService {
     }
     // Normalize line endings
     normalized = normalized.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
-    
+
     // Check for VTT format - look for WEBVTT header or VTT-style timestamps (00:00.000)
     final trimmed = normalized.trimLeft();
-    final isVtt = trimmed.startsWith('WEBVTT') || 
-                  // VTT uses dots in timestamps like 00:00.000 or 00:00:00.000
-                  RegExp(r'\d{2}:\d{2}[:.]\d{3}').hasMatch(normalized) ||
-                  // Also check for VTT-style arrow with dot timestamps  
-                  normalized.contains(RegExp(r'\d{2}:\d{2}\.\d{3}\s*-->')); 
-    
+    final isVtt =
+        trimmed.startsWith('WEBVTT') ||
+        // VTT uses dots in timestamps like 00:00.000 or 00:00:00.000
+        RegExp(r'\d{2}:\d{2}[:.]\d{3}').hasMatch(normalized) ||
+        // Also check for VTT-style arrow with dot timestamps
+        normalized.contains(RegExp(r'\d{2}:\d{2}\.\d{3}\s*-->'));
+
     if (isVtt) {
       debugPrint('[LyricsService] Detected VTT format');
       return parseVtt(normalized);
@@ -54,30 +72,30 @@ class LyricsService {
   Lyrics parseVtt(String vttContent) {
     debugPrint('[LyricsService] Parsing VTT content');
     final List<LyricLine> lines = [];
-    
+
     var content = vttContent;
     if (content.startsWith('\uFEFF')) {
       content = content.substring(1);
     }
-    
+
     final allLines = content.split('\n');
     int i = 0;
-    
+
     // Skip WEBVTT header and metadata
     while (i < allLines.length) {
       if (allLines[i].contains(' --> ')) break;
       i++;
     }
-    
+
     // Parse cues
     while (i < allLines.length) {
       final line = allLines[i].trim();
-      
+
       if (line.isEmpty) {
         i++;
         continue;
       }
-      
+
       if (line.contains(' --> ')) {
         final timeParts = line.split(' --> ');
         if (timeParts.length >= 2) {
@@ -85,23 +103,27 @@ class LyricsService {
             final startTime = _parseVttTime(timeParts[0].trim());
             final endTimeStr = timeParts[1].split(' ')[0].trim();
             final endTime = _parseVttTime(endTimeStr);
-            
+
             i++;
             final textLines = <String>[];
             while (i < allLines.length) {
               final textLine = allLines[i];
               if (textLine.trim().isEmpty || textLine.contains(' --> ')) break;
-              final cleanedLine = textLine.replaceAll(RegExp(r'<[^>]*>'), '').trim();
+              final cleanedLine = textLine
+                  .replaceAll(RegExp(r'<[^>]*>'), '')
+                  .trim();
               if (cleanedLine.isNotEmpty) textLines.add(cleanedLine);
               i++;
             }
-            
+
             if (textLines.isNotEmpty) {
-              lines.add(LyricLine(
-                startTime: startTime,
-                endTime: endTime,
-                text: textLines.join(' '),
-              ));
+              lines.add(
+                LyricLine(
+                  startTime: startTime,
+                  endTime: endTime,
+                  text: textLines.join(' '),
+                ),
+              );
             }
           } catch (e) {
             debugPrint('[LyricsService] Skip invalid VTT cue: $e');
@@ -123,12 +145,12 @@ class LyricsService {
   Lyrics parseSrt(String srtContent) {
     debugPrint('[LyricsService] Parsing SRT content');
     final List<LyricLine> lines = [];
-    
+
     var content = srtContent;
     if (content.startsWith('\uFEFF')) {
       content = content.substring(1);
     }
-    
+
     final blocks = content.split(RegExp(r'\n\s*\n'));
     debugPrint('[LyricsService] Found ${blocks.length} SRT blocks');
 
@@ -137,7 +159,7 @@ class LyricsService {
       if (trimmedBlock.isEmpty) continue;
 
       final parts = trimmedBlock.split('\n');
-      
+
       // Find the time range line
       int timeLineIndex = -1;
       for (int i = 0; i < parts.length; i++) {
@@ -156,13 +178,14 @@ class LyricsService {
       try {
         final startTime = _parseSrtTime(timeParts[0].trim());
         final endTime = _parseSrtTime(timeParts[1].trim());
-        final text = parts.sublist(timeLineIndex + 1).join(' ').replaceAll(RegExp(r'<[^>]*>'), '');
+        final text = parts
+            .sublist(timeLineIndex + 1)
+            .join(' ')
+            .replaceAll(RegExp(r'<[^>]*>'), '');
 
-        lines.add(LyricLine(
-          startTime: startTime,
-          endTime: endTime,
-          text: text.trim(),
-        ));
+        lines.add(
+          LyricLine(startTime: startTime, endTime: endTime, text: text.trim()),
+        );
       } catch (e) {
         debugPrint('[LyricsService] Skip invalid SRT block: $e');
       }
@@ -176,7 +199,7 @@ class LyricsService {
   Duration _parseVttTime(String timeStr) {
     final trimmed = timeStr.trim();
     final parts = trimmed.split(':');
-    
+
     int hours = 0;
     int minutes = 0;
     double seconds = 0;
@@ -201,10 +224,12 @@ class LyricsService {
 
     final hours = int.parse(parts[0]);
     final minutes = int.parse(parts[1]);
-    
+
     final secondsParts = parts[2].split(',');
     final seconds = int.parse(secondsParts[0]);
-    final milliseconds = secondsParts.length > 1 ? int.parse(secondsParts[1]) : 0;
+    final milliseconds = secondsParts.length > 1
+        ? int.parse(secondsParts[1])
+        : 0;
 
     return Duration(
       hours: hours,

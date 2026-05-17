@@ -235,6 +235,7 @@ class _ProfileHeader extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     final profileProvider = context.watch<ProfileProvider>();
     final authService = context.watch<AuthService>();
+    final subscription = context.watch<SubscriptionProvider>();
 
     // Use ProfileProvider data first, fallback to AuthService
     final profile = profileProvider.profile;
@@ -325,6 +326,39 @@ class _ProfileHeader extends StatelessWidget {
             color: colorScheme.onSurface.withOpacity(0.6),
           ),
         ),
+
+        if (subscription.isNoAdsSubscribed) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.xs,
+            ),
+            decoration: BoxDecoration(
+              color: colorScheme.primary.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+              border: Border.all(color: colorScheme.primary.withOpacity(0.35)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.workspace_premium_rounded,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Text(
+                  'Premium Active',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.primary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
 
         const SizedBox(height: AppSpacing.md),
 

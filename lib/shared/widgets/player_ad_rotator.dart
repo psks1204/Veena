@@ -57,6 +57,10 @@ class _PlayerAdRotatorState extends State<PlayerAdRotator>
   @override
   Widget build(BuildContext context) {
     final subscription = context.watch<SubscriptionProvider>();
+    if (subscription.isLoading && !subscription.isInitialized) {
+      return const SizedBox.shrink();
+    }
+
     if (subscription.isNoAdsSubscribed) {
       return const SizedBox.shrink();
     }

@@ -34,12 +34,15 @@ class SubscriptionProvider extends ChangeNotifier {
   bool get isInitialized => _initialized;
 
   bool get isNoAdsSubscribed {
-    final backendSubscribed = _status?.isSubscribed;
-    if (backendSubscribed != null) return backendSubscribed;
+    if (_status != null) {
+      return _status!.isSubscribed ||
+          (_status!.activeSubscription?.isActive ?? false);
+    }
     return _cachedNoAdsSubscribed;
   }
 
   bool get shouldShowAds {
+    if (isNoAdsSubscribed) return false;
     final backendShowAds = _status?.showAds;
     if (backendShowAds != null) return backendShowAds;
     return !_cachedNoAdsSubscribed;
@@ -86,7 +89,10 @@ class SubscriptionProvider extends ChangeNotifier {
         results[0] as List<SubscriptionPlan>,
       );
       _status = results[1] as SubscriptionStatus;
-      _cachedNoAdsSubscribed = _status?.isSubscribed ?? _cachedNoAdsSubscribed;
+      final resolvedSubscribed =
+          _status?.isSubscribed == true ||
+          (_status?.activeSubscription?.isActive ?? false);
+      _cachedNoAdsSubscribed = resolvedSubscribed;
       await _prefs.setBool(_kNoAdsSubscribedKey, _cachedNoAdsSubscribed);
       _initialized = true;
     } catch (e) {
@@ -100,7 +106,10 @@ class SubscriptionProvider extends ChangeNotifier {
   Future<void> refreshStatus() async {
     try {
       _status = await _service.getStatus();
-      _cachedNoAdsSubscribed = _status?.isSubscribed ?? _cachedNoAdsSubscribed;
+      final resolvedSubscribed =
+          _status?.isSubscribed == true ||
+          (_status?.activeSubscription?.isActive ?? false);
+      _cachedNoAdsSubscribed = resolvedSubscribed;
       await _prefs.setBool(_kNoAdsSubscribedKey, _cachedNoAdsSubscribed);
       _error = null;
     } catch (e) {

@@ -2,9 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/media_download_models.dart';
 import '../../../core/services/library_service.dart';
+import '../../../core/providers/download_provider.dart';
 import '../../../core/providers/player_provider.dart';
+import '../../../core/providers/subscription_provider.dart';
 import '../../../shared/widgets/track_tile.dart';
+import '../../../shared/widgets/subscription_modal.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/screens/unified_player_screen.dart';
 
@@ -30,7 +34,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   Future<void> _loadTracks() async {
     setState(() => _isLoading = true);
     try {
-      final tracks = await context.read<LibraryService>().getPlaylistTracks(widget.playlist.id);
+      final tracks = await context.read<LibraryService>().getPlaylistTracks(
+        widget.playlist.id,
+      );
       if (mounted) {
         setState(() {
           _tracks = tracks;
@@ -46,36 +52,42 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   /// Play a track from the playlist - sets up the queue for next/previous
   void _playTrack(MediaItem track, int index) {
     final player = context.read<PlayerProvider>();
-    
+
     // Play the entire playlist as a queue, starting from this track
     if (_tracks.isNotEmpty) {
-      debugPrint('[PlaylistDetail] Playing queue: ${_tracks.length} tracks, starting at $index');
+      debugPrint(
+        '[PlaylistDetail] Playing queue: ${_tracks.length} tracks, starting at $index',
+      );
       player.playQueue(_tracks, startIndex: index);
     } else {
       player.play(track);
     }
-    
+
     // Open video player if it's a video
     if (track.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
   /// Play all tracks (or shuffle)
   void _playAll({bool shuffle = false}) {
     if (_tracks.isEmpty) return;
-    
+
     final player = context.read<PlayerProvider>();
-    debugPrint('[PlaylistDetail] Play all: ${_tracks.length} tracks, shuffle: $shuffle');
+    debugPrint(
+      '[PlaylistDetail] Play all: ${_tracks.length} tracks, shuffle: $shuffle',
+    );
     player.playQueue(_tracks, shuffle: shuffle);
-    
+
     // If first track is video, open video player
     if (_tracks.first.isVideo) {
-      Navigator.of(context, rootNavigator: true).push(
-        MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
-      );
+      Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()));
     }
   }
 
@@ -84,7 +96,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete Playlist?'),
-        content: const Text('Are you sure you want to delete this playlist? This action cannot be undone.'),
+        content: const Text(
+          'Are you sure you want to delete this playlist? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -100,7 +114,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
 
     if (confirm == true && mounted) {
-      final success = await context.read<LibraryService>().deletePlaylist(widget.playlist.id);
+      final success = await context.read<LibraryService>().deletePlaylist(
+        widget.playlist.id,
+      );
       if (success && mounted) {
         Navigator.pop(context); // Go back to library
       }
@@ -114,19 +130,28 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       _tracks.remove(track);
     });
 
-    final success = await context.read<LibraryService>().removeFromPlaylist(widget.playlist.id, track.id);
+    final success = await context.read<LibraryService>().removeFromPlaylist(
+      widget.playlist.id,
+      track.id,
+    );
     if (!success && mounted) {
       // Revert if failed
       setState(() {
         _tracks.insert(index, track);
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to remove track')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to remove track')));
     }
   }
 
   void _showTrackOptions(MediaItem track) {
+    final downloadProvider = context.read<DownloadProvider>();
+    final subscription = context.read<SubscriptionProvider>();
+    final supportsDownloads = downloadProvider.isPlatformSupported;
+    final isDownloaded = downloadProvider.isDownloaded(track.id);
+    final isDownloading = downloadProvider.isDownloading(track.id);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -150,12 +175,32 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ListTile(
               leading: ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: (track.thumbnailUrl != null && track.thumbnailUrl!.isNotEmpty)
-                    ? Image.network(track.thumbnailUrl!, width: 48, height: 48, fit: BoxFit.cover)
-                    : Container(width: 48, height: 48, color: Colors.grey[800], child: const Icon(Icons.music_note)),
+                child:
+                    (track.thumbnailUrl != null &&
+                        track.thumbnailUrl!.isNotEmpty)
+                    ? Image.network(
+                        track.thumbnailUrl!,
+                        width: 48,
+                        height: 48,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        width: 48,
+                        height: 48,
+                        color: Colors.grey[800],
+                        child: const Icon(Icons.music_note),
+                      ),
               ),
-              title: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: Text(track.artistName, maxLines: 1, overflow: TextOverflow.ellipsis),
+              title: Text(
+                track.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Text(
+                track.artistName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             const Divider(),
             ListTile(
@@ -171,9 +216,112 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 );
               },
             ),
+            if (supportsDownloads)
+              ListTile(
+                leading: isDownloaded
+                    ? const Icon(
+                        Icons.download_done_rounded,
+                        color: Colors.green,
+                      )
+                    : isDownloading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        subscription.isNoAdsSubscribed
+                            ? Icons.download_rounded
+                            : Icons.lock_rounded,
+                      ),
+                title: Text(
+                  isDownloaded
+                      ? 'Downloaded'
+                      : isDownloading
+                      ? 'Downloading...'
+                      : subscription.isNoAdsSubscribed
+                      ? 'Download'
+                      : 'Download (Premium)',
+                ),
+                onTap: (isDownloaded || isDownloading)
+                    ? null
+                    : () {
+                        Navigator.pop(context);
+                        Future.microtask(() async {
+                          if (!mounted) return;
+
+                          if (!subscription.isNoAdsSubscribed) {
+                            await subscription.refreshStatus();
+                            if (!mounted) return;
+                          }
+
+                          if (!subscription.isNoAdsSubscribed) {
+                            await showSubscriptionModal(this.context);
+                            return;
+                          }
+
+                          final result = await this.context
+                              .read<DownloadProvider>()
+                              .downloadMedia(track);
+                          if (!mounted) return;
+
+                          final messenger = ScaffoldMessenger.of(this.context);
+                          switch (result.status) {
+                            case MediaDownloadStatus.success:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Downloaded for offline playback',
+                                  ),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.alreadyDownloaded:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Media already downloaded'),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.inProgress:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Download already in progress'),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.notSubscribed:
+                              await showSubscriptionModal(this.context);
+                              break;
+                            case MediaDownloadStatus.unsupportedPlatform:
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Downloads are available on Android and iOS only',
+                                  ),
+                                ),
+                              );
+                              break;
+                            case MediaDownloadStatus.failed:
+                              messenger.showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    result.message ??
+                                        'Failed to download media',
+                                  ),
+                                ),
+                              );
+                              break;
+                          }
+                        });
+                      },
+              ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Remove from this playlist', style: TextStyle(color: Colors.red)),
+              title: const Text(
+                'Remove from this playlist',
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _removeTrack(track);
@@ -190,7 +338,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isWeb = MediaQuery.of(context).size.width >= 900;
-    
+
     return Scaffold(
       body: isWeb ? _buildWebLayout() : _buildMobileLayout(theme),
     );
@@ -225,19 +373,37 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         height: 160,
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(8),
-                          boxShadow: const [BoxShadow(blurRadius: 20, color: Colors.black45, offset: Offset(0, 10))],
-                          image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
+                          boxShadow: const [
+                            BoxShadow(
+                              blurRadius: 20,
+                              color: Colors.black45,
+                              offset: Offset(0, 10),
+                            ),
+                          ],
+                          image:
+                              (widget.playlist.coverUrl != null &&
+                                  widget.playlist.coverUrl!.isNotEmpty)
                               ? DecorationImage(
-                                  image: NetworkImage(widget.playlist.coverUrl!),
+                                  image: NetworkImage(
+                                    widget.playlist.coverUrl!,
+                                  ),
                                   fit: BoxFit.cover,
                                 )
                               : null,
-                          color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
-                              ? Colors.grey[800] 
+                          color:
+                              (widget.playlist.coverUrl == null ||
+                                  widget.playlist.coverUrl!.isEmpty)
+                              ? Colors.grey[800]
                               : null,
                         ),
-                        child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
-                            ? const Icon(Icons.music_note, size: 60, color: Colors.white54)
+                        child:
+                            (widget.playlist.coverUrl == null ||
+                                widget.playlist.coverUrl!.isEmpty)
+                            ? const Icon(
+                                Icons.music_note,
+                                size: 60,
+                                color: Colors.white54,
+                              )
                             : null,
                       ),
                       const SizedBox(height: 24),
@@ -272,7 +438,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ),
           ],
         ),
-        
+
         // Play All / Shuffle buttons
         if (!_isLoading && _tracks.isNotEmpty)
           SliverToBoxAdapter(
@@ -309,7 +475,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               ),
             ),
           ),
-        
+
         if (_isLoading)
           const SliverFillRemaining(
             child: Center(child: CircularProgressIndicator()),
@@ -343,13 +509,18 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ),
                 onDismissed: (_) => _removeTrack(track),
                 child: Material(
-                  color: theme.scaffoldBackgroundColor, 
+                  color: theme.scaffoldBackgroundColor,
                   child: Row(
                     children: [
                       ReorderableDragStartListener(
                         index: index,
                         child: const Padding(
-                          padding: EdgeInsets.only(left: 16, right: 8, top: 16, bottom: 16),
+                          padding: EdgeInsets.only(
+                            left: 16,
+                            right: 8,
+                            top: 16,
+                            bottom: 16,
+                          ),
                           child: Icon(Icons.drag_indicator, color: Colors.grey),
                         ),
                       ),
@@ -370,14 +541,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               );
             },
           ),
-          
-           // Add padding at bottom
-           Selector<PlayerProvider, bool>(
-             selector: (_, player) => player.hasMedia,
-             builder: (context, hasMedia, _) => SliverToBoxAdapter(
-               child: SizedBox(height: hasMedia ? 160 : 80),
-             ),
-           ),
+
+        // Add padding at bottom
+        Selector<PlayerProvider, bool>(
+          selector: (_, player) => player.hasMedia,
+          builder: (context, hasMedia, _) =>
+              SliverToBoxAdapter(child: SizedBox(height: hasMedia ? 160 : 80)),
+        ),
       ],
     );
   }
@@ -395,7 +565,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             color: isDark ? AppColors.darkBg : AppColors.lightBg,
           ),
         ),
-        
+
         Row(
           children: [
             // Left Side: Artwork & Info
@@ -419,22 +589,32 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                             offset: const Offset(0, 15),
                           ),
                         ],
-                        image: (widget.playlist.coverUrl != null && widget.playlist.coverUrl!.isNotEmpty)
+                        image:
+                            (widget.playlist.coverUrl != null &&
+                                widget.playlist.coverUrl!.isNotEmpty)
                             ? DecorationImage(
                                 image: NetworkImage(widget.playlist.coverUrl!),
                                 fit: BoxFit.cover,
                               )
                             : null,
-                        color: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty) 
-                            ? Colors.grey[800] 
+                        color:
+                            (widget.playlist.coverUrl == null ||
+                                widget.playlist.coverUrl!.isEmpty)
+                            ? Colors.grey[800]
                             : null,
                       ),
-                      child: (widget.playlist.coverUrl == null || widget.playlist.coverUrl!.isEmpty)
-                          ? const Icon(Icons.music_note, size: 80, color: Colors.white24)
+                      child:
+                          (widget.playlist.coverUrl == null ||
+                              widget.playlist.coverUrl!.isEmpty)
+                          ? const Icon(
+                              Icons.music_note,
+                              size: 80,
+                              color: Colors.white24,
+                            )
                           : null,
                     ),
                     const SizedBox(height: 32),
-                    
+
                     Text(
                       widget.playlist.name,
                       style: theme.textTheme.headlineMedium?.copyWith(
@@ -444,49 +624,68 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
-                    
+
                     if (widget.playlist.description != null)
                       Text(
                         widget.playlist.description!,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.6),
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withOpacity(0.6),
                         ),
                         textAlign: TextAlign.center,
                         maxLines: 3,
                       ),
-                    
+
                     const SizedBox(height: 24),
-                    
+
                     // Stats
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildStatItem(Icons.playlist_play, '${_tracks.length} Tracks', isDark),
+                        _buildStatItem(
+                          Icons.playlist_play,
+                          '${_tracks.length} Tracks',
+                          isDark,
+                        ),
                         const SizedBox(width: 24),
-                        _buildStatItem(Icons.account_circle, 'My Playlist', isDark),
+                        _buildStatItem(
+                          Icons.account_circle,
+                          'My Playlist',
+                          isDark,
+                        ),
                       ],
                     ),
-                    
+
                     const SizedBox(height: 32),
-                    
+
                     // Actions
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         ElevatedButton.icon(
-                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: false) : null,
+                          onPressed: _tracks.isNotEmpty
+                              ? () => _playAll(shuffle: false)
+                              : null,
                           icon: const Icon(Icons.play_arrow_rounded),
                           label: const Text('Play All'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
                             foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 20),
-                            textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 20,
+                            ),
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         IconButton(
-                          onPressed: _tracks.isNotEmpty ? () => _playAll(shuffle: true) : null,
+                          onPressed: _tracks.isNotEmpty
+                              ? () => _playAll(shuffle: true)
+                              : null,
                           icon: const Icon(Icons.shuffle_rounded),
                           color: isDark ? Colors.white : Colors.black,
                           tooltip: 'Shuffle',
@@ -494,7 +693,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         ),
                         IconButton(
                           onPressed: _deletePlaylist,
-                          icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.redAccent,
+                          ),
                           tooltip: 'Delete Playlist',
                           padding: const EdgeInsets.all(16),
                         ),
@@ -504,7 +706,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                 ),
               ),
             ),
-            
+
             // Right Side: Tracks
             Expanded(
               flex: 3,
@@ -520,24 +722,30 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         style: TextStyle(
                           letterSpacing: 2,
                           fontWeight: FontWeight.bold,
-                          color: (isDark ? Colors.white : Colors.black).withOpacity(0.4),
+                          color: (isDark ? Colors.white : Colors.black)
+                              .withOpacity(0.4),
                           fontSize: 12,
                         ),
                       ),
                     ),
-                    
+
                     Expanded(
-                      child: _isLoading 
-                        ? const Center(child: CircularProgressIndicator())
-                        : _tracks.isEmpty
-                          ? const Center(child: Text('No tracks in this playlist'))
+                      child: _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : _tracks.isEmpty
+                          ? const Center(
+                              child: Text('No tracks in this playlist'),
+                            )
                           : ListView.builder(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
                               itemCount: _tracks.length,
                               itemBuilder: (context, index) {
                                 final track = _tracks[index];
-                                final isPlaying = player.currentMedia?.id == track.id;
-                                
+                                final isPlaying =
+                                    player.currentMedia?.id == track.id;
+
                                 return Padding(
                                   padding: const EdgeInsets.only(bottom: 8),
                                   child: TrackTile(
@@ -550,7 +758,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                               },
                             ),
                     ),
-                    
+
                     SizedBox(height: player.hasMedia ? 120 : 40),
                   ],
                 ),
@@ -558,7 +766,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             ),
           ],
         ),
-        
+
         // App Bar / Back
         Positioned(
           top: 0,
@@ -581,7 +789,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 16, color: (isDark ? Colors.white : Colors.black).withOpacity(0.5)),
+        Icon(
+          icon,
+          size: 16,
+          color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+        ),
         const SizedBox(width: 8),
         Text(
           label,
@@ -594,4 +806,3 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     );
   }
 }
-

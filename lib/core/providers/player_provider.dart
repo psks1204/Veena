@@ -6,8 +6,16 @@ import '../models/media_item.dart' as app_models;
 import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
+import '../services/media_download_service.dart';
 import '../../../main.dart' show audioHandler, ensureAudioHandlerInitialized;
 import 'package:wakelock_plus/wakelock_plus.dart';
+
+class _PlayableSource {
+  const _PlayableSource({required this.uri, required this.isLocal});
+
+  final Uri uri;
+  final bool isLocal;
+}
 
 /// Repeat mode for playback
 enum RepeatMode { off, all, one }
@@ -21,6 +29,7 @@ class PlayerProvider extends ChangeNotifier {
   app_models.MediaItem? _currentMedia;
   VideoPlayerController? _videoController;
   MediaService? _mediaService;
+  MediaDownloadService? _mediaDownloadService;
   dynamic
   _authService; // Using dynamic to avoid circular import if necessary, or just import it
 
@@ -51,6 +60,9 @@ class PlayerProvider extends ChangeNotifier {
   // Throttle for position updates to prevent excessive rebuilds
   DateTime _lastPositionNotify = DateTime.now();
   Future<void>? _audioSetupFuture;
+  Timer? _audioPositionTicker;
+  DateTime? _lastAudioPositionSampledAt;
+  Duration _lastAudioPositionSample = Duration.zero;
 
   // Getters
   app_models.MediaItem? get currentMedia => _currentMedia;
@@ -130,6 +142,11 @@ class PlayerProvider extends ChangeNotifier {
     _mediaService = service;
   }
 
+  /// Set the media download service for local offline playback fallback.
+  void setMediaDownloadService(MediaDownloadService service) {
+    _mediaDownloadService = service;
+  }
+
   /// Set the auth service for authenticated video requests
   void setAuthService(dynamic service) {
     _authService = service;
@@ -166,6 +183,7 @@ class PlayerProvider extends ChangeNotifier {
       }
 
       _updateWakelock();
+      _syncAudioPositionTicker();
       notifyListeners();
     });
 
@@ -174,7 +192,15 @@ class PlayerProvider extends ChangeNotifier {
     final dynamicHandler = handler as dynamic;
     dynamicHandler.positionStream.listen((Duration pos) {
       if (_currentMedia?.isAudio ?? false) {
-        _position = pos;
+        _lastAudioPositionSample = pos;
+        _lastAudioPositionSampledAt = DateTime.now();
+
+        // While actively playing, let the local ticker own visual position so
+        // sparse backend samples don't cause visible multi-second jumps.
+        if (!_isPlaying || _audioPositionTicker == null) {
+          _position = pos;
+        }
+
         _updateLyricIndex();
         final now = DateTime.now();
         if (now.difference(_lastPositionNotify).inMilliseconds >= 64) {
@@ -354,9 +380,10 @@ class PlayerProvider extends ChangeNotifier {
     _lastPlayedMediaId = media.id;
     _lastPlayRequestTime = now;
 
-    if (media.hlsUrl == null || media.hlsUrl!.isEmpty) {
+    final playableSource = await _resolvePlayableSource(media);
+    if (playableSource == null) {
       debugPrint(
-        '[PlayerProvider] No HLS URL available for media: ${media.id}',
+        '[PlayerProvider] No playable source available for media: ${media.id}',
       );
       _activePlayOperations--; // Release lock before trying next
       // Try next track
@@ -379,6 +406,7 @@ class PlayerProvider extends ChangeNotifier {
     _currentMedia = media;
     _isLoading = true;
     _currentLyrics = null;
+    _syncAudioPositionTicker();
     notifyListeners();
 
     // Auto-record play event for analytics (Fire-and-forget, non-blocking)
@@ -395,9 +423,17 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       if (media.isVideo) {
-        await _playVideo(media.hlsUrl!, startPosition: startPosition);
+        await _playVideo(
+          playableSource.uri,
+          startPosition: startPosition,
+          useAuthHeaders: !playableSource.isLocal,
+        );
       } else {
-        await _playAudio(media, startPosition: startPosition);
+        await _playAudio(
+          media,
+          startPosition: startPosition,
+          sourceUri: playableSource.uri,
+        );
       }
     } catch (e) {
       debugPrint('[PlayerProvider] Error playing media: $e');
@@ -409,7 +445,45 @@ class PlayerProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _playVideo(String url, {Duration? startPosition}) async {
+  Future<_PlayableSource?> _resolvePlayableSource(
+    app_models.MediaItem media,
+  ) async {
+    try {
+      final localPath = await _mediaDownloadService?.getLocalPathIfExists(
+        media.id,
+      );
+      if (localPath != null && localPath.isNotEmpty) {
+        return _PlayableSource(uri: Uri.file(localPath), isLocal: true);
+      }
+    } catch (e) {
+      debugPrint(
+        '[PlayerProvider] Failed to resolve local media source for ${media.id}: $e',
+      );
+    }
+
+    final hlsUrl = media.hlsUrl;
+    if (hlsUrl == null || hlsUrl.isEmpty) {
+      return null;
+    }
+
+    return _PlayableSource(uri: _resolveNetworkUri(hlsUrl), isLocal: false);
+  }
+
+  Uri _resolveNetworkUri(String url) {
+    if (url.startsWith('http')) {
+      return Uri.parse(url);
+    }
+    const apiPrefix = 'https://veena.dgfly.in/api';
+    final rootUrl = apiPrefix.replaceFirst('/api', '');
+    final finalizedUrl = url.startsWith('/') ? '$rootUrl$url' : '$rootUrl/$url';
+    return Uri.parse(finalizedUrl);
+  }
+
+  Future<void> _playVideo(
+    Uri sourceUri, {
+    Duration? startPosition,
+    bool useAuthHeaders = false,
+  }) async {
     final handler = await _getAudioHandler();
     if (handler == null) {
       _isLoading = false;
@@ -444,25 +518,17 @@ class PlayerProvider extends ChangeNotifier {
       await oldController.dispose();
     }
 
-    // Ensure URL is absolute (relative to ApiService.baseUrl if needed)
-    String finalizedUrl = url;
-    if (!url.startsWith('http')) {
-      const apiPrefix = 'https://veena.dgfly.in/api';
-      final rootUrl = apiPrefix.replaceFirst('/api', '');
-      finalizedUrl = url.startsWith('/') ? '$rootUrl$url' : '$rootUrl/$url';
-    }
-
-    // Get auth token if available
     final token = _authService?.accessToken;
-    final headers = {if (token != null) 'Authorization': 'Bearer $token'};
+    final headers = useAuthHeaders && token != null
+        ? <String, String>{'Authorization': 'Bearer $token'}
+        : const <String, String>{};
 
     debugPrint(
-      '[PlayerProvider] Initializing video with headers: ${headers.keys}',
+      '[PlayerProvider] Initializing video source ${sourceUri.scheme} with headers: ${headers.keys}',
     );
 
-    // Use network video for HLS
     _videoController = VideoPlayerController.networkUrl(
-      Uri.parse(finalizedUrl),
+      sourceUri,
       httpHeaders: headers,
       videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
     );
@@ -547,9 +613,21 @@ class PlayerProvider extends ChangeNotifier {
   Future<void> _playAudio(
     app_models.MediaItem media, {
     Duration? startPosition,
+    Uri? sourceUri,
   }) async {
     final handler = await _getAudioHandler();
     if (handler == null) {
+      _isLoading = false;
+      notifyListeners();
+      return;
+    }
+
+    final effectiveSourceUri =
+        sourceUri ??
+        ((media.hlsUrl != null && media.hlsUrl!.isNotEmpty)
+            ? _resolveNetworkUri(media.hlsUrl!)
+            : null);
+    if (effectiveSourceUri == null) {
       _isLoading = false;
       notifyListeners();
       return;
@@ -565,14 +643,17 @@ class PlayerProvider extends ChangeNotifier {
       artUri: media.thumbnailUrl != null
           ? Uri.parse(media.thumbnailUrl!)
           : null,
-      extras: {'url': media.hlsUrl},
+      extras: {
+        'url': effectiveSourceUri.toString(),
+        'isLocal': effectiveSourceUri.scheme == 'file',
+      },
     );
 
     // Set media item for notification (cast to our handler type)
     (handler as dynamic).setMediaItem(item);
 
     // Load audio URL (does NOT auto-play anymore)
-    await handler.playFromUri(Uri.parse(media.hlsUrl!));
+    await handler.playFromUri(effectiveSourceUri);
 
     // Seek to position BEFORE playing (for audio/video switching)
     if (startPosition != null && startPosition > Duration.zero) {
@@ -596,8 +677,55 @@ class PlayerProvider extends ChangeNotifier {
     await handler.play();
     debugPrint('[PlayerProvider] Audio playback started');
 
+    final seedPosition = startPosition ?? Duration.zero;
+    _lastAudioPositionSample = seedPosition;
+    _lastAudioPositionSampledAt = DateTime.now();
+    _syncAudioPositionTicker();
+
     _isLoading = false;
     notifyListeners();
+  }
+
+  void _syncAudioPositionTicker() {
+    final shouldRun = (_currentMedia?.isAudio ?? false) && _isPlaying;
+
+    if (!shouldRun) {
+      _audioPositionTicker?.cancel();
+      _audioPositionTicker = null;
+      return;
+    }
+
+    _audioPositionTicker ??= Timer.periodic(const Duration(milliseconds: 250), (
+      _,
+    ) {
+      if (!(_currentMedia?.isAudio ?? false) || !_isPlaying) {
+        return;
+      }
+
+      final sampledAt = _lastAudioPositionSampledAt;
+      if (sampledAt == null) {
+        return;
+      }
+
+      var estimated =
+          _lastAudioPositionSample + DateTime.now().difference(sampledAt);
+      if (_duration > Duration.zero && estimated > _duration) {
+        estimated = _duration;
+      }
+
+      if ((estimated.inMilliseconds - _position.inMilliseconds).abs() < 200) {
+        return;
+      }
+
+      _position = estimated;
+      _updateLyricIndex();
+
+      final now = DateTime.now();
+      if (now.difference(_lastPositionNotify).inMilliseconds >= 180) {
+        _lastPositionNotify = now;
+        notifyListeners();
+      }
+    });
   }
 
   /// Toggle play/pause
@@ -644,6 +772,9 @@ class PlayerProvider extends ChangeNotifier {
 
     _isPlaying = false;
     _position = Duration.zero;
+    _lastAudioPositionSample = Duration.zero;
+    _lastAudioPositionSampledAt = null;
+    _syncAudioPositionTicker();
     _currentLyrics = null;
     _updateWakelock();
     notifyListeners();
@@ -669,6 +800,9 @@ class PlayerProvider extends ChangeNotifier {
       await handler.seek(position);
     }
     _position = position;
+    _lastAudioPositionSample = position;
+    _lastAudioPositionSampledAt = DateTime.now();
+    _syncAudioPositionTicker();
     notifyListeners();
   }
 
@@ -844,6 +978,7 @@ class PlayerProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _audioPositionTicker?.cancel();
     _videoController?.removeListener(_onVideoUpdate);
     _videoController?.dispose();
     _lyricIndexController.close();

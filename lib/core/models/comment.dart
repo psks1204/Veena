@@ -2,19 +2,25 @@ class Comment {
   final int id;
   final String mediaId;
   final String content;
+  final int parentCommentId;
+  final int replyCount;
   final String userId;
   final String username;
   final String? userImageUrl;
   final DateTime createdAt;
+  final DateTime? updatedAt;
 
   Comment({
     required this.id,
     required this.mediaId,
     required this.content,
+    this.parentCommentId = 0,
+    this.replyCount = 0,
     required this.userId,
     required this.username,
     this.userImageUrl,
     required this.createdAt,
+    this.updatedAt,
   });
 
   factory Comment.fromJson(Map<String, dynamic> json) {
@@ -43,15 +49,32 @@ class Comment {
     final createdAt = createdAtRaw != null
         ? DateTime.tryParse(createdAtRaw) ?? DateTime.now()
         : DateTime.now();
+    final updatedAtRaw = json['updatedAt'] as String?;
+    final updatedAt = updatedAtRaw != null
+        ? DateTime.tryParse(updatedAtRaw)
+        : null;
+    final parentCommentValue = json['parentCommentId'];
+    final resolvedParentCommentId = parentCommentValue is int
+        ? parentCommentValue
+        : int.tryParse(parentCommentValue?.toString() ?? '') ?? 0;
+    final replyCountValue = json['replyCount'];
+    final resolvedReplyCount = replyCountValue is int
+        ? replyCountValue
+        : int.tryParse(replyCountValue?.toString() ?? '') ?? 0;
 
     return Comment(
       id: resolvedId,
       mediaId: resolvedMediaId,
       content: json['content'] as String? ?? '',
+      parentCommentId: resolvedParentCommentId,
+      replyCount: resolvedReplyCount,
       userId: resolvedUserId,
       username: userName,
       userImageUrl: userImage,
       createdAt: createdAt,
+      updatedAt: updatedAt,
     );
   }
+
+  bool get isRootComment => parentCommentId == 0;
 }
