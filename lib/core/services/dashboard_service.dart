@@ -22,6 +22,7 @@ class DashboardService extends ChangeNotifier {
   List<Playlist> _popularPlaylists = [];
   List<MediaItem> _featuredActive = [];
   List<MediaItem> _podcasts = [];
+  List<MediaItem> _karaoke = [];
   bool _isLoading = false;
   String? _error;
 
@@ -33,6 +34,7 @@ class DashboardService extends ChangeNotifier {
   List<Playlist> get popularPlaylists => _popularPlaylists;
   List<MediaItem> get featuredActive => _featuredActive;
   List<MediaItem> get podcasts => _podcasts;
+  List<MediaItem> get karaoke => _karaoke;
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -50,7 +52,9 @@ class DashboardService extends ChangeNotifier {
 
       // Parse dashboard sections in background isolate to avoid UI jank
       if (data != null) {
-        final Map<String, dynamic> typedData = Map<String, dynamic>.from(data as Map);
+        final Map<String, dynamic> typedData = Map<String, dynamic>.from(
+          data as Map,
+        );
         final parsed = await compute(_parseDashboardData, typedData);
         _latestReleases = parsed['latestReleases']!;
         _popularTracks = parsed['popularTracks']!;
@@ -138,6 +142,14 @@ class DashboardService extends ChangeNotifier {
             await fetchFeaturedActive(notify: false);
           } catch (e) {
             debugPrint('Dashboard featured active fetch error: $e');
+          }
+        })(),
+        // Karaoke
+        (() async {
+          try {
+            await fetchKaraoke(notify: false);
+          } catch (e) {
+            debugPrint('Dashboard karaoke fetch error: $e');
           }
         })(),
       ]);
@@ -265,6 +277,22 @@ class DashboardService extends ChangeNotifier {
       return _popularPlaylists;
     } catch (e) {
       debugPrint('Popular playlists error: $e');
+      return [];
+    }
+  }
+
+  /// Fetch karaoke tracks
+  /// GET /api/user/dashboard/karaoke
+  Future<List<MediaItem>> fetchKaraoke({bool notify = true}) async {
+    try {
+      final data = await _api.get('/user/dashboard/karaoke');
+      if (data != null && data is List) {
+        _karaoke = data.map((item) => MediaItem.fromJson(item)).toList();
+        if (notify) notifyListeners();
+      }
+      return _karaoke;
+    } catch (e) {
+      debugPrint('Karaoke fetch error: $e');
       return [];
     }
   }

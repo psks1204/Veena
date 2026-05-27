@@ -947,6 +947,48 @@ class PlayerProvider extends ChangeNotifier {
     return removeFromQueueAt(index);
   }
 
+  /// Add a media item to the end of the current now-playing queue.
+  /// If no queue is active, starts playing the item immediately.
+  void addToQueue(app_models.MediaItem media) {
+    if (_queue.isEmpty || _currentMedia == null) {
+      play(media);
+      return;
+    }
+    // Avoid duplicate entries
+    if (_queue.any((m) => m.id == media.id)) {
+      debugPrint('[PlayerProvider] addToQueue: already in queue - ${media.id}');
+    }
+    _queue.add(media);
+    if (_shuffleEnabled && _shuffledIndices.isNotEmpty) {
+      _shuffledIndices.add(_queue.length - 1);
+    }
+    debugPrint(
+      '[PlayerProvider] addToQueue: "${media.title}" (queue size: ${_queue.length})',
+    );
+    notifyListeners();
+  }
+
+  /// Insert a media item right after the currently playing item (Play Next).
+  /// If no queue is active, starts playing the item immediately.
+  void insertAfterCurrent(app_models.MediaItem media) {
+    if (_queue.isEmpty || _currentMedia == null) {
+      play(media);
+      return;
+    }
+    if (_shuffleEnabled && _shuffledIndices.isNotEmpty) {
+      // In shuffle mode: append to queue, then insert its index into
+      // the shuffled order right after the current shuffle position.
+      _queue.add(media);
+      final newQueueIndex = _queue.length - 1;
+      _shuffledIndices.insert(_currentIndex + 1, newQueueIndex);
+    } else {
+      final insertAt = (_currentIndex + 1).clamp(0, _queue.length);
+      _queue.insert(insertAt, media);
+    }
+    debugPrint('[PlayerProvider] insertAfterCurrent: "${media.title}"');
+    notifyListeners();
+  }
+
   /// Format duration to string
   String formatDuration(Duration duration) {
     final minutes = duration.inMinutes;

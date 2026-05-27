@@ -178,6 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
           final videos = dashboard.videos;
           final podcasts = dashboard.podcasts;
           final popularPlaylists = dashboard.popularPlaylists;
+          final karaoke = dashboard.karaoke;
           final hasVisibleContent =
               recentlyPlayed.isNotEmpty ||
               popularPlaylists.isNotEmpty ||
@@ -185,6 +186,7 @@ class _HomeScreenState extends State<HomeScreen> {
               latestReleases.isNotEmpty ||
               popularTracks.isNotEmpty ||
               podcasts.isNotEmpty ||
+              karaoke.isNotEmpty ||
               videos.isNotEmpty ||
               dashboard.artists.isNotEmpty ||
               dashboard.featuredActive.isNotEmpty;
@@ -344,6 +346,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                     size: size,
                                     mediaType: 'PODCAST',
                                   ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+
+                  if (karaoke.isNotEmpty)
+                    ..._buildSectionSlivers(
+                      context,
+                      title: 'Karaoke',
+                      icon: Icons.mic_rounded,
+                      items: karaoke,
+                      isHorizontal: true,
+                      onSeeAll: () {
+                        AppNavigation.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => SimpleSectionScreen(
+                              title: 'Karaoke',
+                              items: karaoke,
                             ),
                           ),
                         );

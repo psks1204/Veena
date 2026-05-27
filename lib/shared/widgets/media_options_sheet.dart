@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/models/artist.dart';
 import '../../core/models/media_item.dart';
 import '../../core/models/media_download_models.dart';
 import '../../core/providers/download_provider.dart';
+import '../../core/providers/player_provider.dart';
 import '../../core/providers/subscription_provider.dart';
 import '../../core/services/app_settings_service.dart';
+import '../../features/library/screens/album_detail_screen.dart';
+import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
 import '../../features/player/widgets/comments_sheet.dart';
 import 'subscription_modal.dart';
@@ -37,6 +41,7 @@ class MediaOptionsSheet extends StatelessWidget {
     final allowUserDownloads = appSettings.allowUserDownloads;
     final downloadProvider = context.watch<DownloadProvider>();
     final subscription = context.watch<SubscriptionProvider>();
+    final player = context.watch<PlayerProvider>();
 
     final supportsDownloads = downloadProvider.isPlatformSupported;
     final isSubscribed = subscription.isNoAdsSubscribed;
@@ -44,6 +49,9 @@ class MediaOptionsSheet extends StatelessWidget {
         supportsDownloads && (allowUserDownloads || isSubscribed);
     final isDownloaded = downloadProvider.isDownloaded(mediaItem.id);
     final isDownloading = downloadProvider.isDownloading(mediaItem.id);
+
+    final hasArtist = mediaItem.artist != null;
+    final hasAlbum = mediaItem.album != null;
 
     return Container(
       decoration: BoxDecoration(
@@ -99,6 +107,34 @@ class MediaOptionsSheet extends StatelessWidget {
               },
             ),
             ListTile(
+              leading: const Icon(Icons.queue_music_rounded),
+              title: const Text('Add to Now Playing'),
+              onTap: () {
+                Navigator.pop(context);
+                player.addToQueue(mediaItem);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${mediaItem.title}" added to queue'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_play_rounded),
+              title: const Text('Play Next'),
+              onTap: () {
+                Navigator.pop(context);
+                player.insertAfterCurrent(mediaItem);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('"${mediaItem.title}" will play next'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.share_rounded),
               title: const Text('Share'),
               onTap: () async {
@@ -111,107 +147,170 @@ class MediaOptionsSheet extends StatelessWidget {
                 );
               },
             ),
-            if (canShowDownloadAction)
+            if (isDownloaded)
               ListTile(
-                leading: isDownloaded
-                    ? const Icon(
-                        Icons.download_done_rounded,
-                        color: Colors.green,
-                      )
-                    : isDownloading
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        isSubscribed
-                            ? Icons.download_rounded
-                            : Icons.lock_rounded,
-                      ),
-                title: Text(
-                  isDownloaded
-                      ? 'Downloaded'
-                      : isDownloading
-                      ? 'Downloading...'
-                      : isSubscribed
-                      ? 'Download'
-                      : 'Download (Premium)',
+                leading: const Icon(
+                  Icons.delete_outline_rounded,
+                  color: Colors.redAccent,
                 ),
-                onTap: (isDownloaded || isDownloading)
-                    ? null
-                    : () {
-                        Navigator.pop(context);
-                        Future.microtask(() async {
-                          if (!context.mounted) return;
+                title: const Text(
+                  'Remove download',
+                  style: TextStyle(color: Colors.redAccent),
+                ),
+                onTap: () {
+                  Navigator.pop(context);
+                  Future.microtask(() async {
+                    if (!context.mounted) return;
+                    final removed = await context
+                        .read<DownloadProvider>()
+                        .removeDownload(mediaItem.id);
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          removed
+                              ? '"${mediaItem.title}" removed from downloads'
+                              : 'Could not remove download',
+                        ),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  });
+                },
+              )
+            else if (isDownloading)
+              const ListTile(
+                leading: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                title: Text('Downloading...'),
+              )
+            else if (canShowDownloadAction)
+              ListTile(
+                leading: Icon(
+                  isSubscribed ? Icons.download_rounded : Icons.lock_rounded,
+                ),
+                title: Text(isSubscribed ? 'Download' : 'Download (Premium)'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Future.microtask(() async {
+                    if (!context.mounted) return;
 
-                          final subscriptionProvider = context
-                              .read<SubscriptionProvider>();
-                          if (!subscriptionProvider.isNoAdsSubscribed) {
-                            await subscriptionProvider.refreshStatus();
-                            if (!context.mounted) return;
-                          }
+                    final subscriptionProvider = context
+                        .read<SubscriptionProvider>();
+                    if (!subscriptionProvider.isNoAdsSubscribed) {
+                      await subscriptionProvider.refreshStatus();
+                      if (!context.mounted) return;
+                    }
 
-                          if (!subscriptionProvider.isNoAdsSubscribed) {
-                            await showSubscriptionModal(context);
-                            return;
-                          }
+                    if (!subscriptionProvider.isNoAdsSubscribed) {
+                      await showSubscriptionModal(context);
+                      return;
+                    }
 
-                          final result = await context
-                              .read<DownloadProvider>()
-                              .downloadMedia(mediaItem);
-                          if (!context.mounted) return;
+                    final result = await context
+                        .read<DownloadProvider>()
+                        .downloadMedia(mediaItem);
+                    if (!context.mounted) return;
 
-                          final messenger = ScaffoldMessenger.of(context);
-                          switch (result.status) {
-                            case MediaDownloadStatus.success:
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Downloaded for offline playback',
-                                  ),
-                                ),
-                              );
-                              break;
-                            case MediaDownloadStatus.alreadyDownloaded:
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Media already downloaded'),
-                                ),
-                              );
-                              break;
-                            case MediaDownloadStatus.inProgress:
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Download already in progress'),
-                                ),
-                              );
-                              break;
-                            case MediaDownloadStatus.notSubscribed:
-                              await showSubscriptionModal(context);
-                              break;
-                            case MediaDownloadStatus.unsupportedPlatform:
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Downloads are available on Android and iOS only',
-                                  ),
-                                ),
-                              );
-                              break;
-                            case MediaDownloadStatus.failed:
-                              messenger.showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    result.message ??
-                                        'Failed to download media',
-                                  ),
-                                ),
-                              );
-                              break;
-                          }
-                        });
-                      },
+                    final messenger = ScaffoldMessenger.of(context);
+                    switch (result.status) {
+                      case MediaDownloadStatus.success:
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Downloaded for offline playback'),
+                          ),
+                        );
+                        break;
+                      case MediaDownloadStatus.alreadyDownloaded:
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Media already downloaded'),
+                          ),
+                        );
+                        break;
+                      case MediaDownloadStatus.inProgress:
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Download already in progress'),
+                          ),
+                        );
+                        break;
+                      case MediaDownloadStatus.notSubscribed:
+                        await showSubscriptionModal(context);
+                        break;
+                      case MediaDownloadStatus.unsupportedPlatform:
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Downloads are available on Android and iOS only',
+                            ),
+                          ),
+                        );
+                        break;
+                      case MediaDownloadStatus.failed:
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              result.message ?? 'Failed to download media',
+                            ),
+                          ),
+                        );
+                        break;
+                    }
+                  });
+                },
+              ),
+            if (hasArtist)
+              ListTile(
+                leading: const Icon(Icons.person_rounded),
+                title: Text('More from ${mediaItem.artist!.name}'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Future.microtask(() {
+                    if (!context.mounted) return;
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (_) => ArtistDetailScreen(
+                          artist: Artist(
+                            id: mediaItem.artist!.id.toString(),
+                            name: mediaItem.artist!.name,
+                            imageUrl: mediaItem.artist!.imageUrl,
+                            genre: mediaItem.artist!.genre,
+                            bio: mediaItem.artist!.bio,
+                            followerCount: mediaItem.artist!.followerCount,
+                            verified: mediaItem.artist!.verified,
+                          ),
+                        ),
+                      ),
+                    );
+                  });
+                },
+              ),
+            if (hasAlbum)
+              ListTile(
+                leading: const Icon(Icons.album_rounded),
+                title: Text('More from ${mediaItem.album!.name}'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Future.microtask(() {
+                    if (!context.mounted) return;
+                    Navigator.of(context, rootNavigator: true).push(
+                      MaterialPageRoute(
+                        builder: (_) => AlbumDetailScreen(
+                          albumId: mediaItem.album!.id.toString(),
+                          title: mediaItem.album!.name,
+                          coverUrl: mediaItem.album!.coverImageUrl,
+                          artist: mediaItem.artistName.isNotEmpty
+                              ? mediaItem.artistName
+                              : null,
+                        ),
+                      ),
+                    );
+                  });
+                },
               ),
             ListTile(
               leading: Icon(

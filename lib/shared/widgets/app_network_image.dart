@@ -61,9 +61,18 @@ class _AppNetworkImageState extends State<AppNetworkImage> {
     if (_usingFallback || fallback.isEmpty || fallback == _currentUrl) {
       return false;
     }
-    setState(() {
-      _usingFallback = true;
-      _currentUrl = fallback;
+    // Defer setState so it never fires during a build phase.
+    // errorBuilder / errorWidget callbacks on Image.network and
+    // CachedNetworkImage can both be invoked synchronously while Flutter is
+    // building the widget tree, so calling setState() there directly triggers
+    // the "markNeedsBuild called during build" assertion.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        setState(() {
+          _usingFallback = true;
+          _currentUrl = fallback;
+        });
+      }
     });
     return true;
   }
