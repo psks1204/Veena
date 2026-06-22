@@ -8,6 +8,7 @@ class AppNavigation {
   AppNavigation._();
 
   /// Navigator keys for each tab
+  static final rootNavigatorKey = GlobalKey<NavigatorState>();
   static final homeNavigatorKey = GlobalKey<NavigatorState>();
   static final uploadsNavigatorKey = GlobalKey<NavigatorState>();
   static final searchNavigatorKey = GlobalKey<NavigatorState>();

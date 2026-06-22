@@ -41,7 +41,7 @@ void onBackgroundNotificationResponse(NotificationResponse response) async {
 }
 
 /// Push Notification Service - Handles FCM and rich notifications
-class PushNotificationService {
+class PushNotificationService extends ChangeNotifier {
   static final PushNotificationService _instance = PushNotificationService._internal();
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
@@ -406,14 +406,22 @@ class PushNotificationService {
     _navigateFromNotification(message.data);
   }
 
+  Map<String, dynamic>? _pendingPayload;
+  Map<String, dynamic>? get pendingPayload => _pendingPayload;
+
+  /// Clear the pending payload after navigating
+  void consumePayload() {
+    if (_pendingPayload != null) {
+      _pendingPayload = null;
+      notifyListeners();
+    }
+  }
+
   /// Navigate based on notification data
   void _navigateFromNotification(Map<String, dynamic> data) {
-    // TODO: Implement navigation based on notification data
-    // Example:
-    // if (data['type'] == 'album') {
-    //   navigatorKey.currentState?.push(AlbumDetailScreen(albumId: data['album_id']));
-    // }
-    debugPrint('[PushNotification] Navigate with data: $data');
+    debugPrint('[PushNotification] Setting pending payload: $data');
+    _pendingPayload = data;
+    notifyListeners();
   }
 
   /// Get the current FCM token

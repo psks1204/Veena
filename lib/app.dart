@@ -35,6 +35,8 @@ import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
 import 'features/player/screens/unified_player_screen.dart';
+import 'features/library/screens/album_detail_screen.dart';
+import 'features/playlist/screens/playlist_detail_screen.dart';
 import 'shared/layouts/app_shell.dart';
 import 'shared/layouts/shop_shell.dart';
 import 'core/services/push_notification_service.dart';
@@ -135,6 +137,11 @@ class VeenaApp extends StatelessWidget {
         // Deep link service
         ChangeNotifierProvider<DeepLinkService>.value(value: deepLinkService),
 
+        // Push notification service
+        ChangeNotifierProvider<PushNotificationService>.value(
+          value: PushNotificationService(),
+        ),
+
         // App mode (music ↔ shop)
         ChangeNotifierProvider(create: (_) => AppModeProvider()),
 
@@ -184,6 +191,7 @@ class VeenaApp extends StatelessWidget {
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
           return MaterialApp(
+            navigatorKey: AppNavigation.rootNavigatorKey,
             title: 'Veena',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.lightTheme,
@@ -441,6 +449,72 @@ class _AppRouterState extends State<_AppRouter> {
               playerProvider.play(item);
               rootNavigator.push(
                 MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
+              );
+            }
+          });
+        }
+
+        // ── Push Notification: navigate to song/album/playlist after login ─
+        final pushNotificationService = context.watch<PushNotificationService>();
+        if (pushNotificationService.pendingPayload != null) {
+          final payload = pushNotificationService.pendingPayload!;
+          pushNotificationService.consumePayload();
+
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            final rootNavigator = Navigator.of(
+              this.context,
+              rootNavigator: true,
+            );
+            
+            final type = payload['type']?.toString();
+            final id = payload['id']?.toString() ?? 
+                       payload['song_id']?.toString() ?? 
+                       payload['album_id']?.toString() ?? 
+                       payload['playlist_id']?.toString();
+            
+            if (id == null || id.isEmpty) {
+              debugPrint('⚠️ AppRouter: Push Notification missing id in payload $payload');
+              return;
+            }
+
+            debugPrint('🔗 AppRouter: handling push notification deep link type=$type, id=$id');
+            
+            if (type == 'song') {
+              final item = await mediaService.fetchMediaById(id);
+              if (item != null && mounted) {
+                playerProvider.play(item);
+                rootNavigator.push(
+                  MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
+                );
+              }
+            } else if (type == 'album') {
+              final title = payload['title']?.toString() ?? payload['album_title']?.toString();
+              final artist = payload['artist']?.toString();
+              final coverUrl = payload['cover_url']?.toString() ?? payload['image']?.toString();
+              
+              rootNavigator.push(
+                MaterialPageRoute(
+                  builder: (_) => AlbumDetailScreen(
+                    albumId: id,
+                    title: title,
+                    artist: artist,
+                    coverUrl: coverUrl,
+                  ),
+                ),
+              );
+            } else if (type == 'playlist') {
+              final title = payload['title']?.toString() ?? payload['playlist_title']?.toString() ?? 'Playlist';
+              final coverUrl = payload['cover_url']?.toString() ?? payload['image']?.toString();
+              
+              rootNavigator.push(
+                MaterialPageRoute(
+                  builder: (_) => PlaylistDetailScreen(
+                    playlistId: id,
+                    playlistTitle: title,
+                    coverUrl: coverUrl,
+                  ),
+                ),
               );
             }
           });
