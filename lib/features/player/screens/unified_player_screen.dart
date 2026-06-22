@@ -1585,6 +1585,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
             player.duration.inSeconds > 0 &&
             player.position >= player.duration) {
           WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await player.pause();
             await recordingService.stopRecording();
             if (!mounted) return;
             _showReelPostSheet(media);
@@ -1602,7 +1603,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               if (recordingService.isIdle || recordingService.hasError)
                 _buildKaraokeIdleState(recordingService)
               else if (recordingService.isRecording)
-                _buildKaraokeRecordingState(recordingService, media),
+                _buildKaraokeRecordingState(recordingService, media, player),
 
               // Error message
               if (recordingService.hasError &&
@@ -1704,6 +1705,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   Widget _buildKaraokeRecordingState(
     KaraokeRecordingService recordingService,
     MediaItem media,
+    PlayerProvider player,
   ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -1776,6 +1778,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           // Stop button
           GestureDetector(
             onTap: () async {
+              await player.pause();
               await recordingService.stopRecording();
               if (!mounted) return;
               _showReelPostSheet(media);
