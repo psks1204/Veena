@@ -51,6 +51,11 @@ class AlbumDetail {
   final int trackCount;
   final DateTime? createdAt;
   final List<MediaItem> tracks;
+  final double? averageRating;
+  final int? ratingCount;
+  final int? userRating;
+  final String? userComment;
+  final bool authenticated;
 
   const AlbumDetail({
     required this.id,
@@ -61,9 +66,38 @@ class AlbumDetail {
     this.trackCount = 0,
     this.createdAt,
     required this.tracks,
+    this.averageRating,
+    this.ratingCount,
+    this.userRating,
+    this.userComment,
+    this.authenticated = false,
   });
 
   String? get releaseDate => createdAt != null ? "${createdAt!.year}" : null;
+
+  AlbumDetail copyWith({
+    double? averageRating,
+    int? ratingCount,
+    int? userRating,
+    String? userComment,
+    bool? authenticated,
+  }) {
+    return AlbumDetail(
+      id: id,
+      name: name,
+      artistName: artistName,
+      description: description,
+      coverImageUrl: coverImageUrl,
+      trackCount: trackCount,
+      createdAt: createdAt,
+      tracks: tracks,
+      averageRating: averageRating ?? this.averageRating,
+      ratingCount: ratingCount ?? this.ratingCount,
+      userRating: userRating ?? this.userRating,
+      userComment: userComment ?? this.userComment,
+      authenticated: authenticated ?? this.authenticated,
+    );
+  }
 
   factory AlbumDetail.fromJson(Map<String, dynamic> json) {
     final tracksList = json['tracks'] as List? ?? [];
@@ -95,6 +129,72 @@ class AlbumDetail {
       tracks: tracksList
           .map((e) => MediaItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      averageRating: json['averageRating'] != null
+          ? (json['averageRating'] as num).toDouble()
+          : null,
+      ratingCount: json['ratingCount'] != null
+          ? (json['ratingCount'] as num).toInt()
+          : null,
+      userRating: json['userRating'] as int?,
+      userComment: json['userComment'] as String?,
+      authenticated: json['authenticated'] as bool? ?? false,
+    );
+  }
+}
+
+/// Rating response from the rating endpoints
+class AlbumRatingResponse {
+  final double? averageRating;
+  final int? ratingCount;
+  final int? userRating;
+  final String? userComment;
+
+  const AlbumRatingResponse({
+    this.averageRating,
+    this.ratingCount,
+    this.userRating,
+    this.userComment,
+  });
+
+  factory AlbumRatingResponse.fromJson(Map<String, dynamic> json) {
+    return AlbumRatingResponse(
+      averageRating: json['averageRating'] != null
+          ? (json['averageRating'] as num).toDouble()
+          : null,
+      ratingCount: json['ratingCount'] != null
+          ? (json['ratingCount'] as num).toInt()
+          : null,
+      userRating: json['userRating'] as int?,
+      userComment: json['userComment'] as String?,
+    );
+  }
+}
+
+/// Review item response for reviews list
+class AlbumReviewResponse {
+  final String userName;
+  final String? userPhotoUrl;
+  final int rating;
+  final String? comment;
+  final DateTime createdAt;
+
+  const AlbumReviewResponse({
+    required this.userName,
+    this.userPhotoUrl,
+    required this.rating,
+    this.comment,
+    required this.createdAt,
+  });
+
+  factory AlbumReviewResponse.fromJson(Map<String, dynamic> json) {
+    return AlbumReviewResponse(
+      userName: json['userName'] as String? ?? 'Anonymous',
+      userPhotoUrl: json['userPhotoUrl'] as String?,
+      rating: json['rating'] as int? ?? 0,
+      comment: json['comment'] as String?,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'] as String) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 }
@@ -240,6 +340,145 @@ class AlbumService extends ChangeNotifier {
       notifyListeners();
       debugPrint('Get album details error: $e');
       return null;
+    }
+  }
+
+  /// POST /api/albums/{id}/rate - Rate an album
+  Future<AlbumRatingResponse?> rateAlbum(
+    int albumId,
+    int rating,
+    String? comment,
+  ) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final body = {
+        'rating': rating,
+        if (comment != null && comment.trim().isNotEmpty) 'comment': comment.trim(),
+      };
+
+      final data = await _api.post('/albums/$albumId/rate', body: body);
+      if (data != null) {
+        final ratingResponse = AlbumRatingResponse.fromJson(data);
+        
+        // Update current album cache if matches
+        if (_currentAlbum != null && _currentAlbum!.id == albumId) {
+          _currentAlbum = _currentAlbum!.copyWith(
+            averageRating: ratingResponse.averageRating,
+            ratingCount: ratingResponse.ratingCount,
+            userRating: ratingResponse.userRating,
+            userComment: ratingResponse.userComment,
+          );
+        }
+        
+        _isLoading = false;
+        notifyListeners();
+        return ratingResponse;
+      }
+      
+      _isLoading = false;
+      notifyListeners();
+      return null;
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Rate album error: $e');
+      rethrow;
+    }
+  }
+
+  /// GET /api/albums/{id}/rating - Get album rating status
+  Future<AlbumRatingResponse?> getAlbumRating(int albumId) async {
+    try {
+      final data = await _api.get('/albums/$albumId/rating');
+      if (data != null) {
+        final ratingResponse = AlbumRatingResponse.fromJson(data);
+        
+        // Update current album cache if matches
+        if (_currentAlbum != null && _currentAlbum!.id == albumId) {
+          _currentAlbum = _currentAlbum!.copyWith(
+            averageRating: ratingResponse.averageRating,
+            ratingCount: ratingResponse.ratingCount,
+            userRating: ratingResponse.userRating,
+            userComment: ratingResponse.userComment,
+          );
+          notifyListeners();
+        }
+        return ratingResponse;
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Get album rating error: $e');
+      return null;
+    }
+  }
+
+  /// DELETE /api/albums/{id}/rating - Delete user rating
+  Future<void> deleteRating(int albumId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      await _api.delete('/albums/$albumId/rating');
+      
+      // Fetch updated rating info to refresh cache
+      await getAlbumRating(albumId);
+      
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      debugPrint('Delete rating error: $e');
+      rethrow;
+    }
+  }
+
+  /// GET /api/albums/{id}/reviews - Get reviews (paginated)
+  Future<PagedResponse<AlbumReviewResponse>> getAlbumReviews(
+    int albumId, {
+    int page = 0,
+    int size = 20,
+  }) async {
+    try {
+      final queryParams = {
+        'page': page.toString(),
+        'size': size.toString(),
+      };
+      
+      final data = await _api.get('/albums/$albumId/reviews', queryParams: queryParams);
+      if (data != null) {
+        return PagedResponse<AlbumReviewResponse>.fromJson(
+          data,
+          (item) => AlbumReviewResponse.fromJson(item),
+        );
+      }
+      
+      return PagedResponse<AlbumReviewResponse>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
+    } catch (e) {
+      debugPrint('Get album reviews error: $e');
+      return PagedResponse<AlbumReviewResponse>(
+        content: [],
+        totalPages: 0,
+        totalElements: 0,
+        pageNumber: page,
+        pageSize: size,
+        isFirst: true,
+        isLast: true,
+      );
     }
   }
   

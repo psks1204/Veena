@@ -12,6 +12,9 @@ import '../../../shared/widgets/media_options_sheet.dart';
 import '../../../core/services/artist_service.dart';
 import '../../../core/services/library_service.dart';
 import '../../player/screens/unified_player_screen.dart';
+import '../../auth/services/auth_service.dart';
+import '../widgets/album_reviews_sheet.dart';
+import '../widgets/rate_album_dialog.dart';
 
 /// Album Detail Screen - Neon Horizon
 ///
@@ -137,6 +140,15 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final albumService = context.watch<AlbumService>();
+    final albumId = int.tryParse(widget.albumId) ?? 0;
+    
+    // Sync state if currentAlbum changes in service
+    final serviceAlbum = albumService.currentAlbum;
+    if (serviceAlbum != null && serviceAlbum.id == albumId && serviceAlbum != _album) {
+      _album = serviceAlbum;
+    }
+
     final isWeb = MediaQuery.of(context).size.width >= 900;
 
     return Scaffold(
@@ -302,6 +314,12 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                       ),
                       textAlign: TextAlign.center,
                     ),
+                    const SizedBox(height: AppSpacing.sm),
+                    _buildRatingBadge(context, isDark),
+                    if (_album != null && _album!.userRating != null) ...[
+                      const SizedBox(height: AppSpacing.sm),
+                      _buildUserRatingBanner(context, isDark),
+                    ],
                     if (_album?.description != null) ...[
                       const SizedBox(height: AppSpacing.sm),
                       Padding(
@@ -502,7 +520,7 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
             // Left Side: Artwork & Info
             Expanded(
               flex: 2,
-              child: Container(
+              child: SingleChildScrollView(
                 padding: const EdgeInsets.all(40),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -553,23 +571,30 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                     const SizedBox(height: 24),
 
                     // Stats
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 24,
+                      runSpacing: 8,
                       children: [
                         _buildStatItem(
                           Icons.music_note,
                           '$_trackCount Songs',
                           isDark,
                         ),
-                        const SizedBox(width: 24),
-                        if (_album != null)
+                        if (_album != null) ...[
                           _buildStatItem(
                             Icons.calendar_today,
                             _album!.releaseDate ?? 'Unknown',
                             isDark,
                           ),
+                          _buildWebRatingItem(context, isDark),
+                        ],
                       ],
                     ),
+                    if (_album != null && _album!.userRating != null) ...[
+                      const SizedBox(height: 16),
+                      _buildUserRatingBanner(context, isDark),
+                    ],
                     const SizedBox(height: 32),
 
                     // Main Actions
@@ -617,6 +642,8 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                         ),
                       ],
                     ),
+                    // Bottom spacing for player bar
+                    SizedBox(height: player.hasMedia ? 120 : 40),
                   ],
                 ),
               ),
@@ -707,6 +734,193 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildRatingBadge(BuildContext context, bool isDark) {
+    if (_album == null) return const SizedBox.shrink();
+
+    final averageRating = _album!.averageRating;
+    final ratingCount = _album!.ratingCount ?? 0;
+
+    return GestureDetector(
+      onTap: () {
+        AlbumReviewsSheet.show(
+          context,
+          albumId: _album!.id,
+          albumName: _album!.name,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.03),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.05),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              averageRating != null ? Icons.star_rounded : Icons.star_outline_rounded,
+              color: Colors.amber,
+              size: 20,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              averageRating != null
+                  ? '${averageRating.toStringAsFixed(1)} ★'
+                  : 'No ratings yet',
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            if (ratingCount > 0) ...[
+              const SizedBox(width: 6),
+              Text(
+                '($ratingCount review${ratingCount == 1 ? '' : 's'})',
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  fontSize: 12,
+                ),
+              ),
+            ],
+            const SizedBox(width: 4),
+            Icon(
+              Icons.chevron_right_rounded,
+              color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+              size: 16,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserRatingBanner(BuildContext context, bool isDark) {
+    if (_album == null || _album!.userRating == null) return const SizedBox.shrink();
+    
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: AppColors.primary.withOpacity(0.15),
+          ),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.stars_rounded,
+              color: AppColors.primary,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Your Rating: ',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      Row(
+                        children: List.generate(5, (index) {
+                          return Icon(
+                            index < _album!.userRating!
+                                ? Icons.star_rounded
+                                : Icons.star_outline_rounded,
+                            color: Colors.amber,
+                            size: 12,
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                  if (_album!.userComment != null && _album!.userComment!.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '"${_album!.userComment}"',
+                      style: theme.textTheme.labelMedium?.copyWith(
+                        fontStyle: FontStyle.italic,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            IconButton(
+              icon: const Icon(Icons.edit_rounded, size: 16),
+              color: AppColors.primary,
+              visualDensity: VisualDensity.compact,
+              onPressed: () {
+                RateAlbumDialog.show(
+                  context,
+                  albumId: _album!.id,
+                  albumName: _album!.name,
+                  initialRating: _album!.userRating,
+                  initialComment: _album!.userComment,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWebRatingItem(BuildContext context, bool isDark) {
+    if (_album == null) return const SizedBox.shrink();
+    
+    final averageRating = _album!.averageRating;
+    final ratingCount = _album!.ratingCount ?? 0;
+
+    return InkWell(
+      onTap: () {
+        AlbumReviewsSheet.show(
+          context,
+          albumId: _album!.id,
+          albumName: _album!.name,
+        );
+      },
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.star_rounded,
+              size: 16,
+              color: Colors.amber,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              averageRating != null
+                  ? '${averageRating.toStringAsFixed(1)} ★ ($ratingCount)'
+                  : 'No ratings',
+              style: TextStyle(
+                color: (isDark ? Colors.white : Colors.black).withOpacity(0.5),
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

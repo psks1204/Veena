@@ -134,7 +134,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     final content = _commentController.text.trim();
     if (content.isEmpty) return;
 
-    final parentCommentId = _replyToCommentId ?? 0;
+    final parentCommentId = _replyToCommentId;
 
     setState(() => _isPosting = true);
     try {

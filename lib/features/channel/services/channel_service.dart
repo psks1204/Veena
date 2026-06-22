@@ -290,12 +290,19 @@ class ChannelService {
   Future<bool> postMediaComment(
     String mediaId,
     String content, {
-    int parentCommentId = 0,
+    int? parentCommentId,
   }) async {
     try {
+      final body = <String, dynamic>{
+        'content': content,
+      };
+      if (parentCommentId != null && parentCommentId != 0) {
+        body['parentCommentId'] = parentCommentId;
+      }
+
       await _api.post(
         '/user/channel/media/$mediaId/comments',
-        body: {'content': content, 'parentCommentId': parentCommentId},
+        body: body,
       );
       return true;
     } catch (_) {

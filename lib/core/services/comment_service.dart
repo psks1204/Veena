@@ -47,12 +47,19 @@ class CommentService {
   Future<bool> postComment(
     String mediaId,
     String content, {
-    int parentCommentId = 0,
+    int? parentCommentId,
   }) async {
     try {
+      final body = <String, dynamic>{
+        'content': content,
+      };
+      if (parentCommentId != null && parentCommentId != 0) {
+        body['parentCommentId'] = parentCommentId;
+      }
+
       await _api.post(
         '/media/$mediaId/comments',
-        body: {'content': content, 'parentCommentId': parentCommentId},
+        body: body,
       );
       return true;
     } catch (_) {
