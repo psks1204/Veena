@@ -504,7 +504,7 @@ class ChannelService {
     if (lower.endsWith('.mov')) return 'video/quicktime';
     if (lower.endsWith('.avi')) return 'video/avi';
     if (lower.endsWith('.mp3')) return 'audio/mpeg';
-    if (lower.endsWith('.m4a')) return 'audio/m4a';
+    if (lower.endsWith('.m4a')) return 'audio/mp4';
     if (lower.endsWith('.aac')) return 'audio/aac';
     if (lower.endsWith('.wav')) return 'audio/wav';
     if (lower.endsWith('.flac')) return 'audio/flac';

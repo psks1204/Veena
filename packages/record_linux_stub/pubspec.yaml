@@ -1,0 +1,15 @@
+name: record_linux
+description: Stub for record_linux - never runs, only satisfies Dart compiler
+version: 0.7.2
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  record_platform_interface: ^1.0.0
+
+flutter:
+  plugin:
+    platforms:
+      linux:
+        dartPluginClass: RecordLinux

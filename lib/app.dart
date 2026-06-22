@@ -64,6 +64,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'features/alarm/services/alarm_service.dart';
 import 'features/notifications/data/services/notification_service.dart';
 import 'features/notifications/presentation/providers/notification_provider.dart';
+import 'features/player/services/karaoke_recording_service.dart';
 
 /// Veena Music Streaming App
 ///
@@ -176,6 +177,9 @@ class VeenaApp extends StatelessWidget {
           update: (ctx, svc, prev) => prev ?? AddressProvider(svc),
         ),
         ChangeNotifierProvider(create: (_) => WishlistProvider(prefs)),
+
+        // Karaoke recording
+        ChangeNotifierProvider(create: (_) => KaraokeRecordingService()),
       ],
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {

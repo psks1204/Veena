@@ -198,6 +198,7 @@ class MediaItem {
   final LinkedMediaInfo? linkedMedia;
   final String? featuredImageUrl;
   final bool isChannelMedia;
+  final bool karaoke;
 
   const MediaItem({
     required this.id,
@@ -230,6 +231,7 @@ class MediaItem {
     this.linkedMedia,
     this.featuredImageUrl,
     this.isChannelMedia = false,
+    this.karaoke = false,
   });
 
   factory MediaItem.fromJson(Map<String, dynamic> json) {
@@ -286,6 +288,7 @@ class MediaItem {
             )
           : null,
       isChannelMedia: json['isChannelMedia'] as bool? ?? false,
+      karaoke: json['karaoke'] as bool? ?? false,
     );
   }
 
@@ -319,6 +322,7 @@ class MediaItem {
     'album': album?.toJson(),
     'releaseDate': releaseDate,
     'isChannelMedia': isChannelMedia,
+    'karaoke': karaoke,
   };
 
   /// Helper to get artist name
@@ -374,6 +378,9 @@ class MediaItem {
   bool get isAudio => mediaType == MediaType.audio;
   bool get isPublished => status == MediaStatus.published;
   bool get hasLinkedMedia => linkedMediaId != null || linkedMedia != null;
+
+  /// Convenience getter for karaoke flag
+  bool get isKaraoke => karaoke;
 
   /// Helper to get artist ID as String
   String? get artistId => artist?.id.toString();

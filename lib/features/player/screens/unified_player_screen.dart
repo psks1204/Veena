@@ -28,6 +28,8 @@ import '../../../shared/widgets/player_artwork_ad_swap.dart';
 import '../../../shared/widgets/player_ad_rotator.dart';
 import '../../../shared/widgets/subscription_modal.dart';
 import '../../../shared/utils/count_formatter.dart';
+import '../services/karaoke_recording_service.dart';
+import '../widgets/karaoke_reel_post_sheet.dart';
 
 /// Unified Player Screen - Spotify-style player that handles both Audio and Video
 ///
@@ -467,6 +469,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           _buildBottomActions(player),
 
           const SizedBox(height: 16),
+
+          // Karaoke recording section (only for karaoke songs)
+          if (media.isKaraoke) _buildKaraokeRecordingSection(player, media),
 
           // Rotates between existing promo banner and ad banner on mobile.
           const PlayerAdRotator(),
@@ -1565,6 +1570,282 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     );
   }
 
+  /// Karaoke recording section — only shown for karaoke tracks.
+  ///
+  /// Displays a record button when idle, a live timer when recording,
+  /// and auto-stops when the song completes.
+  Widget _buildKaraokeRecordingSection(
+    PlayerProvider player,
+    MediaItem media,
+  ) {
+    return Consumer<KaraokeRecordingService>(
+      builder: (context, recordingService, _) {
+        // Auto-stop recording when song ends
+        if (recordingService.isRecording &&
+            player.duration.inSeconds > 0 &&
+            player.position >= player.duration) {
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            await recordingService.stopRecording();
+            if (!mounted) return;
+            _showReelPostSheet(media);
+          });
+        }
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.screenPadding,
+            vertical: 12,
+          ),
+          child: Column(
+            children: [
+              // Recording indicator + button
+              if (recordingService.isIdle || recordingService.hasError)
+                _buildKaraokeIdleState(recordingService)
+              else if (recordingService.isRecording)
+                _buildKaraokeRecordingState(recordingService, media),
+
+              // Error message
+              if (recordingService.hasError &&
+                  recordingService.errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    recordingService.errorMessage!,
+                    style: const TextStyle(
+                      color: AppColors.error,
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  /// Idle state: pulsing mic button + "Record your cover" label.
+  Widget _buildKaraokeIdleState(KaraokeRecordingService recordingService) {
+    return GestureDetector(
+      onTap: () async {
+        if (!recordingService.isPlatformSupported) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Recording is only available on mobile'),
+            ),
+          );
+          return;
+        }
+        await recordingService.startRecording();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFFFF416C), Color(0xFFFF4B2B)],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(32),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF416C).withOpacity(0.3),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Animated mic icon
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.8, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.easeInOut,
+              builder: (context, value, child) {
+                return Transform.scale(
+                  scale: value,
+                  child: child,
+                );
+              },
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.2),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.mic_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'Record Your Cover',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Recording state: live timer + animated indicator + stop button.
+  Widget _buildKaraokeRecordingState(
+    KaraokeRecordingService recordingService,
+    MediaItem media,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFF416C).withOpacity(0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          // Pulsing red dot
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.4, end: 1.0),
+            duration: const Duration(milliseconds: 600),
+            curve: Curves.easeInOut,
+            builder: (context, value, child) {
+              return Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withOpacity(value),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.redAccent.withOpacity(value * 0.5),
+                      blurRadius: 8,
+                    ),
+                  ],
+                ),
+              );
+            },
+            onEnd: () {
+              // Trigger rebuild to keep pulsing
+              if (mounted && recordingService.isRecording) {
+                setState(() {});
+              }
+            },
+          ),
+          const SizedBox(width: 12),
+
+          // "Recording" label
+          const Text(
+            'REC',
+            style: TextStyle(
+              color: Colors.redAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(width: 12),
+
+          // Timer
+          Expanded(
+            child: Text(
+              KaraokeRecordingService.formatDuration(
+                recordingService.recordingDuration,
+              ),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+
+          // Stop button
+          GestureDetector(
+            onTap: () async {
+              await recordingService.stopRecording();
+              if (!mounted) return;
+              _showReelPostSheet(media);
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 10,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 16,
+                    height: 16,
+                    decoration: BoxDecoration(
+                      color: Colors.redAccent,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Stop',
+                    style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show the reel posting bottom sheet after recording stops.
+  void _showReelPostSheet(MediaItem media) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      isDismissible: false,
+      enableDrag: false,
+      builder: (context) => KaraokeReelPostSheet(sourceMedia: media),
+    ).then((posted) {
+      if (posted == true) {
+        // Recording was posted — reset state
+        context.read<KaraokeRecordingService>().reset();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🎉 Your karaoke cover has been posted!'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        }
+      } else if (posted == false) {
+        // User discarded — service already reset in the sheet
+      }
+      // null = dismissed without action, keep stopped state
+    });
+  }
+
   /// Lyrics section
   Widget _buildLyricsSection(PlayerProvider player) {
     final lyrics = player.currentLyrics;
@@ -1986,6 +2267,12 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
                           // Main controls
                           _buildWebMainControls(player),
+
+                          // Karaoke recording for web layout
+                          if (media.isKaraoke) ...[
+                            const SizedBox(height: 16),
+                            _buildKaraokeRecordingSection(player, media),
+                          ],
                         ],
                       ),
                     ),
