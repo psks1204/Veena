@@ -46,7 +46,7 @@ class PushNotificationService extends ChangeNotifier {
   factory PushNotificationService() => _instance;
   PushNotificationService._internal();
 
-  final FirebaseMessaging _messaging = FirebaseMessaging.instance;
+  FirebaseMessaging get _messaging => FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
   
@@ -60,6 +60,10 @@ class PushNotificationService extends ChangeNotifier {
 
   /// Initialize the notification service
   Future<void> initialize() async {
+    if (kIsWeb) {
+      debugPrint('[PushNotification] Service initialization skipped on Web');
+      return;
+    }
     // Initialize local notifications
     await _initializeLocalNotifications();
     
@@ -185,6 +189,7 @@ class PushNotificationService extends ChangeNotifier {
 
   /// Register FCM token with backend after login
   Future<bool> registerFcmToken() async {
+    if (kIsWeb) return false;
     if (_apiService == null) {
       debugPrint('[PushNotification] ApiService not set - cannot register FCM token');
       return false;
@@ -223,6 +228,7 @@ class PushNotificationService extends ChangeNotifier {
   /// This uses skipUnauthorizedCallback to prevent 401 errors from triggering
   /// another logout, which would cause an infinite loop
   Future<bool> unregisterFcmToken() async {
+    if (kIsWeb) return false;
     if (_apiService == null) {
       debugPrint('[PushNotification] ApiService not set - cannot unregister FCM token');
       return false;
@@ -425,16 +431,21 @@ class PushNotificationService extends ChangeNotifier {
   }
 
   /// Get the current FCM token
-  Future<String?> getToken() => _messaging.getToken();
+  Future<String?> getToken() {
+    if (kIsWeb) return Future.value(null);
+    return _messaging.getToken();
+  }
   
   /// Subscribe to a topic
   Future<void> subscribeToTopic(String topic) async {
+    if (kIsWeb) return;
     await _messaging.subscribeToTopic(topic);
     debugPrint('[PushNotification] Subscribed to topic: $topic');
   }
   
   /// Unsubscribe from a topic
   Future<void> unsubscribeFromTopic(String topic) async {
+    if (kIsWeb) return;
     await _messaging.unsubscribeFromTopic(topic);
     debugPrint('[PushNotification] Unsubscribed from topic: $topic');
   }
