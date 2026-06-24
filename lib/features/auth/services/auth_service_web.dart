@@ -10,7 +10,11 @@ Map<String, dynamic> decodeJwt(String token) {
     if (parts.length != 3) return {};
     final payload = parts[1];
     var normalized = base64Url.normalize(payload);
-    return json.decode(utf8.decode(base64Url.decode(normalized)));
+    final decoded = json.decode(utf8.decode(base64Url.decode(normalized)));
+    if (decoded is Map) {
+      return Map<String, dynamic>.from(decoded);
+    }
+    return {};
   } catch (e) { return {}; }
 }
 
