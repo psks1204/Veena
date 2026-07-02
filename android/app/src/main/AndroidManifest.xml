@@ -6,6 +6,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>
 
     <!-- Alarm Manager Permissions -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
@@ -99,7 +100,7 @@
             android:name="flutterEmbedding"
             android:value="2"/>
 
-        <!-- AdMob Application ID (test ID — replace with real ID from AdMob dashboard before release) -->
+        <!-- AdMob Application ID (real production App ID) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-8580707712580721~8638493793"/>
