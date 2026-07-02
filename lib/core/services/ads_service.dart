@@ -21,14 +21,14 @@ class AdsService {
   // is generated and your AdMob account stays healthy.
   // In release mode, swap in your real unit IDs from the AdMob dashboard.
 
-  // Real Android banner unit ID
+  // Live Android banner ad unit ID from AdMob.
   static const String _androidLiveBannerAdUnitId =
       'ca-app-pub-8580707712580721/5206425957';
 
-  // Real iOS banner unit ID — get this from AdMob dashboard → Apps → [iOS app] → Ad units
-  // It will be a different ID from the Android one even for the same placement.
+  // iOS is currently configured with the same banner unit ID.
+  // If you create a dedicated iOS ad unit in AdMob, replace this value only.
   static const String _iosLiveBannerAdUnitId =
-      'ca-app-pub-8580707712580721/5206425957'; // TODO: replace with iOS banner unit ID
+      'ca-app-pub-8580707712580721/5206425957';
 
   static String get bannerAdUnitId {
     if (kDebugMode) {
