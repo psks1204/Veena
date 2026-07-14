@@ -60,5 +60,9 @@
 			<string>audio</string>
 			<string>fetch</string>
 		</array>
+		<!-- Google's public test App ID (matches the test ad unit IDs used in ads_service.dart debug mode).
+		     Replace with the real iOS AdMob App ID from the AdMob dashboard before release. -->
+		<key>GADApplicationIdentifier</key>
+		<string>ca-app-pub-3940256099942544~1458002511</string>
 	</dict>
 </plist>
