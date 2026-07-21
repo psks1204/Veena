@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "REPLACE_TEAM_ID.com.veena.music",
+        "appID": "REPLACE_TEAM_ID.com.app.veenaapp",
         "paths": ["/song/*"]
       }
     ]
