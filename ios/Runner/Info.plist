@@ -53,6 +53,8 @@
 		<string>This app needs access to the photo library to choose a profile picture.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>This app needs access to the microphone for video/audio profile updates.</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>This app uses speech recognition to let you search by voice.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 		<key>UIBackgroundModes</key>
