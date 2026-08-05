@@ -31,7 +31,7 @@ class AppSettingsService extends ChangeNotifier {
   AppSettingsService(this._api);
 
   /// Current app version — must match pubspec.yaml version
-  static const String currentAppVersion = '2.0.1';
+  static const String currentAppVersion = '2.0.3';
 
   /// Fetch settings from the authenticated API
   Future<void> fetchSettings() async {

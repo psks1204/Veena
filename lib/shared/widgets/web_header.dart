@@ -125,6 +125,7 @@ class _WebHeaderState extends State<WebHeader> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isUnder13 = context.watch<ProfileProvider>().isUnder13;
 
     return Container(
       height: 72,
@@ -168,13 +169,15 @@ class _WebHeaderState extends State<WebHeader> {
           // Navigation Links
           _buildNavLink(AppTabs.home, 'Home', Icons.home_filled, isDark),
           const SizedBox(width: 8),
-          _buildNavLink(
-            AppTabs.uploads,
-            'Feed',
-            Icons.upload_file_rounded,
-            isDark,
-          ),
-          const SizedBox(width: 8),
+          if (!isUnder13) ...[
+            _buildNavLink(
+              AppTabs.uploads,
+              'Feed',
+              Icons.upload_file_rounded,
+              isDark,
+            ),
+            const SizedBox(width: 8),
+          ],
           _buildNavLink(AppTabs.search, 'Search', Icons.search_rounded, isDark),
           const SizedBox(width: 8),
           _buildNavLink(

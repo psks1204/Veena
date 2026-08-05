@@ -1,3 +1,5 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/theme/app_colors.dart';
@@ -6,7 +8,7 @@ import '../services/auth_service.dart';
 
 /// Login Screen
 ///
-/// Premium branded login screen with Google OAuth only.
+/// Premium branded login screen with Google and Apple sign-in.
 /// Features loading, error, and redirect states.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, this.onLoginSuccess});
@@ -54,6 +56,17 @@ class _LoginScreenState extends State<LoginScreen>
       widget.onLoginSuccess?.call();
     }
   }
+
+  Future<void> _handleAppleSignIn() async {
+    final authService = context.read<AuthService>();
+    final success = await authService.signInWithApple();
+
+    if (success && mounted) {
+      widget.onLoginSuccess?.call();
+    }
+  }
+
+  bool get _showAppleSignIn => !kIsWeb && Platform.isIOS;
 
   @override
   Widget build(BuildContext context) {
@@ -184,60 +197,109 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Widget _buildSignInButton(ThemeData theme, Size size) {
-    final colorScheme = theme.colorScheme;
+    final buttonWidth = size.width > 400 ? 320.0 : double.infinity;
 
     return Column(
       children: [
-        SizedBox(
-          width: size.width > 400 ? 320 : double.infinity,
-          height: 56,
-          child: ElevatedButton(
-            onPressed: _handleGoogleSignIn,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: colorScheme.surface,
-              foregroundColor: colorScheme.onSurface,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
-                side: BorderSide(
-                  color: colorScheme.onSurface.withOpacity(0.1),
-                  width: 1,
-                ),
+        if (_showAppleSignIn) ...[
+          _buildAppleButton(theme, buttonWidth),
+          const SizedBox(height: AppSpacing.sm),
+        ],
+        _buildGoogleButton(theme, buttonWidth),
+      ],
+    );
+  }
+
+  Widget _buildAppleButton(ThemeData theme, double width) {
+    final isDark = theme.brightness == Brightness.dark;
+
+    // Apple HIG: black button on light backgrounds, white button on dark.
+    return SizedBox(
+      width: width,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _handleAppleSignIn,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: isDark ? Colors.white : Colors.black,
+          foregroundColor: isDark ? Colors.black : Colors.white,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.apple,
+              size: 22,
+              color: isDark ? Colors.black : Colors.white,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Continue with Apple',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDark ? Colors.black : Colors.white,
               ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                // Google logo
-                Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  padding: const EdgeInsets.all(4),
-                  child: Image.network(
-                    'https://www.google.com/favicon.ico',
-                    errorBuilder: (_, __, ___) => const Icon(
-                      Icons.g_mobiledata_rounded,
-                      size: 16,
-                      color: Colors.blue,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Continue with Google',
-                  style: theme.textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGoogleButton(ThemeData theme, double width) {
+    final colorScheme = theme.colorScheme;
+
+    return SizedBox(
+      width: width,
+      height: 56,
+      child: ElevatedButton(
+        onPressed: _handleGoogleSignIn,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: colorScheme.surface,
+          foregroundColor: colorScheme.onSurface,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppSpacing.radiusFull),
+            side: BorderSide(
+              color: colorScheme.onSurface.withOpacity(0.1),
+              width: 1,
             ),
           ),
         ),
-      ],
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Google logo
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              padding: const EdgeInsets.all(4),
+              child: Image.network(
+                'https://www.google.com/favicon.ico',
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.g_mobiledata_rounded,
+                  size: 16,
+                  color: Colors.blue,
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Continue with Google',
+              style: theme.textTheme.labelLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

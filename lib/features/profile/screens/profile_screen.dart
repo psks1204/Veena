@@ -5,6 +5,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/providers/theme_provider.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/providers/subscription_provider.dart';
+import '../../../core/services/app_settings_service.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../auth/services/auth_service.dart';
 import 'edit_profile_screen.dart';
@@ -31,6 +32,7 @@ class ProfileScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final subscription = context.watch<SubscriptionProvider>();
+    final isUnder13 = context.watch<ProfileProvider>().isUnder13;
 
     return Scaffold(
       appBar: AppBar(
@@ -51,26 +53,29 @@ class ProfileScreen extends StatelessWidget {
 
           const SizedBox(height: AppSpacing.xl),
 
-          // Creator section — My Channel
-          _SectionTitle(title: 'Creator'),
-          const SizedBox(height: AppSpacing.sm),
-          _SettingsCard(
-            children: [
-              _SettingsTile(
-                icon: Icons.video_library_rounded,
-                title: 'My Channel',
-                onTap: () {
-                  AppNavigation.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const MyChannelScreen()),
-                  );
-                },
-                showDivider: false,
-              ),
-            ],
-          ),
-
-          const SizedBox(height: AppSpacing.xl),
+          // Creator section — My Channel (hidden for under-13 accounts)
+          if (!isUnder13) ...[
+            _SectionTitle(title: 'Creator'),
+            const SizedBox(height: AppSpacing.sm),
+            _SettingsCard(
+              children: [
+                _SettingsTile(
+                  icon: Icons.video_library_rounded,
+                  title: 'My Channel',
+                  onTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const MyChannelScreen(),
+                      ),
+                    );
+                  },
+                  showDivider: false,
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xl),
+          ],
 
           // Theme section
           _SectionTitle(title: 'Appearance'),
@@ -211,7 +216,7 @@ class ProfileScreen extends StatelessWidget {
           // Version
           Center(
             child: Text(
-              'Version 2.0.1',
+              'Version ${AppSettingsService.currentAppVersion}',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.4),
               ),
@@ -432,6 +437,12 @@ class _SectionTitle extends StatelessWidget {
 }
 
 class _ThemeToggle extends StatelessWidget {
+  static const _labels = {
+    ThemeMode.system: 'System',
+    ThemeMode.light: 'Light',
+    ThemeMode.dark: 'Dark',
+  };
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -444,35 +455,63 @@ class _ThemeToggle extends StatelessWidget {
         color: colorScheme.surface,
         borderRadius: BorderRadius.circular(AppSpacing.radiusLg),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            themeProvider.isDarkMode
-                ? Icons.dark_mode_rounded
-                : Icons.light_mode_rounded,
-            color: colorScheme.onSurface.withOpacity(0.6),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Dark Mode', style: theme.textTheme.titleSmall),
-                Text(
-                  themeProvider.isDarkMode ? 'On' : 'Off',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withOpacity(0.6),
-                  ),
+          Row(
+            children: [
+              Icon(
+                themeProvider.isDarkMode
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: colorScheme.onSurface.withOpacity(0.6),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Appearance', style: theme.textTheme.titleSmall),
+                    Text(
+                      _labels[themeProvider.themeMode]!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          Switch(
-            value: themeProvider.isDarkMode,
-            onChanged: (value) {
-              themeProvider.setDarkMode(value);
+          const SizedBox(height: AppSpacing.md),
+          SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: ThemeMode.system,
+                label: Text('System'),
+                icon: Icon(Icons.brightness_auto_rounded, size: 18),
+              ),
+              ButtonSegment(
+                value: ThemeMode.light,
+                label: Text('Light'),
+                icon: Icon(Icons.light_mode_rounded, size: 18),
+              ),
+              ButtonSegment(
+                value: ThemeMode.dark,
+                label: Text('Dark'),
+                icon: Icon(Icons.dark_mode_rounded, size: 18),
+              ),
+            ],
+            selected: {themeProvider.themeMode},
+            onSelectionChanged: (selection) {
+              themeProvider.setThemeMode(selection.first);
             },
-            activeThumbColor: colorScheme.primary,
+            style: SegmentedButton.styleFrom(
+              selectedForegroundColor: colorScheme.onPrimary,
+              selectedBackgroundColor: colorScheme.primary,
+              visualDensity: VisualDensity.compact,
+            ),
           ),
         ],
       ),

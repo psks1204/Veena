@@ -16,6 +16,7 @@ class ProfileProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _needsNameSetup = false;
+  bool _needsDobSetup = false;
   bool _hasInitialized = false;
 
   UserProfile? get profile => _profile;
@@ -25,6 +26,13 @@ class ProfileProvider extends ChangeNotifier {
 
   /// True if profile was fetched but has no name — first-login flow
   bool get needsNameSetup => _needsNameSetup;
+
+  /// True if profile was fetched but has no birth date — mandatory before
+  /// the user can enter the app (required to gate under-13 features).
+  bool get needsDobSetup => _needsDobSetup;
+
+  /// True if the user's birth date indicates they are under 13.
+  bool get isUnder13 => _profile?.isUnder13 ?? false;
 
   /// True if the first-login initialization has already been called
   bool get hasInitialized => _hasInitialized;
@@ -78,9 +86,10 @@ class ProfileProvider extends ChangeNotifier {
         }
       }
 
-      // 4) Check if user still needs to set up name
+      // 4) Check if user still needs to set up name / date of birth
       _needsNameSetup =
           _profile?.name == null || _profile!.name!.trim().isEmpty;
+      _needsDobSetup = _profile?.birthDate == null;
       _error = null;
     } catch (e) {
       debugPrint('❌ ProfileProvider.initializeOnLogin: $e');
@@ -131,6 +140,7 @@ class ProfileProvider extends ChangeNotifier {
     _profile = null;
     _hasInitialized = false;
     _needsNameSetup = false;
+    _needsDobSetup = false;
     _isLoading = false;
     _error = null;
     notifyListeners();
@@ -174,6 +184,13 @@ class ProfileProvider extends ChangeNotifier {
   /// Mark name setup as done (user saved or skipped)
   void markNameSetupDone() {
     _needsNameSetup = false;
+    notifyListeners();
+  }
+
+  /// Mark date-of-birth setup as done (only after a successful save — this
+  /// step cannot be skipped)
+  void markDobSetupDone() {
+    _needsDobSetup = false;
     notifyListeners();
   }
 
@@ -268,6 +285,7 @@ class ProfileProvider extends ChangeNotifier {
     _error = null;
     _isLoading = false;
     _needsNameSetup = false;
+    _needsDobSetup = false;
     _hasInitialized = false;
     notifyListeners();
   }

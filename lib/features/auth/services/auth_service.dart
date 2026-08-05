@@ -150,14 +150,20 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle() =>
+      _signInWithProvider(AuthConfig.googleIdentityProvider);
+
+  Future<bool> signInWithApple() =>
+      _signInWithProvider(AuthConfig.appleIdentityProvider);
+
+  Future<bool> _signInWithProvider(String identityProvider) async {
     _state = AuthState.loading;
     _errorMessage = null;
     _isAuthInProgress = true; // Mark auth as in progress
     notifyListeners();
 
     try {
-      final result = await platform.signIn();
+      final result = await platform.signIn(identityProvider: identityProvider);
       _isAuthInProgress = false; // Auth completed
       if (kIsWeb) return result.success; 
 

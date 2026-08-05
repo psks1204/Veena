@@ -26,6 +26,10 @@ class AuthConfig {
   
   /// OAuth scopes
   static const List<String> scopes = ['openid', 'email', 'profile'];
+
+  /// Cognito federated identity provider names
+  static const String googleIdentityProvider = 'Google';
+  static const String appleIdentityProvider = 'SignInWithApple';
   
   /// Redirect URI for mobile (deep link)
   static const String redirectUri = 'veena://auth/callback';
@@ -53,6 +57,7 @@ class AuthConfig {
     required String codeVerifier,
     required String codeChallenge,
     required String state,
+    String identityProvider = googleIdentityProvider,
   }) {
     final params = {
       'response_type': 'code',
@@ -62,7 +67,7 @@ class AuthConfig {
       'state': state,
       'code_challenge': codeChallenge,
       'code_challenge_method': 'S256',
-      'identity_provider': 'Google',
+      'identity_provider': identityProvider,
     };
     
     final queryString = params.entries

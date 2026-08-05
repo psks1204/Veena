@@ -111,4 +111,19 @@ class UserProfile {
       latitude != null &&
       longitude != null &&
       (latitude != 0 || longitude != 0);
+
+  /// Age in whole years, based on birthDate. Null if birth date is unknown.
+  int? get ageInYears {
+    if (birthDate == null) return null;
+    final now = DateTime.now();
+    int age = now.year - birthDate!.year;
+    if (now.month < birthDate!.month ||
+        (now.month == birthDate!.month && now.day < birthDate!.day)) {
+      age--;
+    }
+    return age;
+  }
+
+  /// Users under 13 are not permitted social features (Reels, My Channel).
+  bool get isUnder13 => ageInYears != null && ageInYears! < 13;
 }

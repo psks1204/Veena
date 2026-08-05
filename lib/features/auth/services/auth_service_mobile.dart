@@ -9,7 +9,9 @@ final _secureStorage = const FlutterSecureStorage();
 Map<String, dynamic> decodeJwt(String token) => {};
 void redirectToAdmin(String? token) {}
 
-Future<AuthResult> signIn() async {
+Future<AuthResult> signIn({
+  String identityProvider = AuthConfig.googleIdentityProvider,
+}) async {
   try {
     final result = await _appAuth.authorizeAndExchangeCode(
       AuthorizationTokenRequest(
@@ -18,7 +20,7 @@ Future<AuthResult> signIn() async {
         issuer: 'https://${AuthConfig.issuer}',
         scopes: AuthConfig.scopes,
         promptValues: ['login'],
-        additionalParameters: {'identity_provider': 'Google'},
+        additionalParameters: {'identity_provider': identityProvider},
       ),
     );
     return AuthResult(

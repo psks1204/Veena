@@ -34,6 +34,7 @@ import 'features/search/screens/search_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
 import 'features/profile/screens/edit_profile_screen.dart';
+import 'features/profile/screens/date_of_birth_gate_screen.dart';
 import 'features/player/screens/unified_player_screen.dart';
 import 'features/library/screens/album_detail_screen.dart';
 import 'features/playlist/screens/playlist_detail_screen.dart';
@@ -95,7 +96,7 @@ class VeenaApp extends StatelessWidget {
       providers: [
         // Core providers
         Provider<AlarmService>(create: (_) => AlarmService(prefs)),
-        ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider(prefs)),
         ChangeNotifierProvider(create: (_) => AuthService()..initialize()),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
         ChangeNotifierProvider(
@@ -220,6 +221,7 @@ class _AppRouterState extends State<_AppRouter> {
   bool _providersReset = false; // tracks whether sign-out reset has been done
   bool _profileInitTriggered = false;
   bool _nameSetupTriggered = false;
+  bool _dobSetupTriggered = false;
   bool _subscriptionInitTriggered = false;
   bool _backgroundServicesInitialized = false;
 
@@ -279,6 +281,7 @@ class _AppRouterState extends State<_AppRouter> {
           _channelSetupTriggered = false;
           _profileInitTriggered = false;
           _nameSetupTriggered = false;
+          _dobSetupTriggered = false;
           _subscriptionInitTriggered = false;
           // Reset provider state so re-login gets fresh data
           if (!_providersReset) {
@@ -359,8 +362,27 @@ class _AppRouterState extends State<_AppRouter> {
           });
         }
 
-        // Show first-login name setup if profile has no name
-        if (profileProvider.needsNameSetup && !_nameSetupTriggered) {
+        // Show mandatory date-of-birth gate if profile has no birth date.
+        // This takes priority over name setup and cannot be skipped — it's
+        // required to apply age-appropriate restrictions (e.g. hiding
+        // Reels/My Channel from under-13 users).
+        if (profileProvider.needsDobSetup && !_dobSetupTriggered) {
+          _dobSetupTriggered = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    DateOfBirthGateScreen(initialName: authService.userName),
+              ),
+            );
+          });
+        }
+
+        // Show first-login name setup if profile has no name (only once DOB
+        // is on file, so gates don't stack on top of each other)
+        if (profileProvider.needsNameSetup &&
+            !profileProvider.needsDobSetup &&
+            !_nameSetupTriggered) {
           _nameSetupTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context, rootNavigator: true)
@@ -387,8 +409,11 @@ class _AppRouterState extends State<_AppRouter> {
           });
         }
 
-        // Show channel setup if user has not set a custom channel name
-        if (channelProvider.needsChannelSetup && !_channelSetupTriggered) {
+        // Show channel setup if user has not set a custom channel name.
+        // Skipped for under-13 users since My Channel is hidden for them.
+        if (channelProvider.needsChannelSetup &&
+            !_channelSetupTriggered &&
+            !profileProvider.isUnder13) {
           _channelSetupTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
             Navigator.of(context, rootNavigator: true).push(

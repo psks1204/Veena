@@ -5,6 +5,7 @@ import '../../core/navigation/app_navigation.dart';
 import '../../core/navigation/app_tabs.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/providers/app_mode_provider.dart';
+import '../../core/providers/profile_provider.dart';
 import '../widgets/mini_player.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
@@ -37,38 +38,85 @@ class AppShell extends StatefulWidget {
 }
 
 class _AppShellState extends State<AppShell> {
-  static const _railDestinations = [
-    NavigationRailDestination(
+  static const _railDestinationsByTab = <int, NavigationRailDestination>{
+    AppTabs.home: NavigationRailDestination(
       icon: Icon(Icons.home_outlined),
       selectedIcon: Icon(Icons.home_rounded),
       label: Text('Home'),
     ),
-    NavigationRailDestination(
+    AppTabs.uploads: NavigationRailDestination(
       icon: Icon(Icons.upload_file_outlined),
       selectedIcon: Icon(Icons.upload_file_rounded),
       label: Text('Feed'),
     ),
-    NavigationRailDestination(
+    AppTabs.search: NavigationRailDestination(
       icon: Icon(Icons.search_outlined),
       selectedIcon: Icon(Icons.search_rounded),
       label: Text('Search'),
     ),
-    NavigationRailDestination(
+    AppTabs.library: NavigationRailDestination(
       icon: Icon(Icons.library_music_outlined),
       selectedIcon: Icon(Icons.library_music_rounded),
       label: Text('Library'),
     ),
-    NavigationRailDestination(
+    AppTabs.profile: NavigationRailDestination(
       icon: Icon(Icons.person_outline_rounded),
       selectedIcon: Icon(Icons.person_rounded),
       label: Text('Profile'),
     ),
-    NavigationRailDestination(
+    AppTabs.shopEntry: NavigationRailDestination(
       icon: Icon(Icons.storefront_outlined),
       selectedIcon: Icon(Icons.storefront_rounded),
       label: Text('Shop'),
     ),
-  ];
+  };
+
+  static const _bottomNavItemsByTab = <int, BottomNavigationBarItem>{
+    AppTabs.home: BottomNavigationBarItem(
+      icon: Icon(Icons.home_outlined),
+      activeIcon: Icon(Icons.home_rounded),
+      label: 'Home',
+    ),
+    AppTabs.uploads: BottomNavigationBarItem(
+      icon: Icon(Icons.upload_file_outlined),
+      activeIcon: Icon(Icons.upload_file_rounded),
+      label: 'Feed',
+    ),
+    AppTabs.search: BottomNavigationBarItem(
+      icon: Icon(Icons.search_outlined),
+      activeIcon: Icon(Icons.search_rounded),
+      label: 'Search',
+    ),
+    AppTabs.library: BottomNavigationBarItem(
+      icon: Icon(Icons.library_music_outlined),
+      activeIcon: Icon(Icons.library_music_rounded),
+      label: 'Library',
+    ),
+    AppTabs.profile: BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline_rounded),
+      activeIcon: Icon(Icons.person_rounded),
+      label: 'Profile',
+    ),
+    AppTabs.shopEntry: BottomNavigationBarItem(
+      icon: Icon(Icons.storefront_outlined),
+      activeIcon: Icon(Icons.storefront_rounded),
+      label: 'Shop',
+    ),
+  };
+
+  /// Ordered tab indices for the nav bar/rail. The Feed (Reels) tab is
+  /// omitted for under-13 accounts, since social/reel features aren't
+  /// available to them.
+  List<int> _visibleTabOrder(bool hideReelsTab) {
+    return [
+      AppTabs.home,
+      if (!hideReelsTab) AppTabs.uploads,
+      AppTabs.search,
+      AppTabs.library,
+      AppTabs.profile,
+      AppTabs.shopEntry,
+    ];
+  }
 
   @override
   void didUpdateWidget(AppShell oldWidget) {
@@ -194,6 +242,9 @@ class _AppShellState extends State<AppShell> {
   Widget _buildMobileLayout(bool isDark) {
     final showMiniPlayer =
         widget.showMiniPlayer && widget.miniPlayerData != null;
+    final isUnder13 = context.watch<ProfileProvider>().isUnder13;
+    final tabOrder = _visibleTabOrder(isUnder13);
+    final selectedPosition = tabOrder.indexOf(widget.currentIndex);
 
     return Scaffold(
       extendBody: true,
@@ -242,47 +293,19 @@ class _AppShellState extends State<AppShell> {
                   ),
 
                 FloatingNavBar(
-                  currentIndex: widget.currentIndex,
-                  onTap: (index) {
-                    if (index == AppTabs.shopEntry) {
+                  currentIndex: selectedPosition < 0 ? 0 : selectedPosition,
+                  onTap: (position) {
+                    final tabIndex = tabOrder[position];
+                    if (tabIndex == AppTabs.shopEntry) {
                       // Shop icon — switch to shop mode
                       context.read<AppModeProvider>().enterShop();
                     } else {
-                      widget.onDestinationSelected(index);
+                      widget.onDestinationSelected(tabIndex);
                     }
                   },
-                  items: const [
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.home_outlined),
-                      activeIcon: Icon(Icons.home_rounded),
-                      label: 'Home',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.upload_file_outlined),
-                      activeIcon: Icon(Icons.upload_file_rounded),
-                      label: 'Feed',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.search_outlined),
-                      activeIcon: Icon(Icons.search_rounded),
-                      label: 'Search',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.library_music_outlined),
-                      activeIcon: Icon(Icons.library_music_rounded),
-                      label: 'Library',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.person_outline_rounded),
-                      activeIcon: Icon(Icons.person_rounded),
-                      label: 'Profile',
-                    ),
-                    BottomNavigationBarItem(
-                      icon: Icon(Icons.storefront_outlined),
-                      activeIcon: Icon(Icons.storefront_rounded),
-                      label: 'Shop',
-                    ),
-                  ],
+                  items: tabOrder
+                      .map((tab) => _bottomNavItemsByTab[tab]!)
+                      .toList(),
                 ),
               ],
             ),
@@ -296,21 +319,27 @@ class _AppShellState extends State<AppShell> {
     final surfaceColor = isDark
         ? AppColors.darkSurface
         : AppColors.lightSurface;
+    final isUnder13 = context.watch<ProfileProvider>().isUnder13;
+    final tabOrder = _visibleTabOrder(isUnder13);
+    final selectedPosition = tabOrder.indexOf(widget.currentIndex);
 
     return Scaffold(
       body: Row(
         children: [
           // Compact navigation rail
           NavigationRail(
-            selectedIndex: widget.currentIndex,
-            onDestinationSelected: (index) {
-              if (index == AppTabs.shopEntry) {
+            selectedIndex: selectedPosition < 0 ? 0 : selectedPosition,
+            onDestinationSelected: (position) {
+              final tabIndex = tabOrder[position];
+              if (tabIndex == AppTabs.shopEntry) {
                 context.read<AppModeProvider>().enterShop();
               } else {
-                widget.onDestinationSelected(index);
+                widget.onDestinationSelected(tabIndex);
               }
             },
-            destinations: _railDestinations,
+            destinations: tabOrder
+                .map((tab) => _railDestinationsByTab[tab]!)
+                .toList(),
             backgroundColor: surfaceColor,
             labelType: NavigationRailLabelType.all,
           ),

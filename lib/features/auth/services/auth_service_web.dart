@@ -23,7 +23,9 @@ void redirectToAdmin(String? token) {
   html.window.location.href = '/admin/?token=$token';
 }
 
-Future<AuthResult> signIn() async {
+Future<AuthResult> signIn({
+  String identityProvider = AuthConfig.googleIdentityProvider,
+}) async {
   try {
     final codeVerifier = generateCodeVerifier();
     final codeChallenge = generateCodeChallenge(codeVerifier);
@@ -36,6 +38,7 @@ Future<AuthResult> signIn() async {
       codeVerifier: codeVerifier,
       codeChallenge: codeChallenge,
       state: state,
+      identityProvider: identityProvider,
     );
 
     html.window.location.href = authUrl;
