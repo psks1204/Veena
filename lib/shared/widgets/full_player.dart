@@ -397,36 +397,32 @@ class FullPlayer extends StatelessWidget {
                                         },
                                       ),
                                     // Credits for Web
-                                    if (mediaItem.composerName != null ||
-                                        mediaItem.lyricistName != null ||
-                                        mediaItem.producerName != null ||
-                                        mediaItem.directorName != null ||
-                                        mediaItem.releaseDate != null) ...[
+                                    if (mediaItem.hasCredits) ...[
                                       const SizedBox(height: 12),
                                       Wrap(
                                         spacing: 8,
                                         runSpacing: 8,
                                         alignment: WrapAlignment.center,
                                         children: [
-                                          if (mediaItem.composerName != null)
+                                          if (mediaItem.effectiveComposerName != null)
                                             _buildCreditBadge(
                                               'Music',
-                                              mediaItem.composerName!,
+                                              mediaItem.effectiveComposerName!,
                                             ),
-                                          if (mediaItem.lyricistName != null)
+                                          if (mediaItem.effectiveLyricistName != null)
                                             _buildCreditBadge(
                                               'Lyrics',
-                                              mediaItem.lyricistName!,
+                                              mediaItem.effectiveLyricistName!,
                                             ),
-                                          if (mediaItem.producerName != null)
+                                          if (mediaItem.effectiveProducerName != null)
                                             _buildCreditBadge(
                                               'Producer',
-                                              mediaItem.producerName!,
+                                              mediaItem.effectiveProducerName!,
                                             ),
-                                          if (mediaItem.directorName != null)
+                                          if (mediaItem.effectiveDirectorName != null)
                                             _buildCreditBadge(
                                               'Director',
-                                              mediaItem.directorName!,
+                                              mediaItem.effectiveDirectorName!,
                                             ),
                                           if (mediaItem.releaseDate != null)
                                             _buildCreditBadge(
@@ -940,8 +936,10 @@ class FullPlayer extends StatelessWidget {
                 // Like Button
                 Consumer<MediaService>(
                   builder: (context, mediaService, _) {
+                    final linkedId = mediaItem.linkedMediaId ?? mediaItem.linkedMedia?.id;
                     final isLiked = mediaService.isLiked(
                       mediaItem.id,
+                      linkedMediaId: linkedId,
                       initial: mediaItem.liked,
                     );
                     return IconButton(
@@ -949,11 +947,13 @@ class FullPlayer extends StatelessWidget {
                         final libraryService = context.read<LibraryService>();
                         await mediaService.toggleLike(
                           mediaItem.id,
+                          linkedMediaId: linkedId,
                           initial: mediaItem.liked,
                         );
 
                         if (mediaService.isLiked(
                           mediaItem.id,
+                          linkedMediaId: linkedId,
                           initial: mediaItem.liked,
                         )) {
                           libraryService.addFavoriteLocal(mediaItem);
@@ -976,11 +976,7 @@ class FullPlayer extends StatelessWidget {
           ),
 
           // Credits Section (if available)
-          if (mediaItem.composerName != null ||
-              mediaItem.lyricistName != null ||
-              mediaItem.producerName != null ||
-              mediaItem.directorName != null ||
-              mediaItem.releaseDate != null) ...[
+          if (mediaItem.hasCredits) ...[
             const SizedBox(height: 16),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -988,36 +984,36 @@ class FullPlayer extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    if (mediaItem.composerName != null)
+                    if (mediaItem.effectiveComposerName != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: _buildCreditBadge(
                           'Music',
-                          mediaItem.composerName!,
+                          mediaItem.effectiveComposerName!,
                         ),
                       ),
-                    if (mediaItem.lyricistName != null)
+                    if (mediaItem.effectiveLyricistName != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: _buildCreditBadge(
                           'Lyrics',
-                          mediaItem.lyricistName!,
+                          mediaItem.effectiveLyricistName!,
                         ),
                       ),
-                    if (mediaItem.producerName != null)
+                    if (mediaItem.effectiveProducerName != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: _buildCreditBadge(
                           'Producer',
-                          mediaItem.producerName!,
+                          mediaItem.effectiveProducerName!,
                         ),
                       ),
-                    if (mediaItem.directorName != null)
+                    if (mediaItem.effectiveDirectorName != null)
                       Padding(
                         padding: const EdgeInsets.only(right: 8.0),
                         child: _buildCreditBadge(
                           'Director',
-                          mediaItem.directorName!,
+                          mediaItem.effectiveDirectorName!,
                         ),
                       ),
                     if (mediaItem.releaseDate != null)
@@ -1159,16 +1155,9 @@ class FullPlayer extends StatelessWidget {
                         onTap: () {
                           // Switch logic identical to before, just consolidated
                           final currentPosition = player.position;
-                          final videoItem = MediaItem(
-                            id: linkedMedia.id,
-                            title: linkedMedia.title,
-                            mediaType: linkedMedia.mediaType,
-                            thumbnailUrl: linkedMedia.thumbnailUrl,
-                            hlsUrl: linkedMedia.hlsUrl,
-                            status: MediaStatus.published,
-                            createdAt: DateTime.now(),
-                            updatedAt: DateTime.now(),
-                            artist: linkedMedia.artist,
+                          final videoItem = MediaItem.fromLinkedMedia(
+                            linkedMedia,
+                            currentMedia: player.currentMedia,
                           );
                           player.play(
                             videoItem,

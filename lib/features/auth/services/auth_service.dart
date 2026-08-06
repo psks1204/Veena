@@ -187,17 +187,47 @@ class AuthService extends ChangeNotifier {
       } else {
         _isAuthInProgress = false;
         _state = AuthState.error;
-        _errorMessage = result.error ?? 'Authentication failed.';
+        _errorMessage = _formatAuthError(result.error);
         notifyListeners();
         return false;
       }
     } catch (e) {
       _isAuthInProgress = false;
       _state = AuthState.error;
-      _errorMessage = e.toString();
+      _errorMessage = _formatAuthError(e);
       notifyListeners();
       return false;
     }
+  }
+
+  String _formatAuthError(dynamic error) {
+    if (error == null) return 'Sign-in failed. Please try again.';
+    final errStr = error.toString().toLowerCase();
+
+    // Cancellation checks
+    if (errStr.contains('user_cancelled') ||
+        errStr.contains('user cancelled') ||
+        errStr.contains('usercancelled') ||
+        errStr.contains('canceled') ||
+        errStr.contains('cancelled') ||
+        errStr.contains('dismissed')) {
+      return 'Sign-in was cancelled. Please try again.';
+    }
+
+    // Network & connection checks
+    if (errStr.contains('network') ||
+        errStr.contains('socket') ||
+        errStr.contains('connection') ||
+        errStr.contains('host')) {
+      return 'Network error. Please check your internet connection and try again.';
+    }
+
+    // Timeout checks
+    if (errStr.contains('timeout')) {
+      return 'Sign-in timed out. Please try again.';
+    }
+
+    return 'Sign-in failed. Please try again.';
   }
 
   Future<void> signOut() async {

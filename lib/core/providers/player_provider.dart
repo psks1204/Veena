@@ -413,6 +413,18 @@ class PlayerProvider extends ChangeNotifier {
     debugPrint('[PlayerProvider] 📊 Analytics: Recording play for ${media.id}');
     _mediaService?.recordPlay(media.id);
 
+    // Fetch full media details asynchronously to enrich credits/artist info from API
+    if (_mediaService != null) {
+      _mediaService!.fetchMediaById(media.id).then((fullItem) {
+        if (fullItem != null && _currentMedia?.id == fullItem.id) {
+          _currentMedia = _currentMedia!.enrichWith(fullItem);
+          notifyListeners();
+        }
+      }).catchError((e) {
+        debugPrint('[PlayerProvider] Non-fatal error fetching media details: $e');
+      });
+    }
+
     // Fetch lyrics if available
     if (media.lyricsUrl != null && media.lyricsUrl!.isNotEmpty) {
       _lyricsService.fetchLyrics(media.lyricsUrl!).then((lyrics) {

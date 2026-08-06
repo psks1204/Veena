@@ -474,16 +474,9 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           final currentPosition = player.position;
 
           // Create MediaItem from LinkedMediaInfo and play it
-          final audioItem = MediaItem(
-            id: linkedMedia.id,
-            title: linkedMedia.title,
-            mediaType: linkedMedia.mediaType,
-            thumbnailUrl: linkedMedia.thumbnailUrl,
-            hlsUrl: linkedMedia.hlsUrl,
-            status: MediaStatus.published,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-            artist: linkedMedia.artist,
+          final audioItem = MediaItem.fromLinkedMedia(
+            linkedMedia,
+            currentMedia: player.currentMedia,
           );
           player.play(audioItem, startPosition: currentPosition);
           // Pop video player - the app.dart will show FullPlayer for audio

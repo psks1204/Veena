@@ -90,6 +90,17 @@ class LinkedMediaInfo {
   final String? thumbnailUrl;
   final String? hlsUrl;
   final ArtistInfo? artist;
+  final List<ArtistInfo> subArtists;
+  final String? composerName;
+  final String? lyricistName;
+  final String? producerName;
+  final String? directorName;
+  final CreditInfo? composer;
+  final CreditInfo? lyricist;
+  final CreditInfo? producer;
+  final CreditInfo? director;
+  final AlbumInfo? album;
+  final String? releaseDate;
 
   const LinkedMediaInfo({
     required this.id,
@@ -98,6 +109,17 @@ class LinkedMediaInfo {
     this.thumbnailUrl,
     this.hlsUrl,
     this.artist,
+    this.subArtists = const [],
+    this.composerName,
+    this.lyricistName,
+    this.producerName,
+    this.directorName,
+    this.composer,
+    this.lyricist,
+    this.producer,
+    this.director,
+    this.album,
+    this.releaseDate,
   });
 
   factory LinkedMediaInfo.fromJson(Map<String, dynamic> json) {
@@ -110,6 +132,52 @@ class LinkedMediaInfo {
       artist: json['artist'] != null
           ? ArtistInfo.fromJson(json['artist'] as Map<String, dynamic>)
           : null,
+      subArtists: (json['subArtists'] as List<dynamic>?)
+              ?.map((e) => ArtistInfo.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      composerName: json['composerName'] as String?,
+      lyricistName: json['lyricistName'] as String?,
+      producerName: json['producerName'] as String?,
+      directorName: json['directorName'] as String?,
+      composer: json['composer'] != null
+          ? CreditInfo.fromJson(json['composer'] as Map<String, dynamic>)
+          : null,
+      lyricist: json['lyricist'] != null
+          ? CreditInfo.fromJson(json['lyricist'] as Map<String, dynamic>)
+          : null,
+      producer: json['producer'] != null
+          ? CreditInfo.fromJson(json['producer'] as Map<String, dynamic>)
+          : null,
+      director: json['director'] != null
+          ? CreditInfo.fromJson(json['director'] as Map<String, dynamic>)
+          : null,
+      album: json['album'] != null
+          ? AlbumInfo.fromJson(json['album'] as Map<String, dynamic>)
+          : null,
+      releaseDate: json['releaseDate'] as String?,
+    );
+  }
+
+  factory LinkedMediaInfo.fromMediaItem(MediaItem item) {
+    return LinkedMediaInfo(
+      id: item.id,
+      title: item.title,
+      mediaType: item.mediaType,
+      thumbnailUrl: item.thumbnailUrl,
+      hlsUrl: item.hlsUrl,
+      artist: item.artist,
+      subArtists: item.subArtists,
+      composerName: item.composerName,
+      lyricistName: item.lyricistName,
+      producerName: item.producerName,
+      directorName: item.directorName,
+      composer: item.composer,
+      lyricist: item.lyricist,
+      producer: item.producer,
+      director: item.director,
+      album: item.album,
+      releaseDate: item.releaseDate,
     );
   }
 }
@@ -374,6 +442,18 @@ class MediaItem {
   /// Helper to get album cover (falls back to thumbnail)
   String? get albumCoverUrl => album?.coverImageUrl ?? thumbnailUrl;
 
+  /// Effective credit names (prefers CreditInfo.name, falls back to String credit name)
+  String? get effectiveComposerName => composer?.name ?? composerName;
+  String? get effectiveLyricistName => lyricist?.name ?? lyricistName;
+  String? get effectiveProducerName => producer?.name ?? producerName;
+  String? get effectiveDirectorName => director?.name ?? directorName;
+  bool get hasCredits =>
+      effectiveComposerName != null ||
+      effectiveLyricistName != null ||
+      effectiveProducerName != null ||
+      effectiveDirectorName != null ||
+      releaseDate != null;
+
   bool get isVideo => mediaType == MediaType.video;
   bool get isAudio => mediaType == MediaType.audio;
   bool get isPublished => status == MediaStatus.published;
@@ -384,6 +464,143 @@ class MediaItem {
 
   /// Helper to get artist ID as String
   String? get artistId => artist?.id.toString();
+
+  /// Create a MediaItem from LinkedMediaInfo, preserving credits & artist info from currentMedia if needed
+  factory MediaItem.fromLinkedMedia(
+    LinkedMediaInfo linked, {
+    MediaItem? currentMedia,
+  }) {
+    // Preserve artist info; ensure imageUrl, followerCount, and ID from currentMedia if linked.artist lacks them
+    ArtistInfo? mergedArtist = linked.artist ?? currentMedia?.artist;
+    if (mergedArtist != null && currentMedia?.artist != null) {
+      final ca = currentMedia!.artist!;
+      mergedArtist = ArtistInfo(
+        id: mergedArtist.id != 0 ? mergedArtist.id : ca.id,
+        name: (mergedArtist.name.isNotEmpty && mergedArtist.name != 'Unknown Artist')
+            ? mergedArtist.name
+            : ca.name,
+        genre: mergedArtist.genre ?? ca.genre,
+        bio: mergedArtist.bio ?? ca.bio,
+        imageUrl: (mergedArtist.imageUrl != null && mergedArtist.imageUrl!.isNotEmpty)
+            ? mergedArtist.imageUrl
+            : ca.imageUrl,
+        verified: mergedArtist.verified || ca.verified,
+        followerCount: mergedArtist.followerCount > 0
+            ? mergedArtist.followerCount
+            : ca.followerCount,
+      );
+    }
+
+    final subArtists = linked.subArtists.isNotEmpty
+        ? linked.subArtists
+        : (currentMedia?.subArtists ?? const []);
+
+    final composer = linked.composer ?? currentMedia?.composer;
+    final lyricist = linked.lyricist ?? currentMedia?.lyricist;
+    final producer = linked.producer ?? currentMedia?.producer;
+    final director = linked.director ?? currentMedia?.director;
+
+    final composerName =
+        linked.composerName ?? currentMedia?.composerName ?? composer?.name;
+    final lyricistName =
+        linked.lyricistName ?? currentMedia?.lyricistName ?? lyricist?.name;
+    final producerName =
+        linked.producerName ?? currentMedia?.producerName ?? producer?.name;
+    final directorName =
+        linked.directorName ?? currentMedia?.directorName ?? director?.name;
+
+    LinkedMediaInfo? backLink;
+    if (currentMedia != null) {
+      backLink = LinkedMediaInfo.fromMediaItem(currentMedia);
+    }
+
+    return MediaItem(
+      id: linked.id,
+      title: linked.title,
+      mediaType: linked.mediaType,
+      thumbnailUrl: linked.thumbnailUrl ?? currentMedia?.thumbnailUrl,
+      hlsUrl: linked.hlsUrl ?? currentMedia?.hlsUrl,
+      status: MediaStatus.published,
+      createdAt: currentMedia?.createdAt ?? DateTime.now(),
+      updatedAt: currentMedia?.updatedAt ?? DateTime.now(),
+      artist: mergedArtist,
+      subArtists: subArtists,
+      composerName: composerName,
+      lyricistName: lyricistName,
+      producerName: producerName,
+      directorName: directorName,
+      composer: composer,
+      lyricist: lyricist,
+      producer: producer,
+      director: director,
+      album: linked.album ?? currentMedia?.album,
+      releaseDate: linked.releaseDate ?? currentMedia?.releaseDate,
+      lyricsUrl: currentMedia?.lyricsUrl,
+      featuredImageUrl: currentMedia?.featuredImageUrl,
+      liked: currentMedia?.liked ?? false,
+      likeCount: currentMedia?.likeCount ?? 0,
+      playedCount: currentMedia?.playedCount ?? 0,
+      isChannelMedia: currentMedia?.isChannelMedia ?? false,
+      karaoke: currentMedia?.karaoke ?? false,
+      linkedMedia: backLink,
+    );
+  }
+
+  /// Enrich this MediaItem with metadata from a detailed API response [fullItem]
+  MediaItem enrichWith(MediaItem fullItem) {
+    ArtistInfo? mergedArtist = fullItem.artist ?? artist;
+    if (mergedArtist != null && artist != null) {
+      mergedArtist = ArtistInfo(
+        id: mergedArtist.id != 0 ? mergedArtist.id : artist!.id,
+        name: (mergedArtist.name.isNotEmpty && mergedArtist.name != 'Unknown Artist')
+            ? mergedArtist.name
+            : artist!.name,
+        genre: mergedArtist.genre ?? artist!.genre,
+        bio: mergedArtist.bio ?? artist!.bio,
+        imageUrl: (mergedArtist.imageUrl != null && mergedArtist.imageUrl!.isNotEmpty)
+            ? mergedArtist.imageUrl
+            : artist!.imageUrl,
+        verified: mergedArtist.verified || artist!.verified,
+        followerCount: mergedArtist.followerCount > 0
+            ? mergedArtist.followerCount
+            : artist!.followerCount,
+      );
+    }
+
+    return MediaItem(
+      id: id,
+      title: fullItem.title.isNotEmpty ? fullItem.title : title,
+      description: fullItem.description ?? description,
+      mediaType: mediaType,
+      status: status,
+      visibility: visibility,
+      hlsUrl: fullItem.hlsUrl ?? hlsUrl,
+      thumbnailUrl: fullItem.thumbnailUrl ?? thumbnailUrl,
+      lyricsUrl: fullItem.lyricsUrl ?? lyricsUrl,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      linkedMediaId: fullItem.linkedMediaId ?? linkedMediaId,
+      liked: fullItem.liked || liked,
+      likeCount: fullItem.likeCount > 0 ? fullItem.likeCount : likeCount,
+      playedCount: fullItem.playedCount > 0 ? fullItem.playedCount : playedCount,
+      artist: mergedArtist,
+      subArtists: fullItem.subArtists.isNotEmpty ? fullItem.subArtists : subArtists,
+      composerName: fullItem.composerName ?? composerName,
+      lyricistName: fullItem.lyricistName ?? lyricistName,
+      producerName: fullItem.producerName ?? producerName,
+      directorName: fullItem.directorName ?? directorName,
+      composer: fullItem.composer ?? composer,
+      lyricist: fullItem.lyricist ?? lyricist,
+      producer: fullItem.producer ?? producer,
+      director: fullItem.director ?? director,
+      album: fullItem.album ?? album,
+      releaseDate: fullItem.releaseDate ?? releaseDate,
+      linkedMedia: fullItem.linkedMedia ?? linkedMedia,
+      featuredImageUrl: fullItem.featuredImageUrl ?? featuredImageUrl,
+      isChannelMedia: isChannelMedia,
+      karaoke: karaoke,
+    );
+  }
 }
 
 /// Media type enum

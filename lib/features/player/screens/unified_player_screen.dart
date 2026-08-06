@@ -740,27 +740,12 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   void _switchToLinkedMedia(
     PlayerProvider player,
     MediaItem current,
-    dynamic linkedMedia,
+    LinkedMediaInfo linkedMedia,
   ) {
     final currentPosition = player.position;
-    final newItem = MediaItem(
-      id: linkedMedia.id,
-      title: linkedMedia.title,
-      mediaType: linkedMedia.mediaType,
-      thumbnailUrl: linkedMedia.thumbnailUrl,
-      hlsUrl: linkedMedia.hlsUrl,
-      status: MediaStatus.published,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-      artist: linkedMedia.artist,
-      linkedMedia: LinkedMediaInfo(
-        id: current.id,
-        title: current.title,
-        mediaType: current.mediaType,
-        thumbnailUrl: current.thumbnailUrl,
-        hlsUrl: current.hlsUrl,
-        artist: current.artist,
-      ),
+    final newItem = MediaItem.fromLinkedMedia(
+      linkedMedia,
+      currentMedia: current,
     );
     player.play(newItem, startPosition: currentPosition);
   }
@@ -1008,8 +993,10 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   Widget _buildEngagementStats(MediaItem media, {bool centered = false}) {
     return Consumer<MediaService>(
       builder: (context, mediaService, _) {
+        final linkedId = media.linkedMediaId ?? media.linkedMedia?.id;
         final likeCount = mediaService.getLikeCount(
           media.id,
+          linkedMediaId: linkedId,
           initial: media.likeCount,
         );
         final labelColor = Colors.white.withOpacity(0.78);

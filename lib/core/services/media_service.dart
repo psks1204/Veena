@@ -38,15 +38,31 @@ class MediaService extends ChangeNotifier {
   bool get hasMoreSearchResults => _hasMoreSearchResults;
 
   /// Check if a media item is liked
-  bool isLiked(String mediaId, {bool initial = false}) {
-    if (_unlikedMediaIds.contains(mediaId)) return false;
-    if (_likedMediaIds.contains(mediaId)) return true;
+  bool isLiked(
+    String mediaId, {
+    String? linkedMediaId,
+    bool initial = false,
+  }) {
+    if (_unlikedMediaIds.contains(mediaId) ||
+        (linkedMediaId != null && _unlikedMediaIds.contains(linkedMediaId))) {
+      return false;
+    }
+    if (_likedMediaIds.contains(mediaId) ||
+        (linkedMediaId != null && _likedMediaIds.contains(linkedMediaId))) {
+      return true;
+    }
     return initial;
   }
 
   /// Get like count for a media item
-  int getLikeCount(String mediaId, {int initial = 0}) {
-    return _likeCounts[mediaId] ?? initial;
+  int getLikeCount(
+    String mediaId, {
+    String? linkedMediaId,
+    int initial = 0,
+  }) {
+    return _likeCounts[mediaId] ??
+        (linkedMediaId != null ? _likeCounts[linkedMediaId] : null) ??
+        initial;
   }
 
   // ==================== SEARCH ====================
@@ -239,17 +255,30 @@ class MediaService extends ChangeNotifier {
   /// Toggle like status for a media item - returns LikeResponse
   Future<LikeResponse?> toggleLike(
     String mediaId, {
+    String? linkedMediaId,
     bool initial = false,
   }) async {
-    final currentlyLiked = isLiked(mediaId, initial: initial);
+    final currentlyLiked = isLiked(
+      mediaId,
+      linkedMediaId: linkedMediaId,
+      initial: initial,
+    );
 
-    // Optimistically toggle locally
+    // Optimistically toggle locally for both mediaId and linkedMediaId
     if (currentlyLiked) {
       _likedMediaIds.remove(mediaId);
       _unlikedMediaIds.add(mediaId);
+      if (linkedMediaId != null) {
+        _likedMediaIds.remove(linkedMediaId);
+        _unlikedMediaIds.add(linkedMediaId);
+      }
     } else {
       _unlikedMediaIds.remove(mediaId);
       _likedMediaIds.add(mediaId);
+      if (linkedMediaId != null) {
+        _unlikedMediaIds.remove(linkedMediaId);
+        _likedMediaIds.add(linkedMediaId);
+      }
     }
     notifyListeners();
 
@@ -262,11 +291,22 @@ class MediaService extends ChangeNotifier {
         if (response.liked) {
           _likedMediaIds.add(mediaId);
           _unlikedMediaIds.remove(mediaId);
+          if (linkedMediaId != null) {
+            _likedMediaIds.add(linkedMediaId);
+            _unlikedMediaIds.remove(linkedMediaId);
+          }
         } else {
           _likedMediaIds.remove(mediaId);
           _unlikedMediaIds.add(mediaId);
+          if (linkedMediaId != null) {
+            _likedMediaIds.remove(linkedMediaId);
+            _unlikedMediaIds.add(linkedMediaId);
+          }
         }
         _likeCounts[mediaId] = response.likeCount;
+        if (linkedMediaId != null) {
+          _likeCounts[linkedMediaId] = response.likeCount;
+        }
 
         notifyListeners();
         return response;
@@ -277,9 +317,17 @@ class MediaService extends ChangeNotifier {
       if (currentlyLiked) {
         _unlikedMediaIds.remove(mediaId);
         _likedMediaIds.add(mediaId);
+        if (linkedMediaId != null) {
+          _unlikedMediaIds.remove(linkedMediaId);
+          _likedMediaIds.add(linkedMediaId);
+        }
       } else {
         _likedMediaIds.remove(mediaId);
         _unlikedMediaIds.add(mediaId);
+        if (linkedMediaId != null) {
+          _likedMediaIds.remove(linkedMediaId);
+          _unlikedMediaIds.add(linkedMediaId);
+        }
       }
       notifyListeners();
       debugPrint('Toggle like error: $e');

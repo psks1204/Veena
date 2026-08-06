@@ -633,29 +633,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
 
     return GestureDetector(
       onTap: () {
-        // ... switch logic ...
-        final newItem = MediaItem(
-          id: linked.id,
-          title: linked.title,
-          mediaType: linked.mediaType,
-          thumbnailUrl: linked.thumbnailUrl ?? media.thumbnailUrl,
-          hlsUrl: linked.hlsUrl,
-          status: MediaStatus.published,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-          artist: linked.artist != null
-              ? ArtistInfo(id: linked.artist!.id, name: linked.artist!.name)
-              : null,
-          linkedMedia: LinkedMediaInfo(
-            id: media.id,
-            title: media.title,
-            mediaType: media.mediaType,
-            thumbnailUrl: media.thumbnailUrl,
-            hlsUrl: media.hlsUrl,
-            artist: media.artist != null
-                ? ArtistInfo(id: media.artist!.id, name: media.artist!.name)
-                : null,
-          ),
+        final newItem = MediaItem.fromLinkedMedia(
+          linked,
+          currentMedia: media,
         );
 
         final currentPosition = player.position;
