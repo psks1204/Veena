@@ -7,6 +7,7 @@ import '../models/lyrics_model.dart';
 import '../services/lyrics_service.dart';
 import '../services/media_service.dart';
 import '../services/media_download_service.dart';
+import '../services/ads_service.dart';
 import '../../../main.dart' show audioHandler, ensureAudioHandlerInitialized;
 import 'package:wakelock_plus/wakelock_plus.dart';
 
@@ -432,6 +433,9 @@ class PlayerProvider extends ChangeNotifier {
         notifyListeners();
       });
     }
+
+    // Show interstitial ad before playback starts
+    await AdsService.showInterstitialAd();
 
     try {
       if (media.isVideo) {

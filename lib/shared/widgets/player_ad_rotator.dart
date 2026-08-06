@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -57,11 +58,14 @@ class _PlayerAdRotatorState extends State<PlayerAdRotator>
   @override
   Widget build(BuildContext context) {
     final subscription = context.watch<SubscriptionProvider>();
+    debugPrint('[PlayerAdRotator] isLoading=${subscription.isLoading}, isInitialized=${subscription.isInitialized}, isNoAdsSubscribed=${subscription.isNoAdsSubscribed}, shouldShowAds=${subscription.shouldShowAds}, isSupportedPlatform=${AdsService.isSupportedPlatform}');
     if (subscription.isLoading && !subscription.isInitialized) {
+      debugPrint('[PlayerAdRotator] Still loading subscription, hiding ads');
       return const SizedBox.shrink();
     }
 
     if (subscription.isNoAdsSubscribed) {
+      debugPrint('[PlayerAdRotator] User is subscribed (no-ads), hiding ads');
       return const SizedBox.shrink();
     }
 

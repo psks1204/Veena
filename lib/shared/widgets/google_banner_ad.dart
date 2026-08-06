@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
@@ -49,6 +50,7 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
   }
 
   Future<void> _loadBannerIfNeeded() async {
+    debugPrint('[GoogleBannerAd] _loadBannerIfNeeded called: enabled=${widget.enabled}, supported=${AdsService.isSupportedPlatform}, bannerAd=${_bannerAd != null}, loading=$_loading');
     if (!widget.enabled || !AdsService.isSupportedPlatform) return;
     if (_bannerAd != null) return;
     if (_loading) return;
@@ -64,12 +66,14 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
       _lastError = null;
     });
 
+    debugPrint('[GoogleBannerAd] Loading banner ad with unitId: ${AdsService.bannerAdUnitId}, size: $adSize');
     final ad = BannerAd(
       adUnitId: AdsService.bannerAdUnitId,
       size: adSize,
       request: const AdRequest(),
       listener: BannerAdListener(
         onAdLoaded: (ad) {
+          debugPrint('[GoogleBannerAd] ✅ Banner ad loaded successfully!');
           if (!mounted) return;
           setState(() {
             _bannerAd = ad as BannerAd;
@@ -79,6 +83,7 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
           });
         },
         onAdFailedToLoad: (ad, error) {
+          debugPrint('[GoogleBannerAd] ❌ Banner ad failed to load: ${error.message} (code: ${error.code})');
           ad.dispose();
           if (!mounted) return;
           setState(() {
@@ -124,24 +129,7 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
     }
 
     if (!_loaded || _bannerAd == null) {
-      return Container(
-        margin: widget.margin,
-        height: _loading ? widget.height : (widget.height + 10),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          _loading
-              ? 'Loading ad...'
-              : (_lastError == null
-                    ? 'Ad unavailable right now'
-                    : 'Ad unavailable: $_lastError'),
-          style: const TextStyle(color: Colors.white54, fontSize: 12),
-          textAlign: TextAlign.center,
-        ),
-      );
+      return const SizedBox.shrink();
     }
 
     return Container(
