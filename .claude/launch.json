@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "veena-web",
+      "runtimeExecutable": "flutter",
+      "runtimeArgs": [
+        "run",
+        "-d",
+        "web-server",
+        "--web-port=3000",
+        "--web-hostname=localhost",
+        "--dart-define=APP_ENV=prod",
+        "--dart-define=RAZORPAY_KEY_ID=rzp_live_TM2aTcmozRU4W0"
+      ],
+      "port": 3000
+    }
+  ]
+}

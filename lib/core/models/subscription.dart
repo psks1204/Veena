@@ -277,9 +277,25 @@ class SubscriptionStatus {
   }
 }
 
+/// How far a pending subscription order actually got.
+///
+/// The distinction matters: an order that was created but never paid must not
+/// block the user from starting a fresh checkout, while an order the payment
+/// gateway confirmed money for has to keep nagging until it is verified.
+enum PendingPaymentStage {
+  /// `/subscribe` created a Razorpay order. No payment proof exists yet, so the
+  /// user may simply have cancelled the checkout sheet.
+  orderCreated,
+
+  /// Razorpay reported a captured payment (or the backend told us one exists)
+  /// but the subscription is not ACTIVE yet.
+  paymentCaptured,
+}
+
 class PendingSubscriptionVerification {
   const PendingSubscriptionVerification({
     required this.subscriptionId,
+    this.planId,
     this.razorpayOrderId,
     this.razorpayPaymentId,
     this.razorpaySignature,
@@ -287,9 +303,11 @@ class PendingSubscriptionVerification {
     required this.updatedAt,
     this.lastError,
     this.attemptCount = 0,
+    this.stage = PendingPaymentStage.orderCreated,
   });
 
   final int subscriptionId;
+  final int? planId;
   final String? razorpayOrderId;
   final String? razorpayPaymentId;
   final String? razorpaySignature;
@@ -297,17 +315,33 @@ class PendingSubscriptionVerification {
   final DateTime updatedAt;
   final String? lastError;
   final int attemptCount;
+  final PendingPaymentStage stage;
+
+  /// Only a captured payment justifies showing the "verification pending"
+  /// banner — anything else is just an abandoned order.
+  bool get hasPaymentProof => stage == PendingPaymentStage.paymentCaptured;
+
+  bool isOlderThan(Duration duration) =>
+      DateTime.now().difference(createdAt) > duration;
 
   factory PendingSubscriptionVerification.fromSubscription(
-    UserSubscription subscription,
-  ) {
+    UserSubscription subscription, {
+    PendingPaymentStage? stage,
+  }) {
     final now = DateTime.now();
+    final paymentId = subscription.razorpayPaymentId;
     return PendingSubscriptionVerification(
       subscriptionId: subscription.id,
+      planId: subscription.plan.id == 0 ? null : subscription.plan.id,
       razorpayOrderId: subscription.razorpayOrderId,
-      razorpayPaymentId: subscription.razorpayPaymentId,
+      razorpayPaymentId: paymentId,
       createdAt: subscription.createdAt ?? now,
       updatedAt: now,
+      stage:
+          stage ??
+          (paymentId != null && paymentId.isNotEmpty
+              ? PendingPaymentStage.paymentCaptured
+              : PendingPaymentStage.orderCreated),
     );
   }
 
@@ -315,6 +349,7 @@ class PendingSubscriptionVerification {
     final now = DateTime.now();
     return PendingSubscriptionVerification(
       subscriptionId: (json['subscriptionId'] as num?)?.toInt() ?? 0,
+      planId: (json['planId'] as num?)?.toInt(),
       razorpayOrderId: json['razorpayOrderId'] as String?,
       razorpayPaymentId: json['razorpayPaymentId'] as String?,
       razorpaySignature: json['razorpaySignature'] as String?,
@@ -322,11 +357,21 @@ class PendingSubscriptionVerification {
       updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ?? now,
       lastError: json['lastError'] as String?,
       attemptCount: (json['attemptCount'] as num?)?.toInt() ?? 0,
+      stage: _parseStage(json['stage']),
     );
+  }
+
+  static PendingPaymentStage _parseStage(dynamic raw) {
+    final value = raw?.toString();
+    for (final stage in PendingPaymentStage.values) {
+      if (stage.name == value) return stage;
+    }
+    return PendingPaymentStage.orderCreated;
   }
 
   PendingSubscriptionVerification copyWith({
     int? subscriptionId,
+    int? planId,
     String? razorpayOrderId,
     String? razorpayPaymentId,
     String? razorpaySignature,
@@ -335,9 +380,11 @@ class PendingSubscriptionVerification {
     String? lastError,
     bool clearLastError = false,
     int? attemptCount,
+    PendingPaymentStage? stage,
   }) {
     return PendingSubscriptionVerification(
       subscriptionId: subscriptionId ?? this.subscriptionId,
+      planId: planId ?? this.planId,
       razorpayOrderId: razorpayOrderId ?? this.razorpayOrderId,
       razorpayPaymentId: razorpayPaymentId ?? this.razorpayPaymentId,
       razorpaySignature: razorpaySignature ?? this.razorpaySignature,
@@ -345,12 +392,14 @@ class PendingSubscriptionVerification {
       updatedAt: updatedAt ?? this.updatedAt,
       lastError: clearLastError ? null : (lastError ?? this.lastError),
       attemptCount: attemptCount ?? this.attemptCount,
+      stage: stage ?? this.stage,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
       'subscriptionId': subscriptionId,
+      'planId': planId,
       'razorpayOrderId': razorpayOrderId,
       'razorpayPaymentId': razorpayPaymentId,
       'razorpaySignature': razorpaySignature,
@@ -358,6 +407,7 @@ class PendingSubscriptionVerification {
       'updatedAt': updatedAt.toIso8601String(),
       'lastError': lastError,
       'attemptCount': attemptCount,
+      'stage': stage.name,
     };
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -70,9 +71,13 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
   }
 
   void _onPaymentError(PaymentFailureResponse response) {
+    final cancelled = response.code == Razorpay.PAYMENT_CANCELLED;
     _checkoutCompleter?.complete(
       _CheckoutResult.failure(
-        response.message ?? 'Payment failed. Please try again.',
+        cancelled
+            ? 'Payment cancelled.'
+            : _describeRazorpayError(response.message),
+        cancelled: cancelled,
       ),
     );
     _checkoutCompleter = null;
@@ -87,17 +92,43 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
     _checkoutCompleter = null;
   }
 
+  /// Razorpay hands back a JSON blob rather than a sentence — dig out the human
+  /// readable description so the user does not see raw payload text.
+  static String _describeRazorpayError(String? raw) {
+    const fallback = 'Payment failed. Please try again.';
+    final trimmed = raw?.trim();
+    if (trimmed == null || trimmed.isEmpty) return fallback;
+
+    try {
+      final decoded = jsonDecode(trimmed);
+      if (decoded is Map) {
+        final error = decoded['error'];
+        final source = error is Map ? error : decoded;
+        for (final key in const ['description', 'message', 'reason']) {
+          final value = source[key]?.toString().trim();
+          if (value != null && value.isNotEmpty) return value;
+        }
+      }
+    } catch (_) {
+      // Not JSON — fall through and use the raw text.
+    }
+
+    return trimmed.startsWith('{') ? fallback : trimmed;
+  }
+
   Future<_CheckoutResult> _openCheckout(
     UserSubscription pending,
     SubscriptionPlan plan,
   ) async {
     if (!PaymentConfig.hasRazorpayKey) {
-      return _CheckoutResult.failure(
+      return _CheckoutResult.notLaunched(
         'Razorpay key is not configured. Add --dart-define for current APP_ENV.',
       );
     }
     if (pending.razorpayOrderId == null || pending.razorpayOrderId!.isEmpty) {
-      return _CheckoutResult.failure('Missing Razorpay order ID from backend.');
+      return _CheckoutResult.notLaunched(
+        'Missing Razorpay order ID from backend.',
+      );
     }
 
     final amountInMajor = pending.paymentAmount ?? plan.price;
@@ -116,7 +147,10 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
       );
 
       if (!result.ok) {
-        return _CheckoutResult.failure(result.message ?? 'Payment failed');
+        return _CheckoutResult.failure(
+          result.message ?? 'Payment failed',
+          cancelled: result.cancelled,
+        );
       }
       return _CheckoutResult.success(
         orderId: result.orderId ?? pending.razorpayOrderId!,
@@ -126,7 +160,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
     }
 
     if (_razorpay == null) {
-      return _CheckoutResult.failure('Razorpay is not initialized.');
+      return _CheckoutResult.notLaunched('Razorpay is not initialized.');
     }
 
     _checkoutCompleter = Completer<_CheckoutResult>();
@@ -152,7 +186,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
       );
     } catch (e) {
       _checkoutCompleter = null;
-      return _CheckoutResult.failure(e.toString());
+      return _CheckoutResult.notLaunched(e.toString());
     }
   }
 
@@ -181,15 +215,55 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
 
     setState(() => _isSubmitting = true);
     try {
+      // If we are holding evidence that money already moved, settle that order
+      // before opening a new one — otherwise the user could be charged twice.
+      if (subscription.hasPendingVerification) {
+        final resolution = await subscription.reverifyPendingPayment(
+          userInitiated: true,
+        );
+        if (!mounted) return;
+
+        if (resolution.isActivated) {
+          _showMessage(resolution.message);
+          Navigator.pop(context);
+          return;
+        }
+        if (!resolution.shouldRestartPayment) {
+          // Verdict unknown (usually the backend is unreachable). Refuse to
+          // risk a second charge; "Start Over" is the deliberate escape hatch.
+          _showMessage(resolution.message);
+          return;
+        }
+      }
+
+      // Always start from a fresh order: an abandoned one may have been voided
+      // backend-side, and reusing it is what produced the dead-end before.
+      await subscription.discardPendingPayment();
+
       final pending = await subscription.createSubscription(planId: selectedId);
       final checkoutResult = await _openCheckout(pending, plan);
+
       if (!checkoutResult.ok) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(checkoutResult.message ?? 'Payment cancelled'),
-          ),
+        if (!checkoutResult.reachedGateway) {
+          // Checkout never opened, so no payment can exist. Drop the order and
+          // let the user try again immediately.
+          await subscription.discardPendingPayment();
+          if (!mounted) return;
+          _showMessage(checkoutResult.message ?? 'Could not open checkout.');
+          return;
+        }
+
+        // The sheet closed without success. Confirm with the backend whether a
+        // payment actually landed before telling the user anything.
+        final resolution = await subscription.resolveAbandonedCheckout(
+          subscriptionId: pending.id,
+          cancelledByUser: checkoutResult.cancelled,
+          failureMessage: checkoutResult.message,
         );
+
+        if (!mounted) return;
+        _showMessage(resolution.message);
+        if (resolution.isActivated) Navigator.pop(context);
         return;
       }
 
@@ -205,21 +279,11 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
       );
 
       if (!mounted) return;
-      if (resolution.isActivated) {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(resolution.message)));
-      } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(resolution.message)));
-      }
+      _showMessage(resolution.message);
+      if (resolution.isActivated) Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Subscription failed: $e')));
+      _showMessage('Subscription failed: $e');
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
@@ -231,13 +295,46 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
     );
     if (!mounted) return;
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(resolution.message)));
+    _showMessage(resolution.message);
+    if (resolution.isActivated) Navigator.pop(context);
+  }
 
-    if (resolution.isActivated) {
-      Navigator.pop(context);
-    }
+  Future<void> _handleStartOver(SubscriptionProvider subscription) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Discard pending payment?'),
+        content: const Text(
+          'This only clears the stuck record on this device. If the payment did '
+          'go through, your subscription will still activate on its own.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Keep Checking'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Discard'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await subscription.discardPendingPayment();
+    if (!mounted) return;
+    _showMessage('Cleared. You can start a new payment now.');
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    messenger
+      ?..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 4)),
+      );
   }
 
   Future<void> _handleCancelSubscription(
@@ -315,14 +412,19 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
     final plans = subscription.plans;
     final activeSubscription = subscription.activeSubscription;
     final pendingVerification = subscription.pendingVerification;
-    final hasPendingVerification =
-        pendingVerification != null && !subscription.isNoAdsSubscribed;
+    // Shows a recovery card, never gates the subscribe flow. A cleanly
+    // cancelled order resolves itself and does not reach here at all.
+    final hasUnresolvedPayment = subscription.hasUnresolvedPayment;
+    final hasPaymentProof = pendingVerification?.hasPaymentProof ?? false;
 
     if (_selectedPlanId == null && plans.isNotEmpty) {
       _selectedPlanId = plans.first.id;
     }
 
-    final buttonBusy = _isSubmitting || subscription.isProcessingPurchase;
+    final buttonBusy =
+        _isSubmitting ||
+        subscription.isProcessingPurchase ||
+        subscription.isRecoveringPendingVerification;
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -365,7 +467,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                     color: isDark ? Colors.white70 : Colors.black54,
                   ),
                 ),
-                if (hasPendingVerification) ...[
+                if (hasUnresolvedPayment && pendingVerification != null) ...[
                   const SizedBox(height: 16),
                   Container(
                     width: double.infinity,
@@ -381,29 +483,46 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Payment verification pending',
+                          hasPaymentProof
+                              ? 'Payment verification pending'
+                              : 'Payment status unconfirmed',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          'Subscription #${pendingVerification.subscriptionId} is still pending confirmation. Tap Re-verify to sync payment status.',
+                          hasPaymentProof
+                              ? 'We recorded a payment for subscription #${pendingVerification.subscriptionId} but it is not confirmed yet. '
+                                    'Check the status before paying again.'
+                              : "We couldn't reach the payment server to confirm order #${pendingVerification.subscriptionId}. "
+                                    'Check the status, or just start a new payment — an unpaid order never charges you.',
                           style: theme.textTheme.bodySmall,
                         ),
                         const SizedBox(height: 10),
-                        OutlinedButton.icon(
-                          onPressed:
-                              buttonBusy ||
-                                  subscription.isRecoveringPendingVerification
-                              ? null
-                              : () => _handleReverifyPending(subscription),
-                          icon: const Icon(Icons.sync_rounded),
-                          label: Text(
-                            subscription.isRecoveringPendingVerification
-                                ? 'Verifying...'
-                                : 'Re-verify Payment',
-                          ),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            OutlinedButton.icon(
+                              onPressed: buttonBusy
+                                  ? null
+                                  : () => _handleReverifyPending(subscription),
+                              icon: const Icon(Icons.sync_rounded),
+                              label: Text(
+                                subscription.isRecoveringPendingVerification
+                                    ? 'Checking...'
+                                    : 'Check Payment Status',
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: buttonBusy
+                                  ? null
+                                  : () => _handleStartOver(subscription),
+                              icon: const Icon(Icons.restart_alt_rounded),
+                              label: const Text('Start Over'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -561,11 +680,12 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
+                    // Deliberately not gated on a pending order: a cancelled or
+                    // unverifiable payment must never lock the user out.
                     onPressed:
                         buttonBusy ||
                             plans.isEmpty ||
-                            subscription.isNoAdsSubscribed ||
-                            hasPendingVerification
+                            subscription.isNoAdsSubscribed
                         ? null
                         : () => _handleSubscribe(subscription),
                     style: ElevatedButton.styleFrom(
@@ -576,10 +696,10 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
                     child: Text(
                       buttonBusy
                           ? 'Processing...'
-                          : (hasPendingVerification
-                                ? 'Verification Pending'
-                                : (subscription.isNoAdsSubscribed
-                                      ? 'Subscribed'
+                          : (subscription.isNoAdsSubscribed
+                                ? 'Subscribed'
+                                : (hasUnresolvedPayment
+                                      ? 'Start New Payment'
                                       : 'Subscribe Now')),
                     ),
                   ),
@@ -601,6 +721,8 @@ class _CheckoutResult {
     this.paymentId,
     this.signature,
     this.message,
+    this.cancelled = false,
+    this.reachedGateway = true,
   });
 
   final bool ok;
@@ -608,6 +730,13 @@ class _CheckoutResult {
   final String? paymentId;
   final String? signature;
   final String? message;
+
+  /// The user dismissed the Razorpay sheet instead of hitting a payment error.
+  final bool cancelled;
+
+  /// False when checkout never opened (misconfiguration, missing order id). In
+  /// that case there is nothing to reconcile with the backend.
+  final bool reachedGateway;
 
   factory _CheckoutResult.success({
     required String orderId,
@@ -622,8 +751,13 @@ class _CheckoutResult {
     );
   }
 
-  factory _CheckoutResult.failure(String message) {
-    return _CheckoutResult._(ok: false, message: message);
+  factory _CheckoutResult.failure(String message, {bool cancelled = false}) {
+    return _CheckoutResult._(ok: false, message: message, cancelled: cancelled);
+  }
+
+  /// Checkout could not even be launched.
+  factory _CheckoutResult.notLaunched(String message) {
+    return _CheckoutResult._(ok: false, message: message, reachedGateway: false);
   }
 }
 

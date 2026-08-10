@@ -5,6 +5,7 @@ class RazorpayWebCheckoutResult {
     this.paymentId,
     this.signature,
     this.message,
+    this.cancelled = false,
   });
 
   final bool ok;
@@ -12,6 +13,9 @@ class RazorpayWebCheckoutResult {
   final String? paymentId;
   final String? signature;
   final String? message;
+
+  /// The user closed the checkout themselves rather than hitting an error.
+  final bool cancelled;
 
   factory RazorpayWebCheckoutResult.success({
     required String orderId,
@@ -26,8 +30,15 @@ class RazorpayWebCheckoutResult {
     );
   }
 
-  factory RazorpayWebCheckoutResult.failure(String message) {
-    return RazorpayWebCheckoutResult._(ok: false, message: message);
+  factory RazorpayWebCheckoutResult.failure(
+    String message, {
+    bool cancelled = false,
+  }) {
+    return RazorpayWebCheckoutResult._(
+      ok: false,
+      message: message,
+      cancelled: cancelled,
+    );
   }
 }
 

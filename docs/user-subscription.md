@@ -322,6 +322,32 @@ Re-verify a `PENDING` subscription by checking its payment status directly with 
   }
   ```
 
+#### Error: order was never paid
+
+When the user abandoned the Razorpay checkout, the order carries no payment and
+re-verification can never succeed:
+
+```json
+{
+  "timestamp": "2026-08-10 09:12:46",
+  "status": 400,
+  "error": "Bad Request",
+  "message": "No payment found for this order on Razorpay. Please retry payment.",
+  "path": "/api/subscriptions/42/re-verify",
+  "traceId": "3F9F63F6"
+}
+```
+
+**Client contract**: this is a *terminal verdict*, not a transient failure. The
+app must drop the pending order and let the user start a new checkout, rather
+than keep retrying — retrying returns the same 400 forever. See
+`SubscriptionProvider._isNoPaymentOnOrderError` in
+`lib/core/providers/subscription_provider.dart`.
+
+Any other `4xx` (except `401`/`403`/`408`/`429`) is likewise treated as a
+definitive refusal. Transport failures and `5xx` leave the order recoverable so
+the user can check again later.
+
 ---
 
 ## 2. Models & Enums
