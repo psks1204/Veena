@@ -65,6 +65,6 @@
 		<!-- Google's public test App ID (matches the test ad unit IDs used in ads_service.dart debug mode).
 		     Replace with the real iOS AdMob App ID from the AdMob dashboard before release. -->
 		<key>GADApplicationIdentifier</key>
-		<string>ca-app-pub-3940256099942544~1458002511</string>
+		<string>ca-app-pub-1875243491329741~5652032520</string>
 	</dict>
 </plist>
