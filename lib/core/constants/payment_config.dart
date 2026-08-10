@@ -26,6 +26,8 @@ class PaymentConfig {
     defaultValue: '',
   );
 
+  static const String _defaultLiveKey = 'rzp_live_TM2aTcmozRU4W0';
+
   static String get razorpayKey {
     if (_directKey.isNotEmpty) {
       return _directKey;
@@ -34,12 +36,12 @@ class PaymentConfig {
     switch (_env.toLowerCase()) {
       case 'prod':
       case 'production':
-        return _prodKey;
+        return _prodKey.isNotEmpty ? _prodKey : _defaultLiveKey;
       case 'stage':
       case 'staging':
-        return _stagingKey;
+        return _stagingKey.isNotEmpty ? _stagingKey : _defaultLiveKey;
       default:
-        return _devKey;
+        return _devKey.isNotEmpty ? _devKey : _defaultLiveKey;
     }
   }
 

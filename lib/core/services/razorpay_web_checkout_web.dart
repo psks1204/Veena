@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:js' as js;
+import 'dart:js_util' as js_util;
 
 class RazorpayWebCheckoutResult {
   const RazorpayWebCheckoutResult._({
@@ -47,7 +48,7 @@ Future<RazorpayWebCheckoutResult> openRazorpayWebCheckout({
   String prefillEmail = '',
   String prefillContact = '',
 }) async {
-  final hasBridge = js.context.hasProperty('openRazorpayCheckout');
+  final hasBridge = context.hasProperty('openRazorpayCheckout');
   if (!hasBridge) {
     return RazorpayWebCheckoutResult.failure(
       'Web checkout bridge is not loaded. Ensure index.html includes openRazorpayCheckout().',
@@ -98,9 +99,9 @@ Future<RazorpayWebCheckoutResult> openRazorpayWebCheckout({
     'prefillName': prefillName,
     'prefillEmail': prefillEmail,
     'prefillContact': prefillContact,
-    'onSuccess': onSuccess,
-    'onError': onError,
-    'onDismiss': onDismiss,
+    'onSuccess': js.allowInterop(onSuccess),
+    'onError': js.allowInterop(onError),
+    'onDismiss': js.allowInterop(onDismiss),
   });
 
   try {
@@ -117,7 +118,7 @@ Future<RazorpayWebCheckoutResult> openRazorpayWebCheckout({
 
 String _read(dynamic object, String key) {
   if (object == null) return '';
-  if (object is js.JsObject) {
+  if (object is JsObject) {
     if (!object.hasProperty(key)) return '';
     final value = object[key];
     return value?.toString() ?? '';

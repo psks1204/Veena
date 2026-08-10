@@ -102,6 +102,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
 
     final amountInMajor = pending.paymentAmount ?? plan.price;
     final amountInPaise = (amountInMajor * 100).round();
+    debugPrint('[SubscriptionModal] _openCheckout: key=${PaymentConfig.razorpayKey}, orderId=${pending.razorpayOrderId}, amountPaise=$amountInPaise, isWeb=$kIsWeb');
 
     if (kIsWeb) {
       final result = await openRazorpayWebCheckout(
@@ -115,6 +116,7 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
         prefillEmail: pending.userEmail ?? '',
       );
 
+      debugPrint('[SubscriptionModal] Web checkout result: ok=${result.ok}, msg=${result.message}');
       if (!result.ok) {
         return _CheckoutResult.failure(result.message ?? 'Payment failed');
       }
@@ -126,12 +128,14 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
     }
 
     if (_razorpay == null) {
+      debugPrint('[SubscriptionModal] _razorpay is null!');
       return _CheckoutResult.failure('Razorpay is not initialized.');
     }
 
     _checkoutCompleter = Completer<_CheckoutResult>();
 
     try {
+      debugPrint('[SubscriptionModal] Opening native Razorpay checkout...');
       _razorpay!.open({
         'key': PaymentConfig.razorpayKey,
         'amount': amountInPaise,
@@ -181,8 +185,11 @@ class _SubscriptionModalState extends State<_SubscriptionModal> {
 
     setState(() => _isSubmitting = true);
     try {
+      debugPrint('[SubscriptionModal] Creating subscription for planId: $selectedId...');
       final pending = await subscription.createSubscription(planId: selectedId);
+      debugPrint('[SubscriptionModal] Created pending subscription: id=${pending.id}, orderId=${pending.razorpayOrderId}');
       final checkoutResult = await _openCheckout(pending, plan);
+      debugPrint('[SubscriptionModal] Checkout result: ok=${checkoutResult.ok}, msg=${checkoutResult.message}');
       if (!checkoutResult.ok) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
