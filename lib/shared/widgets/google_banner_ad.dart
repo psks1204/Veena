@@ -61,6 +61,10 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
   }
 
   Future<void> _loadBannerIfNeeded() async {
+    // AdMob only. On web this widget delegates to AdSense in build(), so the
+    // log would just be noise next to the [AdSense] lines.
+    if (kIsWeb) return;
+
     debugPrint('[GoogleBannerAd] _loadBannerIfNeeded called: enabled=${widget.enabled}, supported=${AdsService.isSupportedPlatform}, bannerAd=${_bannerAd != null}, loading=$_loading');
     if (!widget.enabled || !AdsService.canShowAdMobAds) return;
     if (_bannerAd != null) return;

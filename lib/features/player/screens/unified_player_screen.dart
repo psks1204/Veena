@@ -2266,6 +2266,16 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         ],
                       ),
                     ),
+
+                    // Same rotating ad/promo strip the mobile layout gets. It
+                    // sits below the controls so it never covers them, and it
+                    // stays on screen while a track plays — the steadiest ad
+                    // surface the web app has.
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: maxContentWidth - 32,
+                      child: const PlayerAdRotator(),
+                    ),
                   ],
                 ),
               ),
