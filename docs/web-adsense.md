@@ -92,7 +92,13 @@ Every message is prefixed `[AdSense]`:
 | `configuration ignored — …` | The client or slot id is malformed. |
 | `publisher id mismatch` | `ADSENSE_CLIENT` disagrees with the loader tag in `web/index.html`. |
 | `loader script blocked (ad blocker?)` | `adsbygoogle.js` failed to load. |
-| `skipped: placement is only Npx wide` | Below AdSense's ~120px minimum; the slot collapses instead of erroring. |
+| `placement is only Npx wide … hiding it` | Laid out and on screen but below AdSense's ~120px minimum; the slot collapses instead of erroring. |
+| `never came on screen … still pending` | The slot stayed off-screen (e.g. a carousel page that was never swiped to). Nothing was requested; a later rebuild tries again. |
+
+A slot is only requested once it is **on screen in a foreground tab**. An
+off-screen platform view measures 0px wide in Flutter web, so requesting then
+would be rejected by AdSense anyway — and an impression nobody could see counts
+as invalid traffic.
 
 An unfilled or blocked slot renders nothing at all, so the layout never keeps a
 blank rectangle.

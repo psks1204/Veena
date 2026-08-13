@@ -183,7 +183,68 @@ class _AdSenseAdUnitState extends State<AdSenseAdUnit> {
     _insElement?.style.width = '${w}px';
   }
 
-  /// Asks AdSense to fill the slot, once the element is really in the document.
+  /// Waits until the slot is genuinely on screen and measurable.
+  ///
+  /// A slot that is not being composited — the carousel card while its page is
+  /// off to the side, a player surface behind another route — measures 0px wide
+  /// even though it is attached to the document. That is a *not yet* state, not
+  /// a too-small placement: the same element measures full width the moment its
+  /// page slides in. Requesting an ad for it would either be rejected ("No slot
+  /// size for availableWidth=0") or burn an impression nobody can see, so the
+  /// request simply waits.
+  ///
+  /// Returns false when the slot never became viewable, leaving the widget
+  /// pending rather than collapsing it — a later rebuild gets another go.
+  Future<bool> _waitUntilOnScreen(web.HTMLElement ins) async {
+    const poll = Duration(milliseconds: 300);
+    const limit = Duration(seconds: 90);
+    var waited = Duration.zero;
+    var sawLayout = false;
+
+    while (waited < limit) {
+      if (!mounted) return false;
+
+      if (ins.isConnected && web.document.visibilityState == 'visible') {
+        final rect = ins.getBoundingClientRect();
+        final laidOut = rect.width > 0 && rect.height > 0;
+        if (laidOut) sawLayout = true;
+
+        final onScreen =
+            laidOut &&
+            rect.right > 0 &&
+            rect.bottom > 0 &&
+            rect.left < web.window.innerWidth &&
+            rect.top < web.window.innerHeight;
+
+        if (onScreen) {
+          // Laid out, on screen, and still too narrow for any creative: this
+          // placement genuinely cannot host an ad. Collapse it for good.
+          if (rect.width < _minWidth) {
+            debugPrint(
+              '[AdSense] slot $_slotId placement is only '
+              '${rect.width.round()}px wide (AdSense needs '
+              '≥${_minWidth.round()}) — hiding it',
+            );
+            _markUnfilled();
+            return false;
+          }
+          return true;
+        }
+      }
+
+      await Future<void>.delayed(poll);
+      waited += poll;
+    }
+
+    debugPrint(
+      '[AdSense] slot $_slotId never came on screen '
+      '(${sawLayout ? 'laid out but scrolled away' : 'never composited'}) — '
+      'still pending',
+    );
+    return false;
+  }
+
+  /// Asks AdSense to fill the slot, once it is really on screen.
   ///
   /// Flutter attaches the platform view after the factory returns, and pushing
   /// before that produces an ad sized against a detached node.
@@ -193,41 +254,10 @@ class _AdSenseAdUnitState extends State<AdSenseAdUnit> {
     final ins = _insElement;
     if (ins == null) return;
 
-    // Never request while the tab is in the background. Flutter collapses the
-    // view there, so AdSense answers "No slot size for availableWidth=48" — and
-    // an impression nobody could see counts as invalid traffic. Waiting costs
-    // nothing: the slot is off-screen anyway.
-    for (var attempt = 0; attempt < 150; attempt++) {
-      if (!mounted) return;
-      if (web.document.visibilityState == 'visible') break;
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    }
-    if (!mounted || web.document.visibilityState != 'visible') return;
-
-    for (var attempt = 0; attempt < 40; attempt++) {
-      if (!mounted) return;
-      if (ins.isConnected && ins.getBoundingClientRect().width >= _minWidth) {
-        break;
-      }
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-    }
-    if (!mounted) return;
-
-    if (!ins.isConnected) {
-      debugPrint('[AdSense] slot $_slotId never attached to the DOM');
-      return;
-    }
-
-    // Pushing a slot AdSense measures as too narrow just throws a TagError and
-    // burns the element — collapse instead and leave the space to the caller.
-    final measured = ins.getBoundingClientRect().width;
-    if (measured < _minWidth) {
-      debugPrint(
-        '[AdSense] slot $_slotId too narrow to fill (${measured.round()}px)',
-      );
-      _markUnfilled();
-      return;
-    }
+    // Nothing is requested until the slot is on screen in a foreground tab —
+    // both for a valid measurement and because an impression nobody could see
+    // counts as invalid traffic.
+    if (!await _waitUntilOnScreen(ins)) return;
 
     final bridge = _bridge;
     if (bridge == null) {
