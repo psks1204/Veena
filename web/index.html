@@ -20,8 +20,56 @@
 
   <title>Veena</title>
   <link rel="manifest" href="manifest.json">
+  <script>
+    // Bridge used by the Flutter web build to request ad fills.
+    // Defined before the loader tag below so its onload/onerror always land.
+    window.veenaAdsense = {
+      scriptLoaded: false,
+      scriptFailed: false,
+
+      _onScriptLoad: function () {
+        window.veenaAdsense.scriptLoaded = true;
+      },
+
+      _onScriptError: function () {
+        window.veenaAdsense.scriptFailed = true;
+        console.warn('[veena-adsense] adsbygoogle.js failed to load (ad blocker or network).');
+      },
+
+      /// Queues a fill request. AdSense binds each push to the most recently
+      /// added <ins> that does not have an ad yet, so callers must push exactly
+      /// once per element, after that element is in the DOM.
+      requestAd: function () {
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+          return true;
+        } catch (e) {
+          console.warn('[veena-adsense] push failed', e);
+          return false;
+        }
+      },
+
+      /// Publisher id the loader script was actually started with. Flutter
+      /// compares it against ADSENSE_CLIENT: a mismatch means every request is
+      /// rejected, and it is invisible without this check.
+      loaderClient: function () {
+        var tag = document.querySelector(
+          'script[src*="adsbygoogle.js"][src*="client="]'
+        );
+        if (!tag) return '';
+        var match = /[?&]client=([^&]+)/.exec(tag.getAttribute('src') || '');
+        return match ? decodeURIComponent(match[1]) : '';
+      }
+    };
+  </script>
+
+  <!-- Google AdSense loader. This tag alone never renders an ad: it only makes
+       the library available. Ads appear when an <ins class="adsbygoogle">
+       element is added to the page and pushed to the adsbygoogle queue, which
+       Flutter does from lib/shared/widgets/adsense_ad_unit_web.dart. -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8580707712580721"
-     crossorigin="anonymous"></script>
+     crossorigin="anonymous" onload="window.veenaAdsense._onScriptLoad()"
+     onerror="window.veenaAdsense._onScriptError()"></script>
 
   <!-- Aura Splash Screen Styles -->
   <style>

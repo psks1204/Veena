@@ -70,7 +70,7 @@ class _PlayerAdRotatorState extends State<PlayerAdRotator>
     }
 
     final showAds =
-        subscription.shouldShowAds && AdsService.isSupportedPlatform;
+        subscription.shouldShowAds && AdsService.hasAdSurface;
 
     if (!showAds) {
       return _promoBanner(context, subscription.monthlyPlanLabel);

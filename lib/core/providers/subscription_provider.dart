@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/subscription.dart';
+import '../services/ads_service.dart';
 import '../services/api_service.dart';
 import '../services/subscription_service.dart';
 
@@ -113,6 +114,24 @@ class SubscriptionProvider extends ChangeNotifier {
     _cachedNoAdsSubscribed = _prefs.getBool(_kNoAdsSubscribedKey) ?? false;
     _loadStatusFromCache();
     _loadPendingVerificationFromCache();
+    // Apply the cached verdict before the first frame so a subscriber never
+    // gets an interstitial in the window before the backend status lands.
+    _syncAdsGate();
+  }
+
+  /// Keep the global ads switch aligned with the current subscription state.
+  ///
+  /// Widgets read [shouldShowAds] directly, but ads are also requested from
+  /// non-widget code (interstitials on playback start), so the verdict has to
+  /// live somewhere both can see.
+  void _syncAdsGate() {
+    AdsService.setAdsEnabled(shouldShowAds);
+  }
+
+  @override
+  void notifyListeners() {
+    _syncAdsGate();
+    super.notifyListeners();
   }
 
   static const String _kNoAdsSubscribedKey = 'no_ads_subscribed';

@@ -241,6 +241,12 @@ class _AppRouterState extends State<_AppRouter> {
     if (_backgroundServicesInitialized) return;
     _backgroundServicesInitialized = true;
     try {
+      // Touch the subscription provider first: its constructor restores the
+      // cached no-ads flag and sets the global ads gate, so we never preload an
+      // ad for a subscriber while the backend status is still in flight.
+      context.read<SubscriptionProvider>();
+    } catch (_) {}
+    try {
       await AdsService.initialize();
     } catch (_) {}
     try {

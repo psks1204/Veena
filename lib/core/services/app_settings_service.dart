@@ -9,7 +9,7 @@ class AppSettingsService extends ChangeNotifier {
   final ApiService _api;
 
   bool _maintenanceMode = false;
-  String _minimumAppVersion = '2.0.0';
+  String _minimumAppVersion = '2.0.3';
   bool _enableComments = true;
   bool _enableUserNotifications = true;
   bool _defaultAutoplayForUsers = true;

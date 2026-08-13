@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
+import 'adsense_config.dart';
+
 class AdsService {
   AdsService._();
 
@@ -19,11 +21,21 @@ class AdsService {
       'ca-app-pub-3940256099942544/4411468910';
 
   // ─── Platform guard ────────────────────────────────────────────────────────
+  /// Platforms where the AdMob (google_mobile_ads) SDK actually runs.
+  /// Web is deliberately excluded — there ads come from AdSense instead.
   static bool get isSupportedPlatform {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
   }
+
+  /// Web serves ads through AdSense (`<ins class="adsbygoogle">` slots mounted
+  /// as platform views), not AdMob.
+  static bool get isAdSenseSupported => kIsWeb && AdSenseConfig.isConfigured;
+
+  /// Whether *any* ad surface exists on this platform. UI gating should use
+  /// this; only AdMob-specific calls should use [isSupportedPlatform].
+  static bool get hasAdSurface => isSupportedPlatform || isAdSenseSupported;
 
   // ─── Ad unit IDs ───────────────────────────────────────────────────────────
   // In debug mode we always use Google's official test IDs so no real traffic
@@ -70,9 +82,51 @@ class AdsService {
   // ─── Test device IDs ───────────────────────────────────────────────────────
   static const List<String> _testDeviceIds = [];
 
+  // ─── Global ads gate ───────────────────────────────────────────────────────
+  // Single source of truth for "may this app show ads at all". A no-ads
+  // subscriber must never see a banner *or* an interstitial, so every ad entry
+  // point goes through this flag instead of each caller re-deriving it.
+  // Kept in sync by SubscriptionProvider.
+  static bool _adsEnabled = true;
+  static bool _mobileAdsInitialized = false;
+
+  static bool get adsEnabled => _adsEnabled;
+
+  /// True when an ad may actually be requested/shown right now, on whichever
+  /// ad network this platform uses.
+  static bool get canShowAds => _adsEnabled && hasAdSurface;
+
+  /// True when an AdMob (mobile) ad may be requested. Web ad surfaces must not
+  /// use this — google_mobile_ads has no web implementation.
+  static bool get canShowAdMobAds => _adsEnabled && isSupportedPlatform;
+
+  /// Turn ads on/off globally. Disabling drops any preloaded interstitial so a
+  /// user who subscribes mid-session never gets the already-cached ad.
+  static void setAdsEnabled(bool value) {
+    if (_adsEnabled == value) return;
+    _adsEnabled = value;
+
+    if (!value) {
+      debugPrint('[AdsService] Ads disabled — discarding preloaded ads');
+      _disposeInterstitialAd();
+      return;
+    }
+
+    debugPrint('[AdsService] Ads enabled');
+    if (_mobileAdsInitialized) {
+      loadInterstitialAd();
+    }
+  }
+
   // ─── Interstitial ad state ─────────────────────────────────────────────────
   static InterstitialAd? _interstitialAd;
   static bool _isInterstitialAdReady = false;
+
+  static void _disposeInterstitialAd() {
+    _interstitialAd?.dispose();
+    _interstitialAd = null;
+    _isInterstitialAdReady = false;
+  }
 
   // ─── Initialisation ────────────────────────────────────────────────────────
   static Future<void> initialize() async {
@@ -85,6 +139,7 @@ class AdsService {
     }
 
     await MobileAds.instance.initialize();
+    _mobileAdsInitialized = true;
 
     // Preload the first interstitial ad
     loadInterstitialAd();
@@ -94,7 +149,8 @@ class AdsService {
 
   /// Preload an interstitial ad so it's ready when needed.
   static void loadInterstitialAd() {
-    if (!isSupportedPlatform) return;
+    // Interstitials are AdMob-only; there is no web equivalent here.
+    if (!_adsEnabled || !isSupportedPlatform) return;
 
     InterstitialAd.load(
       adUnitId: interstitialAdUnitId,
@@ -119,6 +175,12 @@ class AdsService {
   /// the ad is dismissed (or immediately if no ad is ready).
   /// Only shows if the app is in the foreground.
   static Future<void> showInterstitialAd() async {
+    if (!_adsEnabled) {
+      // No-ads subscriber (or ads switched off) — never show, never preload.
+      _disposeInterstitialAd();
+      return;
+    }
+
     if (!isSupportedPlatform || !_isInterstitialAdReady || _interstitialAd == null) {
       // No ad ready — don't block playback
       loadInterstitialAd(); // Try to load for next time

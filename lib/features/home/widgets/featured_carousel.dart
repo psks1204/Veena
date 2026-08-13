@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/models/media_item.dart';
 import '../../../core/providers/subscription_provider.dart';
 import '../../../core/services/ads_service.dart';
+import '../../../core/services/adsense_config.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/app_network_image.dart';
@@ -79,7 +80,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     final theme = Theme.of(context);
     final subscription = context.watch<SubscriptionProvider>();
     final shouldInsertAds =
-        subscription.shouldShowAds && AdsService.isSupportedPlatform;
+        subscription.shouldShowAds && AdsService.hasAdSurface;
     final pages = _buildPages(widget.items, shouldInsertAds);
     _pageCount = pages.length;
 
@@ -348,7 +349,14 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const GoogleBannerAd(height: 50),
+          // A card inside a feed of cards — on web that is what the in-feed
+          // unit is for. Mobile ignores the web arguments and keeps its
+          // adaptive AdMob banner.
+          const GoogleBannerAd(
+            height: 110,
+            webFormat: AdSenseFormat.inFeed,
+            webMaxHeight: 140,
+          ),
           const SizedBox(height: 10),
           Text(
             'Remove ads • ${subscription.monthlyPlanLabel}',

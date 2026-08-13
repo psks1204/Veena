@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
 import '../../core/services/ads_service.dart';
+import '../../core/services/adsense_config.dart';
+import 'adsense_ad_unit.dart';
 
 class GoogleBannerAd extends StatefulWidget {
   const GoogleBannerAd({
@@ -10,11 +12,20 @@ class GoogleBannerAd extends StatefulWidget {
     this.height = 50,
     this.enabled = true,
     this.margin,
+    this.webFormat = AdSenseFormat.display,
+    this.webMaxHeight,
   });
 
   final double height;
   final bool enabled;
   final EdgeInsetsGeometry? margin;
+
+  /// Which AdSense unit this placement requests on web. Ignored on mobile,
+  /// where every placement is the same AdMob banner.
+  final AdSenseFormat webFormat;
+
+  /// Ceiling for a web in-feed unit that comes back taller than [height].
+  final double? webMaxHeight;
 
   @override
   State<GoogleBannerAd> createState() => _GoogleBannerAdState();
@@ -51,7 +62,7 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
 
   Future<void> _loadBannerIfNeeded() async {
     debugPrint('[GoogleBannerAd] _loadBannerIfNeeded called: enabled=${widget.enabled}, supported=${AdsService.isSupportedPlatform}, bannerAd=${_bannerAd != null}, loading=$_loading');
-    if (!widget.enabled || !AdsService.isSupportedPlatform) return;
+    if (!widget.enabled || !AdsService.canShowAdMobAds) return;
     if (_bannerAd != null) return;
     if (_loading) return;
 
@@ -124,8 +135,18 @@ class _GoogleBannerAdState extends State<GoogleBannerAd> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.enabled || !AdsService.isSupportedPlatform) {
+    if (!widget.enabled || !AdsService.canShowAds) {
       return const SizedBox.shrink();
+    }
+
+    // Web has no AdMob SDK — the same placement is served by AdSense.
+    if (kIsWeb) {
+      return AdSenseAdUnit(
+        height: widget.height,
+        maxHeight: widget.webMaxHeight,
+        margin: widget.margin,
+        format: widget.webFormat,
+      );
     }
 
     if (!_loaded || _bannerAd == null) {

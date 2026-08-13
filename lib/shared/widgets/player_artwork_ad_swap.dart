@@ -40,7 +40,7 @@ class _PlayerArtworkAdSwapState extends State<PlayerArtworkAdSwap> {
   Widget build(BuildContext context) {
     final subscription = context.watch<SubscriptionProvider>();
     final shouldRotate =
-        subscription.shouldShowAds && AdsService.isSupportedPlatform;
+        subscription.shouldShowAds && AdsService.hasAdSurface;
 
     final showAdNow = shouldRotate && _showAd;
 
