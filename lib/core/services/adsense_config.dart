@@ -31,7 +31,7 @@ class AdSenseConfig {
 
   static const String _rawClient = String.fromEnvironment(
     'ADSENSE_CLIENT',
-    defaultValue: 'ca-pub-8580707712580721',
+    defaultValue: 'ca-pub-1875243491329741',
   );
 
   static const String _rawDisplaySlot = String.fromEnvironment(

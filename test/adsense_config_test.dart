@@ -2,7 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veena/core/services/adsense_config.dart';
 
 void main() {
-  const goodClient = 'ca-pub-8580707712580721';
+  const goodClient = 'ca-pub-1875243491329741';
 
   group('AdSenseConfig.validateClient', () {
     test('accepts a ca-pub- publisher id', () {
