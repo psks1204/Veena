@@ -1,11 +1,11 @@
 {
-    "name": "veena",
-    "short_name": "veena",
+    "name": "Veena Music – Pioneer of Rajasthani Music",
+    "short_name": "Veena Music",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#121212",
     "theme_color": "#121212",
-    "description": "A new Flutter project.",
+    "description": "Stream bhajans, folk songs, devotional music, and curated playlists from Rajasthan's finest artists.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

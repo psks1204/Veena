@@ -78,6 +78,19 @@ class _AdSenseAdUnitState extends State<AdSenseAdUnit> {
   /// slot is written off for this session.
   static const int _maxRetries = 2;
 
+  /// Minimum time after app start before the first ad request can fire. This
+  /// ensures the Flutter app has rendered real publisher content before any ad
+  /// slot is filled — requesting during the splash screen would show ads on a
+  /// screen without content, which is an AdSense policy violation.
+  static const Duration _startupGracePeriod = Duration(seconds: 3);
+
+  static final DateTime _appStartTime = DateTime.now();
+
+  /// Returns true once enough time has elapsed since app start for the main
+  /// content to be on screen.
+  static bool get _pastStartupGrace =>
+      DateTime.now().difference(_appStartTime) >= _startupGracePeriod;
+
   static int _instanceCounter = 0;
 
   static String _nextViewType() =>
@@ -250,6 +263,18 @@ class _AdSenseAdUnitState extends State<AdSenseAdUnit> {
   /// before that produces an ad sized against a detached node.
   Future<void> _requestAd() async {
     if (_requested || !mounted) return;
+
+    // Wait for the startup grace period before the very first ad request.
+    // This ensures Flutter has rendered real publisher content (past the
+    // splash screen) before any ad fills, avoiding AdSense policy violations.
+    if (!_pastStartupGrace) {
+      final remaining = _startupGracePeriod -
+          DateTime.now().difference(_appStartTime);
+      if (remaining > Duration.zero) {
+        await Future<void>.delayed(remaining);
+        if (!mounted) return;
+      }
+    }
 
     final ins = _insElement;
     if (ins == null) return;
