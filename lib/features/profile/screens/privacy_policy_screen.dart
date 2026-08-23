@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../shared/utils/open_url.dart';
 
 /// Privacy Policy Screen
 ///
-/// Displays the Veena Music privacy policy.
+/// Displays the Veena Music privacy policy including full Google AdSense
+/// and advertising cookie disclosures, GDPR/CCPA rights, and contact details.
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
@@ -35,130 +37,180 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Effective Date: 12 June 2025',
+              'Last Updated: February 2026',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
             Text(
-              'Website & App: Veena Music',
+              'Entity: Oriental Audio Visual Electronics (Veena Music)',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.6),
               ),
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Section 1
+            // Section 1: Introduction
             _buildSectionTitle(theme, '1. Introduction'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'Welcome to Veena Music, your destination for Rajasthani songs, bhakti content, films, podcasts, videos, and popular TV serial telecasts. This Privacy Policy explains how we collect, use, store, and protect your data, ensuring full compliance with applicable laws.'),
+                'Welcome to Veena Music ("we", "our", or "us"), operated by Oriental Audio Visual Electronics. We are the pioneers and premier platform for Rajasthani music, devotional bhajans, folk songs, podcasts, and cultural content. We are committed to protecting your privacy and ensuring transparency about how your data is collected, used, and safeguarded.'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'By using our website, app, and services, you acknowledge that you have read and understood this policy.'),
+                'This Privacy Policy applies to our website (veenamusiconline.com), mobile applications (Android and iOS), and all associated services. By accessing or using our services, you consent to the practices described in this policy.'),
             const SizedBox(height: AppSpacing.lg),
 
-            // Section 2
+            // Section 2: Information We Collect
             _buildSectionTitle(theme, '2. Information We Collect'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'We collect various types of information, including:'),
+                'We collect information to provide, personalize, and improve our services:'),
             const SizedBox(height: AppSpacing.sm),
             _buildBulletPoint(theme, colorScheme,
-                'Personal Information such as name, email, phone number, and payment details when subscribing or purchasing'),
+                'Account Information: Name, email address, phone number, and profile details when you register, log in, or subscribe.'),
             _buildBulletPoint(theme, colorScheme,
-                'Usage Data including browsing patterns, interactions with our music, videos, and podcasts'),
+                'Usage & Streaming Data: Listening history, playlists, liked tracks, search queries, channel interactions, and app usage metrics.'),
             _buildBulletPoint(theme, colorScheme,
-                'Technical Data such as device type, IP address, cookies, and analytics data for site improvement'),
+                'Device & Technical Data: IP address, device type, operating system version, browser type, unique device identifiers, network information, and crash reports.'),
             _buildBulletPoint(theme, colorScheme,
-                'Content Usage Data related to streaming, downloading, or purchasing copyrighted material'),
+                'Payment Information: Subscription details and transaction identifiers. Note: We do not store full credit card numbers; payments are processed securely via certified payment gateways like Razorpay.'),
             const SizedBox(height: AppSpacing.lg),
 
-            // Section 3
+            // Section 3: How We Use Your Information
             _buildSectionTitle(theme, '3. How We Use Your Information'),
             const SizedBox(height: AppSpacing.sm),
-            _buildParagraph(theme, colorScheme,
-                'Veena Music uses collected information to:'),
-            const SizedBox(height: AppSpacing.sm),
             _buildBulletPoint(theme, colorScheme,
-                'Provide access to our Rajasthani songs, bhakti content, films, podcasts, and videos'),
+                'To deliver music streaming, curated playlists, devotional albums, and podcast content.'),
             _buildBulletPoint(theme, colorScheme,
-                'Offer personalized recommendations based on user preferences'),
+                'To personalize recommendations, artist discovery, and user preferences.'),
             _buildBulletPoint(theme, colorScheme,
-                'Process subscriptions, payments, and transactions securely'),
+                'To process subscription billing, verify accounts, and manage orders.'),
             _buildBulletPoint(theme, colorScheme,
-                'Enforce copyright protection and prevent unauthorized distribution'),
+                'To display relevant, policy-compliant advertisements on free tiers.'),
             _buildBulletPoint(theme, colorScheme,
-                'Improve our digital platform and user experience'),
+                'To protect intellectual property, prevent fraudulent activity, and enforce our Terms of Service.'),
+            _buildBulletPoint(theme, colorScheme,
+                'To analyze service performance, fix bugs, and enhance user experience.'),
             const SizedBox(height: AppSpacing.lg),
 
-            // Section 4
-            _buildSectionTitle(theme, '4. Third-Party Services and Data Sharing'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildParagraph(theme, colorScheme,
-                'We may share data with:'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildBulletPoint(theme, colorScheme,
-                'Streaming Platforms such as YouTube, Spotify, JioSaavn, Gaana, Amazon Music, iTunes, and others'),
-            _buildBulletPoint(theme, colorScheme,
-                'Analytics Providers to understand audience engagement and optimize content'),
-            _buildBulletPoint(theme, colorScheme,
-                'Legal Authorities in case of copyright disputes or infringement claims'),
-            _buildBulletPoint(theme, colorScheme,
-                'Payment Processors for securely handling transactions'),
+            // Section 4: Google AdSense, AdMob & Third-Party Advertising
+            _buildSectionTitle(theme, '4. Third-Party Advertising & Google AdSense'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'We do not sell or misuse personal data for commercial purposes.'),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section 5
-            _buildSectionTitle(theme, '5. Copyright Protection and Content Usage'),
+                'We work with third-party advertising partners, including Google AdSense and Google AdMob, to serve advertisements on our web and mobile platforms to support our free content tier.'),
             const SizedBox(height: AppSpacing.sm),
             _buildBulletPoint(theme, colorScheme,
-                'All songs, podcasts, videos, and telecasts published under Veena Music are copyright-protected'),
+                'Google as a Third-Party Vendor: Google uses cookies and unique identifiers to serve ads based on your prior visits to our website or other websites on the Internet.'),
             _buildBulletPoint(theme, colorScheme,
-                'Unauthorized uploading, distribution, or reproduction of content is strictly prohibited'),
+                'Advertising Cookies (DoubleClick / DART Cookie): Google\'s use of advertising cookies enables it and its partners to serve personalized or contextual ads to you based on your visits to our site and other sites across the web.'),
             _buildBulletPoint(theme, colorScheme,
-                'If you find copyright violations, report them via info@veenamusiconline.com'),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section 6
-            _buildSectionTitle(theme, '6. Cookies and Tracking Technologies'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildBulletPoint(theme, colorScheme,
-                'Veena Music uses cookies and analytics tools to improve user experience'),
-            _buildBulletPoint(theme, colorScheme,
-                'Users can manage cookies via browser settings'),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section 7
-            _buildSectionTitle(theme, '7. Data Security Measures'),
+                'Ad-Free Experience: Users who purchase a premium subscription receive an ad-free experience, and ad requests are completely disabled during their active subscription.'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'We implement strict security protocols to safeguard your data from unauthorized access, breaches, or misuse.'),
+                'You have the right to opt out of personalized advertising at any time:'),
+            const SizedBox(height: AppSpacing.xs),
+            _buildLinkCard(
+              context,
+              title: 'Google Ads Settings',
+              description: 'Customize or opt out of personalized Google Ads across the web.',
+              url: 'https://www.google.com/settings/ads',
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            _buildLinkCard(
+              context,
+              title: 'AboutAds Consumer Choice',
+              description: 'Opt out of participating third-party advertising networks.',
+              url: 'https://www.aboutads.info/choices',
+            ),
             const SizedBox(height: AppSpacing.lg),
 
-            // Section 8
-            _buildSectionTitle(theme, '8. User Rights and Data Control'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildBulletPoint(theme, colorScheme,
-                'Users can request data deletion, access, or updates'),
-            _buildBulletPoint(theme, colorScheme,
-                'For any privacy concerns, contact info@veenamusiconline.com'),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section 9
-            _buildSectionTitle(theme, '9. Policy Updates'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildBulletPoint(theme, colorScheme,
-                'We may update this Privacy Policy periodically. Users will be notified of significant changes.'),
-            const SizedBox(height: AppSpacing.lg),
-
-            // Section 10
-            _buildSectionTitle(theme, '10. Contact Information'),
+            // Section 5: Cookies and Tracking Technologies
+            _buildSectionTitle(theme, '5. Cookies & Tracking Technologies'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'For legal and privacy inquiries, reach us at:'),
+                'We use cookies, local storage, and similar technologies to enhance your experience:'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildBulletPoint(theme, colorScheme,
+                'Essential Cookies: Necessary for authentication, session continuity, and core app functionality.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Performance & Analytics Cookies: Help us understand how visitors interact with our content and diagnose technical issues (e.g. Firebase Analytics).'),
+            _buildBulletPoint(theme, colorScheme,
+                'Advertising Cookies: Used by advertising partners to measure ad effectiveness and prevent repetitive ads.'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'You can configure your browser or device settings to block or delete cookies. However, disabling cookies may impact certain features or require you to re-authenticate.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 6: Third-Party Service Providers
+            _buildSectionTitle(theme, '6. Third-Party Service Providers'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'We may share necessary data with trusted third-party providers strictly for service operation:'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildBulletPoint(theme, colorScheme,
+                'Cloud Infrastructure & Analytics: Google Cloud, Firebase.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Payment Processors: Razorpay (PCI-DSS compliant).'),
+            _buildBulletPoint(theme, colorScheme,
+                'Advertising Networks: Google AdSense, Google AdMob.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Music & Media Distribution: Official YouTube and streaming integrations.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 7: Copyright & Content Protection
+            _buildSectionTitle(theme, '7. Copyright & Content Protection'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'All sound recordings, musical compositions, artwork, videos, and trademarks available through Veena Music are the exclusive copyrighted property of Oriental Audio Visual Electronics or licensed by respective creators. Unauthorized copying, downloading, scraping, broadcasting, or redistribution is strictly prohibited.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 8: Data Retention & Security
+            _buildSectionTitle(theme, '8. Data Retention & Security'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'We implement industry-standard technical and organizational security measures, including SSL/TLS encryption, secure database access, and regular vulnerability monitoring. We retain your information only as long as necessary to provide services, resolve disputes, and comply with legal obligations.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 9: Your Privacy Rights (GDPR & CCPA/CPRA)
+            _buildSectionTitle(theme, '9. Your Privacy Rights (GDPR & CCPA/CPRA)'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'Depending on your location, you have statutory rights regarding your personal information:'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildBulletPoint(theme, colorScheme,
+                'Right to Access: Request a copy of the personal information we hold about you.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Right to Rectification: Correct inaccurate or incomplete information in your profile.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Right to Erasure (Right to be Forgotten): Request deletion of your account and associated personal data.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Right to Restrict or Object: Object to processing for direct marketing or personalized advertising.'),
+            _buildBulletPoint(theme, colorScheme,
+                'Non-Discrimination: We will never discriminate against you for exercising your privacy rights.'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'To exercise any of these rights, please email info@veenamusiconline.com or use the account deletion options in the app settings.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 10: Children's Privacy (COPPA)
+            _buildSectionTitle(theme, '10. Children\'s Privacy'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'Our services are not directed to children under 13 years of age (or under 16 in certain jurisdictions). We do not knowingly collect personal information from children without verified parental consent. If we discover that a child has provided us with personal information, we will take prompt steps to delete it.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 11: Policy Updates
+            _buildSectionTitle(theme, '11. Policy Updates'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'We may update this Privacy Policy from time to time to reflect changes in our practices or applicable legal requirements. The updated date at the top of this page will indicate when revisions took effect.'),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Section 12: Contact Information
+            _buildSectionTitle(theme, '12. Contact Information'),
+            const SizedBox(height: AppSpacing.sm),
+            _buildParagraph(theme, colorScheme,
+                'For questions, feedback, or privacy-related requests, please contact our Data Protection team:'),
             const SizedBox(height: AppSpacing.sm),
             Container(
               width: double.infinity,
@@ -180,9 +232,16 @@ class PrivacyPolicyScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '(Oriental Audio Visual Electronics)',
+                    'Oriental Audio Visual Electronics',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Haldia House, Johri Bazar, Jaipur, Rajasthan 302003, India',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: AppSpacing.sm),
@@ -192,10 +251,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           size: 16,
                           color: colorScheme.onSurface.withOpacity(0.6)),
                       const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        'info@veenamusiconline.com',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.primary,
+                      InkWell(
+                        onTap: () => openUrl('mailto:info@veenamusiconline.com'),
+                        child: Text(
+                          'info@veenamusiconline.com',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.primary,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
                     ],
@@ -207,10 +270,14 @@ class PrivacyPolicyScreen extends StatelessWidget {
                           size: 16,
                           color: colorScheme.onSurface.withOpacity(0.6)),
                       const SizedBox(width: AppSpacing.xs),
-                      Text(
-                        'Veena Music',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.primary,
+                      InkWell(
+                        onTap: () => openUrl('https://veenamusiconline.com/privacy-policy.html'),
+                        child: Text(
+                          'https://veenamusiconline.com/privacy-policy.html',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: colorScheme.primary,
+                            decoration: TextDecoration.underline,
+                          ),
                         ),
                       ),
                     ],
@@ -277,6 +344,66 @@ class PrivacyPolicyScreen extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildLinkCard(
+    BuildContext context, {
+    required String title,
+    required String description,
+    required String url,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      elevation: 0,
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        side: BorderSide(color: colorScheme.onSurface.withOpacity(0.08)),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppSpacing.radiusSm),
+        onTap: () => openUrl(url),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withOpacity(0.7),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Icon(
+                Icons.open_in_new_rounded,
+                size: 18,
+                color: colorScheme.primary,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About Us – Veena Music | Pioneer of Rajasthani Music</title>
+  <meta name="description" content="Discover the rich history of Veena Music (Oriental Audio Visual Electronics), preserving and celebrating Rajasthan's folk, bhajan, and devotional music heritage.">
+  <link rel="canonical" href="https://veenamusiconline.com/about-us.html">
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --bg-primary: #121214;
+      --bg-secondary: #1e1e24;
+      --bg-card: #25252d;
+      --text-primary: #f0f0f5;
+      --text-secondary: #a0a0b0;
+      --accent: #e91e8c;
+      --accent-hover: #ff4081;
+      --border: rgba(255, 255, 255, 0.1);
+      --link: #ff6b9d;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.7;
+      padding: 0;
+    }
+    header {
+      background-color: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1.25rem;
+      letter-spacing: 2px;
+    }
+    .brand img {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+    }
+    nav a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      margin-left: 1.5rem;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+    nav a:hover, nav a.active {
+      color: var(--accent);
+    }
+    .container {
+      max-width: 900px;
+      margin: 2.5rem auto;
+      padding: 0 1.5rem 4rem 1.5rem;
+    }
+    .doc-header {
+      margin-bottom: 2.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+    .header-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(233, 30, 140, 0.15);
+      color: var(--accent);
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 1rem;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      color: #ffffff;
+    }
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+    h2 {
+      font-size: 1.45rem;
+      margin-top: 2.5rem;
+      margin-bottom: 0.75rem;
+      color: #ffffff;
+      border-left: 4px solid var(--accent);
+      padding-left: 0.75rem;
+    }
+    p {
+      margin-bottom: 1.25rem;
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1.25rem;
+      margin: 2.5rem 0;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 0.25rem;
+    }
+    .stat-label {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+    .callout {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      margin: 2rem 0;
+    }
+    .callout-title {
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 0.75rem;
+      font-size: 1.1rem;
+    }
+    footer {
+      background-color: var(--bg-secondary);
+      border-top: 1px solid var(--border);
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .footer-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+    }
+    .footer-links a:hover {
+      color: var(--accent);
+    }
+    @media (max-width: 600px) {
+      header {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      nav {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.75rem;
+      }
+      nav a {
+        margin-left: 0;
+      }
+      h1 {
+        font-size: 1.85rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="/" class="brand">
+      <img src="logo_light.png" alt="Veena Music Logo">
+      <span>VEENA MUSIC</span>
+    </a>
+    <nav>
+      <a href="/">App Home</a>
+      <a href="about-us.html" class="active">About Us</a>
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+      <a href="contact-us.html">Contact Us</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <div class="doc-header">
+      <div class="header-badge">ESTABLISHED CULTURAL HERITAGE</div>
+      <h1>About Veena Music</h1>
+      <p class="subtitle">The Pioneer and Custodian of Rajasthani Folk &amp; Devotional Music</p>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">30+</div>
+        <div class="stat-label">Years of Cultural Heritage</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">500+</div>
+        <div class="stat-label">Original Master Tracks</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">50+</div>
+        <div class="stat-label">Iconic Albums Released</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">Millions</div>
+        <div class="stat-label">Global Listeners</div>
+      </div>
+    </div>
+
+    <section>
+      <h2>Preserving the Soul of Rajasthan</h2>
+      <p>
+        <strong>Veena Music</strong>, an enterprise of <strong>Oriental Audio Visual Electronics</strong>, is a historic and prestigious pillar of India's cultural music landscape. Founded in Jaipur, Rajasthan, our mission has remained steadfast: to discover, produce, preserve, and globally celebrate the profound musical, devotional, and folkloric traditions of Rajasthan.
+      </p>
+      <p>
+        Rajasthan is a land of vibrant desert landscapes, valor, spiritual devotion, and deep folk traditions. The soul of Rajasthan breathes through its music—the soulful tunes of the Sarangi, Kamayacha, and Ravanhatha, paired with the rhythm of the Dholak, Khartal, and Morchang. Veena Music was born out of a profound passion to ensure these authentic ancestral compositions are immortalized with pristine acoustic fidelity and brought to listeners across the globe.
+      </p>
+    </section>
+
+    <section>
+      <h2>The Milestone Ghoomar Series</h2>
+      <p>
+        Veena Music's defining milestone came with the production and release of the internationally celebrated <strong>Ghoomar Series (Parts 1 to 4)</strong>. Recognized globally as the quintessential representation of Rajasthani folk dance and music, the Ghoomar series revolutionized the way folk music was produced and appreciated.
+      </p>
+      <p>
+        From traditional royal courts to modern global dance festivals, Veena Music's Ghoomar compositions have become household anthems for Rajasthani weddings, cultural celebrations, and national ceremonies across India, the United States, Europe, and the Middle East.
+      </p>
+    </section>
+
+    <section>
+      <h2>Our Diverse Catalog: Folk, Bhakti, and Festive Melodies</h2>
+      <p>
+        Our comprehensive archive spans thousands of hours of authentic audio:
+      </p>
+      <p>
+        <strong>1. Rajasthani Bhajans &amp; Sant Vani:</strong> Timeless spiritual poetry from revered saints including Meera Bai, Kabir, Ramdevji, Tejaji, and Pabuji, rendered by celebrated traditional devotional masters.
+      </p>
+      <p>
+        <strong>2. Traditional Folk &amp; Dance Tracks:</strong> Energetic folk numbers celebrating seasonal festivals like Teej, Gangaur, Holi, and Diwali, featuring master instrumentation and authentic folk dialects (Marwari, Mewari, Shekhawati, Dhundhari).
+      </p>
+      <p>
+        <strong>3. Indian Wedding Melodies (Vivah Geet):</strong> Comprehensive collections of traditional wedding rituals, Banna-Banni songs, and ceremonial folk hymns.
+      </p>
+    </section>
+
+    <section>
+      <h2>Digital Streaming &amp; Cultural Preservation</h2>
+      <p>
+        In the digital era, Veena Music bridges ancient artistic heritage with modern digital technology. Through our custom web streaming platform (<a href="https://veenamusiconline.com">veenamusiconline.com</a>), Android application, and iOS application, we deliver lossless streaming, curated playlists, artist channels, and deep cultural metadata.
+      </p>
+      <p>
+        We are firmly committed to ethical artist compensation, copyright protection, and digital rights management, ensuring our legendary folk masters and creators receive the honor and protection they deserve.
+      </p>
+    </section>
+
+    <section>
+      <h2>Corporate Profile &amp; Contact</h2>
+      <div class="callout">
+        <div class="callout-title">Oriental Audio Visual Electronics</div>
+        <p><strong>Brand:</strong> Veena Music</p>
+        <p><strong>Headquarters:</strong> Haldia House, Johri Bazar, Jaipur, Rajasthan 302003, India</p>
+        <p><strong>Phone:</strong> +91 141 257 2666 / +91 88750 22558</p>
+        <p><strong>Email:</strong> info@veenamusiconline.com / veenacassettes@gmail.com</p>
+        <p><strong>Web:</strong> <a href="https://veenamusiconline.com">https://veenamusiconline.com</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      <a href="/">App Home</a>
+      <a href="about-us.html">About Us</a>
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-service.html">Terms of Service</a>
+      <a href="contact-us.html">Contact Us</a>
+      <a href="dmca-policy.html">DMCA & Copyright</a>
+    </div>
+    <p>&copy; 2026 Veena Music (Oriental Audio Visual Electronics). All Rights Reserved.</p>
+  </footer>
+</body>
+</html>

@@ -302,60 +302,51 @@
        what the app renders inside its canvas. It is positioned off-screen so
        it never overlaps the Flutter UI, but remains in the normal document
        flow (not display:none) so crawlers index it. -->
-  <article id="seo-content" aria-hidden="true" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden;">
-    <h1>Veena Music – Pioneer of Rajasthani Music</h1>
-    <p>
-      Veena Music is Rajasthan's premier music streaming platform. Explore a
-      vast library of bhajans, folk songs, devotional music, and curated
-      playlists from celebrated Rajasthani artists. Available on web, Android,
-      and iOS.
-    </p>
-    <h2>What You'll Find on Veena Music</h2>
-    <ul>
-      <li>Rajasthani Bhajans — devotional songs from revered artists</li>
-      <li>Folk Songs — traditional Rajasthani folk music and dance tracks</li>
-      <li>Devotional Music — spiritual and meditation music</li>
-      <li>Curated Playlists — hand-picked collections for every mood</li>
-      <li>Featured Artists — discover top Rajasthani musicians and channels</li>
-      <li>Albums — full album streaming with track listings</li>
-      <li>YouTube Channels — featured Rajasthani music channels</li>
-    </ul>
-    <h2>Listen Anywhere</h2>
-    <p>
-      Stream on the web at veenamusiconline.com, or download the Veena Music
-      app for Android and iOS. Enjoy ad-free listening with a premium
-      subscription, or listen free with ads.
-    </p>
-    <h2>About Veena Music</h2>
-    <p>
-      Founded with a mission to preserve and promote the rich musical heritage
-      of Rajasthan, Veena Music brings together traditional and contemporary
-      Rajasthani artists on one platform. From timeless bhajans to modern folk
-      renditions, our library celebrates the diversity and depth of Rajasthani
-      music culture.
-    </p>
-  </article>
-
-  <!-- Fallback for browsers / crawlers with JavaScript disabled. -->
-  <noscript>
-    <div style="max-width:800px;margin:40px auto;padding:24px;font-family:system-ui,sans-serif;color:#e0e0e0;background:#1e1e1e;border-radius:16px;">
-      <h1 style="font-size:28px;margin-bottom:12px;color:#fff;">Veena Music – Pioneer of Rajasthani Music</h1>
-      <p style="line-height:1.6;margin-bottom:16px;">
-        Stream bhajans, folk songs, devotional music, and curated playlists from
-        Rajasthan's finest artists. The Veena Music web app requires JavaScript
-        to run. Please enable JavaScript, or download the mobile app for
-        Android or iOS.
+  <!-- Semantic publisher content & legal navigation for search engines and AdSense crawlers.
+       This provides indexable HTML structure prior to Flutter Canvas initialization. -->
+  <main id="app-description" style="max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; color: #a0a0b0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+    <header style="margin-bottom: 2rem;">
+      <h1 style="font-size: 2rem; color: #ffffff; margin-bottom: 0.5rem;">Veena Music – Pioneer of Rajasthani Music</h1>
+      <p style="font-size: 1.1rem; line-height: 1.6;">
+        Stream Rajasthan's richest collection of traditional folk songs, devotional bhajans, Ghoomar albums, and curated playlists by legendary artists. Available across Web, Android, and iOS.
       </p>
-      <h2 style="font-size:20px;margin-bottom:8px;color:#fff;">Browse Our Music</h2>
-      <ul style="line-height:1.8;padding-left:20px;">
-        <li>Rajasthani Bhajans &amp; Devotional Songs</li>
-        <li>Traditional Folk Music</li>
-        <li>Curated Playlists for Every Mood</li>
-        <li>Featured Artists &amp; YouTube Channels</li>
-        <li>Full Albums with Track Listings</li>
+    </header>
+
+    <section style="margin-bottom: 2rem;">
+      <h2 style="font-size: 1.3rem; color: #ffffff; margin-bottom: 0.75rem;">Music Library &amp; Featured Categories</h2>
+      <ul style="line-height: 1.8; padding-left: 1.5rem;">
+        <li><strong>Rajasthani Bhajans:</strong> Devotional songs of Meera Bai, Kabir, Ramdevji, and traditional Sant Vani.</li>
+        <li><strong>Authentic Folk &amp; Ghoomar:</strong> The world-famous Ghoomar series (Vols. 1–4), Gorband, and festive folk tracks.</li>
+        <li><strong>Devotional &amp; Spiritual:</strong> Aarti, Chalisa, and spiritual chants recorded with authentic folk instruments.</li>
+        <li><strong>Wedding &amp; Festive Songs:</strong> Traditional Vivah Geet, Banna-Banni songs, and festival anthems.</li>
       </ul>
-      <p style="margin-top:16px;font-size:14px;color:#999;">
-        &copy; Veena Music. All rights reserved.
+    </section>
+
+    <nav aria-label="Quick Links" style="margin: 2rem 0; padding: 1.5rem; background: #1e1e24; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1);">
+      <h3 style="font-size: 1.1rem; color: #ffffff; margin-bottom: 1rem;">Platform Information &amp; Legal Policies</h3>
+      <div style="display: flex; flex-wrap: wrap; gap: 1.25rem;">
+        <a href="about-us.html" style="color: #ff6b9d; text-decoration: none; font-weight: 500;">About Veena Music</a>
+        <a href="privacy-policy.html" style="color: #ff6b9d; text-decoration: none; font-weight: 500;">Privacy Policy (AdSense &amp; Cookies)</a>
+        <a href="terms-of-service.html" style="color: #ff6b9d; text-decoration: none; font-weight: 500;">Terms of Service</a>
+        <a href="contact-us.html" style="color: #ff6b9d; text-decoration: none; font-weight: 500;">Contact Us</a>
+        <a href="dmca-policy.html" style="color: #ff6b9d; text-decoration: none; font-weight: 500;">DMCA &amp; Copyright</a>
+      </div>
+    </nav>
+
+    <footer style="margin-top: 2rem; font-size: 0.85rem; color: #707080;">
+      <p>&copy; 2026 Veena Music (Oriental Audio Visual Electronics). All Rights Reserved. Haldia House, Johri Bazar, Jaipur, Rajasthan 302003, India.</p>
+    </footer>
+  </main>
+
+  <noscript>
+    <div style="max-width:800px;margin:20px auto;padding:24px;font-family:system-ui,sans-serif;color:#e0e0e0;background:#1e1e1e;border-radius:16px;">
+      <h2 style="color:#fff;margin-bottom:10px;">JavaScript Required</h2>
+      <p style="line-height:1.6;margin-bottom:12px;">
+        The interactive web player requires JavaScript. If you are browsing with JavaScript disabled, you can still read our 
+        <a href="about-us.html" style="color:#ff6b9d;">About Us</a>, 
+        <a href="privacy-policy.html" style="color:#ff6b9d;">Privacy Policy</a>, 
+        <a href="terms-of-service.html" style="color:#ff6b9d;">Terms of Service</a>, 
+        or <a href="contact-us.html" style="color:#ff6b9d;">Contact Us</a> pages.
       </p>
     </div>
   </noscript>

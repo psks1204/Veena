@@ -3,7 +3,7 @@ import '../../../core/theme/app_spacing.dart';
 
 /// About Us Screen
 ///
-/// Displays Veena Music company information.
+/// Displays Veena Music history, cultural mission, discography, and company details.
 class AboutUsScreen extends StatelessWidget {
   const AboutUsScreen({super.key});
 
@@ -60,42 +60,90 @@ class AboutUsScreen extends StatelessWidget {
                 ),
               ),
             ),
+            Center(
+              child: Text(
+                'Pioneer of Rajasthani Music',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  color: colorScheme.primary,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
             const SizedBox(height: AppSpacing.xl),
 
             _buildSectionTitle(theme, 'Preserving the Soul of Rajasthani Music'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'Veena Music is a pioneering name in the Rajasthani music industry, passionately dedicated to developing, preserving, and promoting the rich musical traditions of Rajasthan. Established with the vision of bringing authentic folk melodies to global audiences, Veena Music has become a symbol of high-quality music production, copyright protection, and cultural preservation.'),
+                'Veena Music (operated by Oriental Audio Visual Electronics) is a pioneering, world-renowned brand in the Indian music industry, passionately dedicated to developing, preserving, and promoting the rich cultural and musical heritage of Rajasthan. Established with the vision of bringing authentic folk melodies and devotional traditions to global audiences, Veena Music has become the definitive benchmark for Rajasthani music production, artistic integrity, and copyright preservation.'),
             const SizedBox(height: AppSpacing.lg),
 
-            _buildSectionTitle(theme, 'A Legacy Rooted in Tradition'),
+            _buildSectionTitle(theme, 'A Rich Legacy of Authentic Folk & Bhakti'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'Our music is free from commercial constraints, ensuring that every composition remains true to its traditional roots. Whether it\'s Rajasthani Folk Music, Indian Devotional Songs, or Indian Wedding Melodies, our catalog reflects the vibrant essence of Rajasthan\'s heritage.'),
+                'Our catalog remains steadfastly true to its traditional roots. Spanning Rajasthani Folk, timeless Bhajans, Devotional Melodies, traditional Wedding Gits, and festive celebrations, every track is produced with master audio fidelity and respect for folkloric authenticity.'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'Through collaborations with legendary artists, composers, and lyricists, we have curated a diverse collection of soulful folk renditions and festive songs, connecting audiences with the spirit of Rajasthan.'),
+                'Through collaborations with legendary folk artists, maestros, composers, and traditional musicians, we have curated an extraordinary catalog that connects millions of listeners worldwide with the vibrant spirit of Rajasthan.'),
             const SizedBox(height: AppSpacing.lg),
 
-            _buildSectionTitle(theme, 'Impactful Achievements & Milestones'),
+            _buildSectionTitle(theme, 'Milestones & The Iconic Ghoomar Series'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'The ever-growing popularity of Rajasthani Folk Music has led Veena Music to produce over 50 successful albums in the last four years. Our Ghoomar series (4 parts) has set a milestone in India and abroad, earning recognition as one of the definitive representations of Rajasthani music.'),
+                'Over several decades, Veena Music has produced hundreds of iconic albums. Our internationally acclaimed Ghoomar series (Parts 1 to 4) achieved historic milestones in India and across the global Indian diaspora, revitalizing traditional Rajasthani dance and musical culture across continents.'),
             const SizedBox(height: AppSpacing.lg),
 
-            _buildSectionTitle(theme, 'Embracing Innovation & Digital Reach'),
+            _buildSectionTitle(theme, 'Digital Innovation & Global Streaming'),
             const SizedBox(height: AppSpacing.sm),
             _buildParagraph(theme, colorScheme,
-                'At Veena Music, we blend tradition with technology, ensuring our music reaches global audiences through digital platforms, and streaming services. We take copyright protection seriously, ensuring our original compositions remain safeguarded from unauthorized use.'),
+                'Today, Veena Music bridges ancient cultural heritage with cutting-edge technology. Through our Android app, iOS app, and web platform (veenamusiconline.com), listeners can enjoy curated playlists, seamless streaming, and high-quality audio anywhere in the world.'),
             const SizedBox(height: AppSpacing.lg),
 
-            _buildSectionTitle(theme, 'Our Mission: Keeping Heritage Alive'),
+            // Corporate details card
+            _buildSectionTitle(theme, 'Corporate Entity'),
             const SizedBox(height: AppSpacing.sm),
-            _buildParagraph(theme, colorScheme,
-                'Our goal is more than music—it\'s cultural storytelling. We aim to educate, engage, and entertain through compositions that highlight Rajasthan\'s rituals, fairs, and festivals, ensuring that the legacy of Rajasthani music remains timeless and revered.'),
-            const SizedBox(height: AppSpacing.sm),
-            _buildParagraph(theme, colorScheme,
-                'Join us in our journey as we keep the spirit of Rajasthani music alive!'),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+                border: Border.all(
+                  color: colorScheme.onSurface.withOpacity(0.1),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Oriental Audio Visual Electronics',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    'Brand: Veena Music',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.6),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Headquarters: Haldia House, Johri Bazar, Jaipur, Rajasthan 302003, India',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurface.withOpacity(0.7),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Inquiries: info@veenamusiconline.com',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: colorScheme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
             const SizedBox(height: 140),
           ],

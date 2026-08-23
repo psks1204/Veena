@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../shared/utils/open_url.dart';
 
 /// Contact Us Screen
 ///
-/// Displays Veena Music contact information.
+/// Displays Veena Music contact channels, office location, and inquiries.
 class ContactUsScreen extends StatelessWidget {
   const ContactUsScreen({super.key});
 
@@ -60,10 +61,10 @@ class ContactUsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            const SizedBox(height: AppSpacing.xs),
             Center(
               child: Text(
-                'We\'d love to hear from you',
+                'We would love to hear from you',
                 style: theme.textTheme.bodyMedium?.copyWith(
                   color: colorScheme.onSurface.withOpacity(0.6),
                 ),
@@ -71,15 +72,15 @@ class ContactUsScreen extends StatelessWidget {
             ),
             const SizedBox(height: AppSpacing.xl),
 
-            // Address Card
+            // Office Address Card
             _buildContactCard(
               context,
               icon: Icons.location_on_rounded,
-              title: 'Office Address',
+              title: 'Registered Office',
               lines: [
-                'Veena Music',
+                'Veena Music (Oriental Audio Visual Electronics)',
                 'Haldia House, Johri Bazar,',
-                'Jaipur, Rajasthan 302003',
+                'Jaipur, Rajasthan 302003, India',
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -88,11 +89,12 @@ class ContactUsScreen extends StatelessWidget {
             _buildContactCard(
               context,
               icon: Icons.phone_rounded,
-              title: 'Phone',
+              title: 'Phone Support',
               lines: [
-                '0141 257 2666',
-                '8875022558',
+                '+91 141 257 2666',
+                '+91 88750 22558',
               ],
+              onTap: () => openUrl('tel:+911412572666'),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -100,10 +102,12 @@ class ContactUsScreen extends StatelessWidget {
             _buildContactCard(
               context,
               icon: Icons.email_rounded,
-              title: 'Email',
+              title: 'Email Inquiries',
               lines: [
+                'info@veenamusiconline.com',
                 'veenacassettes@gmail.com',
               ],
+              onTap: () => openUrl('mailto:info@veenamusiconline.com'),
             ),
             const SizedBox(height: AppSpacing.md),
 
@@ -111,10 +115,11 @@ class ContactUsScreen extends StatelessWidget {
             _buildContactCard(
               context,
               icon: Icons.language_rounded,
-              title: 'Website',
+              title: 'Official Website',
               lines: [
-                'www.veenamusiconline.com',
+                'https://veenamusiconline.com',
               ],
+              onTap: () => openUrl('https://veenamusiconline.com'),
             ),
 
             const SizedBox(height: 140),
@@ -129,58 +134,69 @@ class ContactUsScreen extends StatelessWidget {
     required IconData icon,
     required String title,
     required List<String> lines,
+    VoidCallback? onTap,
   }) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
-        border: Border.all(
-          color: colorScheme.onSurface.withOpacity(0.08),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppSpacing.radiusMd),
+          border: Border.all(
+            color: colorScheme.onSurface.withOpacity(0.08),
+          ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppColors.primary, size: 20),
             ),
-            child: Icon(icon, color: AppColors.primary, size: 20),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.xs),
-                ...lines.map((line) => Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        line,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withOpacity(0.7),
-                          height: 1.5,
+                  const SizedBox(height: AppSpacing.xs),
+                  ...lines.map((line) => Padding(
+                        padding: const EdgeInsets.only(bottom: 2),
+                        child: Text(
+                          line,
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withOpacity(0.7),
+                            height: 1.5,
+                          ),
                         ),
-                      ),
-                    )),
-              ],
+                      )),
+                ],
+              ),
             ),
-          ),
-        ],
+            if (onTap != null)
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 20,
+                color: colorScheme.onSurface.withOpacity(0.4),
+              ),
+          ],
+        ),
       ),
     );
   }
