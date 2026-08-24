@@ -50,17 +50,31 @@ class DeepLinkService extends ChangeNotifier {
     );
   }
 
-  /// Parse a URI and extract the songId if it matches /song/{id}.
+  /// Parse a URI and extract the songId if it matches /song/{id} or veena://song/{id}.
   void _handleUri(Uri uri) {
+    debugPrint('🔗 DeepLinkService: parsing uri → scheme=${uri.scheme}, host=${uri.host}, path=${uri.path}');
+    String? songId;
+
     final segments = uri.pathSegments;
-    // Expect: ['song', '{songId}']
+    // Standard web URL: https://veenamusiconline.com/song/{songId}
     if (segments.length >= 2 && segments[0] == 'song') {
-      final songId = segments[1];
-      if (songId.isNotEmpty) {
-        debugPrint('✅ DeepLinkService: extracted songId = $songId');
-        pendingSongId = songId;
-        notifyListeners();
-      }
+      songId = segments[1];
+    } 
+    // Custom scheme format 1: veena://song/{songId} (host = 'song', path = '/{songId}')
+    else if (uri.scheme == 'veena' && uri.host == 'song' && segments.isNotEmpty) {
+      songId = segments[0];
+    }
+    // Custom scheme format 2: veena://open?songId={songId} or ?id={songId}
+    else if (uri.queryParameters.containsKey('songId')) {
+      songId = uri.queryParameters['songId'];
+    } else if (uri.queryParameters.containsKey('id')) {
+      songId = uri.queryParameters['id'];
+    }
+
+    if (songId != null && songId.isNotEmpty) {
+      debugPrint('✅ DeepLinkService: extracted songId = $songId');
+      pendingSongId = songId;
+      notifyListeners();
     }
   }
 
