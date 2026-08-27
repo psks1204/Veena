@@ -14,6 +14,7 @@ import '../../core/services/media_service.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/player/widgets/comments_sheet.dart';
 import 'share_song_button.dart';
+import 'web_player_brand_ad.dart';
 
 /// Spotify-style Now Playing Panel
 ///
@@ -356,7 +357,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
 
           _buildEngagementStats(media, isDark),
 
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+
+          // Web Player Sponsored Brand Ad
+          const WebPlayerBrandAd(),
+
+          const SizedBox(height: 12),
 
           // Credits Section
           _buildCreditsSection(media, isDark),

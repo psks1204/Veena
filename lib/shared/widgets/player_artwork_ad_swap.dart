@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -7,6 +8,7 @@ import '../../core/providers/subscription_provider.dart';
 import '../../core/services/ads_service.dart';
 import '../../core/theme/app_colors.dart';
 import 'google_banner_ad.dart';
+import 'web_player_brand_ad.dart';
 
 class PlayerArtworkAdSwap extends StatefulWidget {
   const PlayerArtworkAdSwap({super.key, this.thumbnailUrl});
@@ -61,6 +63,15 @@ class _AdView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb) {
+      return Container(
+        color: Colors.black,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(12),
+        child: const WebPlayerBrandAd(compact: true),
+      );
+    }
+
     return Container(
       color: Colors.black,
       alignment: Alignment.center,

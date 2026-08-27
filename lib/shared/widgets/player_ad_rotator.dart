@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import 'google_banner_ad.dart';
 import 'subscription_modal.dart';
+import 'web_player_brand_ad.dart';
 
 class PlayerAdRotator extends StatefulWidget {
   const PlayerAdRotator({super.key});
@@ -74,6 +75,10 @@ class _PlayerAdRotatorState extends State<PlayerAdRotator>
 
     if (!showAds) {
       return _promoBanner(context, subscription.monthlyPlanLabel);
+    }
+
+    if (kIsWeb) {
+      return const WebPlayerBrandAd(key: ValueKey('web_player_brand_ad'));
     }
 
     return AnimatedSwitcher(

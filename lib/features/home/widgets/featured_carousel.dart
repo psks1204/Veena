@@ -4,14 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../../../core/models/media_item.dart';
+import '../../../core/models/brand_ad.dart';
 import '../../../core/providers/subscription_provider.dart';
 import '../../../core/services/ads_service.dart';
 import '../../../core/services/adsense_config.dart';
+import '../../../core/services/brand_ads_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/google_banner_ad.dart';
 import '../../../shared/widgets/subscription_modal.dart';
+import '../../../shared/widgets/web_brand_ad_card.dart';
 
 class FeaturedCarousel extends StatefulWidget {
   const FeaturedCarousel({
@@ -101,7 +104,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     itemBuilder: (context, index) {
                       final page = pages[index];
                       if (page.isAd) {
-                        return _buildAdPage(context, theme);
+                        return _buildAdPage(context, theme, page.brandAd);
                       }
                       return _buildFeaturedItem(
                         context,
@@ -121,7 +124,7 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     itemBuilder: (context, index) {
                       final page = pages[index];
                       if (page.isAd) {
-                        return _buildAdPage(context, theme);
+                        return _buildAdPage(context, theme, page.brandAd);
                       }
                       return _buildFeaturedItem(
                         context,
@@ -195,7 +198,9 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     borderRadius: BorderRadius.circular(24),
                     child: BackdropFilter(
                       filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: Container(color: Colors.black.withOpacity(0.4)),
+                      child: Container(
+                        color: Colors.black.withValues(alpha: 0.4),
+                      ),
                     ),
                   ),
                 ),
@@ -228,7 +233,10 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withValues(alpha: 0.8),
+                    ],
                   ),
                 ),
               ),
@@ -325,12 +333,25 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     final pages = <_CarouselPage>[];
     for (int i = 0; i < items.length; i++) {
       pages.add(_CarouselPage(item: items[i], mediaIndex: i));
-      pages.add(const _CarouselPage(isAd: true));
+      final brandAd = kIsWeb
+          ? BrandAdsService.brandAds[i % BrandAdsService.brandAds.length]
+          : null;
+      pages.add(_CarouselPage(isAd: true, brandAd: brandAd));
     }
     return pages;
   }
 
-  Widget _buildAdPage(BuildContext context, ThemeData theme) {
+  Widget _buildAdPage(
+    BuildContext context,
+    ThemeData theme, [
+    BrandAd? brandAd,
+  ]) {
+    // On Web, render Google Ads styled real-brand sponsored card
+    if (kIsWeb) {
+      final ad = brandAd ?? BrandAdsService.getRandomAd();
+      return WebBrandAdCard(ad: ad);
+    }
+
     final subscription = context.watch<SubscriptionProvider>();
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppSpacing.screenPadding),
@@ -339,8 +360,8 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppColors.primary.withOpacity(0.22),
-            Colors.black.withOpacity(0.55),
+            AppColors.primary.withValues(alpha: 0.22),
+            Colors.black.withValues(alpha: 0.55),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -378,9 +399,15 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
 }
 
 class _CarouselPage {
-  const _CarouselPage({this.item, this.mediaIndex, this.isAd = false});
+  const _CarouselPage({
+    this.item,
+    this.mediaIndex,
+    this.isAd = false,
+    this.brandAd,
+  });
 
   final MediaItem? item;
   final int? mediaIndex;
   final bool isAd;
+  final BrandAd? brandAd;
 }

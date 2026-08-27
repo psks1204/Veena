@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 
-import 'adsense_config.dart';
+import '../../shared/widgets/web_interstitial_ad_modal.dart';
 
 class AdsService {
   AdsService._();
@@ -22,20 +22,19 @@ class AdsService {
 
   // ─── Platform guard ────────────────────────────────────────────────────────
   /// Platforms where the AdMob (google_mobile_ads) SDK actually runs.
-  /// Web is deliberately excluded — there ads come from AdSense instead.
+  /// Web is deliberately excluded — there ads come from real brand Google ads / AdSense.
   static bool get isSupportedPlatform {
     if (kIsWeb) return false;
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  /// Web serves ads through AdSense (`<ins class="adsbygoogle">` slots mounted
-  /// as platform views), not AdMob.
-  static bool get isAdSenseSupported => kIsWeb && AdSenseConfig.isConfigured;
+  /// Web serves ads through custom Google-styled brand ads / AdSense.
+  static bool get isAdSenseSupported => kIsWeb;
 
   /// Whether *any* ad surface exists on this platform. UI gating should use
   /// this; only AdMob-specific calls should use [isSupportedPlatform].
-  static bool get hasAdSurface => isSupportedPlatform || isAdSenseSupported;
+  static bool get hasAdSurface => isSupportedPlatform || kIsWeb;
 
   // ─── Ad unit IDs ───────────────────────────────────────────────────────────
   // In debug mode we always use Google's official test IDs so no real traffic
@@ -178,6 +177,12 @@ class AdsService {
     if (!_adsEnabled) {
       // No-ads subscriber (or ads switched off) — never show, never preload.
       _disposeInterstitialAd();
+      return;
+    }
+
+    // Web platform interstitial modal
+    if (kIsWeb) {
+      await WebInterstitialAdModal.show();
       return;
     }
 
