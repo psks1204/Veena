@@ -293,6 +293,10 @@ class _AppRouterState extends State<_AppRouter> {
           if (!_providersReset) {
             _providersReset = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
+              // Tear down any gate screen (DOB / name / channel setup) left on
+              // the root navigator, so an expired session doesn't strand the
+              // user above the login page.
+              AppNavigation.popRootToFirst();
               if (mounted) {
                 context.read<ProfileProvider>().resetForSignOut();
                 context.read<ChannelProvider>().resetForSignOut();

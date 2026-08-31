@@ -45,7 +45,7 @@ jobs:
         run: flutter test
 
       - name: Build iOS App (No Code Signing)
-        run: flutter build ios --release --no-codesign
+        run: flutter build ios --release --no-codesign --dart-define-from-file=env/web.json
 
       - name: Upload iOS Build Artifacts
         uses: actions/upload-artifact@v4

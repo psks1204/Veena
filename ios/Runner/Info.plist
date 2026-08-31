@@ -66,5 +66,24 @@
 		     Replace with the real iOS AdMob App ID from the AdMob dashboard before release. -->
 		<key>GADApplicationIdentifier</key>
 		<string>ca-app-pub-1875243491329741~5652032520</string>
+		<!-- Links are handled by DeepLinkService (app_links), not Flutter's built-in
+		     router; MaterialApp has no named routes. Matches Android, where
+		     flutter_deeplinking_enabled is unset (default off). -->
+		<key>FlutterDeepLinkingEnabled</key>
+		<false/>
+		<!-- Custom scheme fallback: veena://song/{songId} (parity with Android manifest) -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.app.veenaapp</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>veena</string>
+				</array>
+			</dict>
+		</array>
 	</dict>
 </plist>

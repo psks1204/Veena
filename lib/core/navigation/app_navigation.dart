@@ -125,4 +125,19 @@ class AppNavigation {
   static void popToFirst() {
     currentNavigatorKey.currentState!.popUntil((route) => route.isFirst);
   }
+
+  /// Clear everything stacked on the root navigator, back to its first route.
+  ///
+  /// Used when a session ends (e.g. a 401 signs the user out) so that any
+  /// full-screen gate pushed on top of the router — DOB, name or channel
+  /// setup, all of which use PopScope(canPop: false) — is torn down instead of
+  /// stranding the user on an undismissable screen above the login page.
+  ///
+  /// Safe to call when the navigator is absent or already at its first route.
+  static bool popRootToFirst() {
+    final navigator = rootNavigatorKey.currentState;
+    if (navigator == null || !navigator.canPop()) return false;
+    navigator.popUntil((route) => route.isFirst);
+    return true;
+  }
 }
