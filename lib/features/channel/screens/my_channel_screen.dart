@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../../shared/utils/share_media.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/models/media_item.dart';
@@ -251,13 +251,7 @@ class _MyChannelScreenState extends State<MyChannelScreen> {
     });
   }
 
-  Future<void> _share(MediaItem media) async {
-    final shareUrl = 'https://veenamusiconline.com/song/${media.id}';
-    await Share.share(
-      'Listen to "${media.title}" on Veena Music: $shareUrl',
-      subject: 'Share Song',
-    );
-  }
+  Future<void> _share(MediaItem media) => shareMedia(context, media);
 
   Future<void> _openComments(MediaItem media) async {
     final commentsEnabled = context.read<AppSettingsService>().enableComments;

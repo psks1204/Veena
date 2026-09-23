@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../core/models/artist.dart';
 import '../../core/models/media_item.dart';
@@ -13,6 +12,7 @@ import '../../features/library/screens/album_detail_screen.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/library/widgets/add_to_playlist_sheet.dart';
 import '../../features/player/widgets/comments_sheet.dart';
+import '../utils/share_media.dart';
 import 'subscription_modal.dart';
 
 class MediaOptionsSheet extends StatelessWidget {
@@ -137,14 +137,16 @@ class MediaOptionsSheet extends StatelessWidget {
             ListTile(
               leading: const Icon(Icons.share_rounded),
               title: const Text('Share'),
-              onTap: () async {
+              onTap: () {
+                // Hold the root context before popping: this sheet's own
+                // context is defunct straight after, and shareMedia needs a
+                // live one for the iPad anchor and the fallback SnackBar.
+                final rootContext = Navigator.of(
+                  context,
+                  rootNavigator: true,
+                ).context;
                 Navigator.pop(context);
-                final shareUrl =
-                    'https://veenamusiconline.com/song/${mediaItem.id}';
-                await Share.share(
-                  'Listen to "${mediaItem.title}" on Veena Music: $shareUrl',
-                  subject: 'Share Song',
-                );
+                shareMedia(rootContext, mediaItem);
               },
             ),
             if (isDownloaded)

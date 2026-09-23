@@ -16,6 +16,7 @@ import '../../../core/services/library_service.dart';
 import '../../../core/services/media_service.dart';
 import 'player_artwork_ad_swap.dart';
 import 'player_ad_rotator.dart';
+import 'share_song_button.dart';
 
 /// Full Screen Player Widget - Redesigned for Spotify aesthetics
 /// Responsive: Mobile stays the same, Web/Tablet gets a constrained centered layout
@@ -453,13 +454,10 @@ class FullPlayer extends StatelessWidget {
                                       ),
                                     ),
                                     const SizedBox(width: 24),
-                                    IconButton(
-                                      onPressed: () {},
-                                      icon: const Icon(
-                                        Icons.share_outlined,
-                                        color: Colors.white54,
-                                        size: 18,
-                                      ),
+                                    ShareSongButton(
+                                      media: mediaItem,
+                                      color: Colors.white54,
+                                      size: 18,
                                     ),
                                     const SizedBox(width: 24),
                                     IconButton(
@@ -1210,10 +1208,12 @@ class FullPlayer extends StatelessWidget {
 
                     const Spacer(),
 
-                    const Icon(
-                      Icons.share_outlined,
+                    ShareSongButton(
+                      media: mediaItem,
                       color: Colors.white60,
                       size: 20,
+                      // Matches the hand-laid-out queue button beside it.
+                      dense: true,
                     ),
                     const SizedBox(width: 24),
                     IconButton(

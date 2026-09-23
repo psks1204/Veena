@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
+import '../../../shared/utils/share_media.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/models/media_item.dart';
@@ -265,10 +265,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
     if (mounted) _controllers[_currentPage]?.play();
   }
 
-  Future<void> _share(MediaItem media) async {
-    final url = 'https://veenamusiconline.com/song/${media.id}';
-    await Share.share('Listen to "${media.title}" on Veena Music: $url');
-  }
+  Future<void> _share(MediaItem media) => shareMedia(context, media);
 
   Future<void> _openCreatorChannel(
     channel_models.UserMediaResponse item,
