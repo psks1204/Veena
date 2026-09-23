@@ -276,6 +276,16 @@ class _ArtistDetailScreenState extends State<ArtistDetailScreen> with SingleTick
                 childCount: _tracks.length,
               ),
             ),
+
+          // The floating nav bar and mini player sit on top of this list. The
+          // app shell reports their combined height (plus the device's bottom
+          // inset) as the bottom padding, so scrolling ends above them rather
+          // than leaving the last song hidden underneath.
+          SliverToBoxAdapter(
+            child: SizedBox(
+              height: MediaQuery.of(context).padding.bottom + AppSpacing.md,
+            ),
+          ),
           ],
         );
   }
