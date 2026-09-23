@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -44,6 +45,8 @@ class KaraokeRecordingService extends ChangeNotifier {
   Duration _recordingDuration = Duration.zero;
   Timer? _durationTimer;
   String? _errorMessage;
+  bool _micBlockedUntilSettings = false;
+  bool _starting = false;
 
   // ── Getters ──────────────────────────────────────────────────────
 
@@ -59,9 +62,49 @@ class KaraokeRecordingService extends ChangeNotifier {
   bool get isDone => _state == KaraokeRecordingState.done;
   bool get hasError => _state == KaraokeRecordingState.error;
 
+  /// True when the mic was refused in a way only the Settings app can undo.
+  bool get needsMicSettings => hasError && _micBlockedUntilSettings;
+
+  /// Open this app's page in the system Settings app.
+  Future<bool> openMicSettings() => openAppSettings();
+
   /// Whether the current platform supports recording.
   /// Web is not supported.
   bool get isPlatformSupported => !kIsWeb;
+
+  /// Recording settings: AAC, good quality for voice.
+  ///
+  /// The per-platform configs are what keep the backing track alive while the
+  /// mic is open — without them the recorder takes the audio route for itself
+  /// and the song the user is singing along to goes silent:
+  ///
+  ///  * iOS: the recorder switches the shared AVAudioSession to
+  ///    `playAndRecord` and activates it. Its default category options omit
+  ///    `mixWithOthers`, so activation interrupts just_audio and playback stops
+  ///    the instant recording starts. Adding `mixWithOthers` lets the two
+  ///    coexist, which is the whole premise of karaoke.
+  ///  * Android: `manageBluetooth` opens a Bluetooth SCO (call-audio) link on
+  ///    paired headsets, which tears down the A2DP stream the music is playing
+  ///    over. `mic` is the raw input — the default source applies voice
+  ///    processing that can duck or cancel the backing track.
+  static const RecordConfig recordConfig = RecordConfig(
+    encoder: AudioEncoder.aacLc,
+    sampleRate: 44100,
+    bitRate: 128000,
+    numChannels: 1, // Mono for voice recording
+    iosConfig: IosRecordConfig(
+      categoryOptions: [
+        IosAudioCategoryOption.mixWithOthers,
+        IosAudioCategoryOption.defaultToSpeaker,
+        IosAudioCategoryOption.allowBluetooth,
+        IosAudioCategoryOption.allowBluetoothA2DP,
+      ],
+    ),
+    androidConfig: AndroidRecordConfig(
+      audioSource: AndroidAudioSource.mic,
+      manageBluetooth: false,
+    ),
+  );
 
   // ── Recording lifecycle ──────────────────────────────────────────
 
@@ -70,6 +113,19 @@ class KaraokeRecordingService extends ChangeNotifier {
   /// Returns `true` if recording started successfully.
   /// The song playback (managed by PlayerProvider) is NOT affected.
   Future<bool> startRecording() async {
+    // Starting takes a moment (the permission prompt, audio session setup)
+    // while the record button is still on screen. A second tap in that window
+    // would open a second recording and a second duration timer.
+    if (_starting || isRecording) return false;
+    _starting = true;
+    try {
+      return await _startRecording();
+    } finally {
+      _starting = false;
+    }
+  }
+
+  Future<bool> _startRecording() async {
     if (!isPlatformSupported) {
       _errorMessage = 'Recording is not supported on this platform';
       _state = KaraokeRecordingState.error;
@@ -80,11 +136,20 @@ class KaraokeRecordingService extends ChangeNotifier {
     // Request microphone permission
     final micPermission = await Permission.microphone.request();
     if (!micPermission.isGranted) {
-      _errorMessage = 'Microphone permission is required to record';
+      // iOS shows its prompt once; after a single "Don't Allow" it reports
+      // permanentlyDenied and never prompts again, so Settings is the only way
+      // back. Restricted (parental controls) can't be lifted from there.
+      _micBlockedUntilSettings = micPermission.isPermanentlyDenied;
+      _errorMessage = micPermission.isRestricted
+          ? 'Microphone access is restricted on this device'
+          : _micBlockedUntilSettings
+          ? 'Microphone access is off for Veena. Turn it on in Settings to record.'
+          : 'Microphone permission is required to record';
       _state = KaraokeRecordingState.error;
       notifyListeners();
       return false;
     }
+    _micBlockedUntilSettings = false;
 
     // Check if recorder is available
     final hasPermission = await _recorder.hasPermission();
@@ -101,15 +166,7 @@ class KaraokeRecordingService extends ChangeNotifier {
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final filePath = '${tempDir.path}/karaoke_cover_$timestamp.m4a';
 
-      // Configure recording: AAC codec, good quality for voice
-      const config = RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        sampleRate: 44100,
-        bitRate: 128000,
-        numChannels: 1, // Mono for voice recording
-      );
-
-      await _recorder.start(config, path: filePath);
+      await _recorder.start(recordConfig, path: filePath);
 
       _recordedFilePath = filePath;
       _recordingDuration = Duration.zero;
@@ -148,6 +205,7 @@ class KaraokeRecordingService extends ChangeNotifier {
       if (path != null) {
         _recordedFilePath = path;
       }
+      await _restorePlaybackSession();
       _state = KaraokeRecordingState.stopped;
       notifyListeners();
     } catch (e) {
@@ -155,6 +213,23 @@ class KaraokeRecordingService extends ChangeNotifier {
       _errorMessage = 'Failed to stop recording: $e';
       _state = KaraokeRecordingState.error;
       notifyListeners();
+    }
+  }
+
+  /// Put the audio session back into music-playback mode.
+  ///
+  /// The recorder leaves the session on `playAndRecord` when it stops — it
+  /// never restores the previous category — and that route is quieter than
+  /// plain `playback`. Without this, every song played after a karaoke take
+  /// stays at the reduced record-mode volume for the rest of the session.
+  Future<void> _restorePlaybackSession() async {
+    if (kIsWeb) return;
+
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+    } catch (e) {
+      debugPrint('KaraokeRecordingService._restorePlaybackSession: $e');
     }
   }
 
@@ -242,6 +317,7 @@ class KaraokeRecordingService extends ChangeNotifier {
     _recordedFilePath = null;
     _recordingDuration = Duration.zero;
     _errorMessage = null;
+    _micBlockedUntilSettings = false;
     notifyListeners();
   }
 

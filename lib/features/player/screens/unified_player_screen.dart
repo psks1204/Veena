@@ -46,6 +46,12 @@ class UnifiedPlayerScreen extends StatefulWidget {
 }
 
 class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
+  /// Set while the end-of-song auto-stop is in flight.
+  ///
+  /// The karaoke section rebuilds once a second off the recording timer, and
+  /// the stop it kicks off is async — so without this latch every rebuild in
+  /// that window queues another stop and another post sheet.
+  bool _karaokeAutoStopping = false;
   bool _showControls = true;
   bool _isFullscreen = false;
   Timer? _hideControlsTimer;
@@ -1568,12 +1574,15 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     return Consumer<KaraokeRecordingService>(
       builder: (context, recordingService, _) {
         // Auto-stop recording when song ends
-        if (recordingService.isRecording &&
+        if (!_karaokeAutoStopping &&
+            recordingService.isRecording &&
             player.duration.inSeconds > 0 &&
             player.position >= player.duration) {
+          _karaokeAutoStopping = true;
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             await player.pause();
             await recordingService.stopRecording();
+            _karaokeAutoStopping = false;
             if (!mounted) return;
             _showReelPostSheet(media);
           });
@@ -1590,7 +1599,13 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               if (recordingService.isIdle || recordingService.hasError)
                 _buildKaraokeIdleState(recordingService)
               else if (recordingService.isRecording)
-                _buildKaraokeRecordingState(recordingService, media, player),
+                _buildKaraokeRecordingState(recordingService, media, player)
+              else
+                // stopped / uploading / done. Dismissing the post sheet with
+                // the back button returns here with a take still held, and
+                // without a branch for it this section rendered empty — no way
+                // to post the take and no way to record another one.
+                _buildKaraokeStoppedState(recordingService, media),
 
               // Error message
               if (recordingService.hasError &&
@@ -1605,6 +1620,13 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     ),
                     textAlign: TextAlign.center,
                   ),
+                ),
+              if (recordingService.needsMicSettings)
+                TextButton.icon(
+                  onPressed: recordingService.openMicSettings,
+                  icon: const Icon(Icons.settings_rounded, size: 16),
+                  label: const Text('Open Settings'),
+                  style: TextButton.styleFrom(foregroundColor: Colors.white),
                 ),
             ],
           ),
@@ -1808,6 +1830,96 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     );
   }
 
+  /// Stopped state: the take is held, offering a way to post or discard it.
+  ///
+  /// Reached when the post sheet is dismissed without an answer, and while an
+  /// upload is running.
+  Widget _buildKaraokeStoppedState(
+    KaraokeRecordingService recordingService,
+    MediaItem media,
+  ) {
+    final isBusy = recordingService.isUploading;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: const Color(0xFFFF416C).withOpacity(0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isBusy ? Icons.cloud_upload_rounded : Icons.mic_rounded,
+            color: const Color(0xFFFF416C),
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  isBusy ? 'Uploading your cover…' : 'Cover recorded',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  KaraokeRecordingService.formatDuration(
+                    recordingService.recordingDuration,
+                  ),
+                  style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 12,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (isBusy)
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else ...[
+            TextButton(
+              onPressed: recordingService.discard,
+              child: const Text(
+                'Discard',
+                style: TextStyle(color: Colors.white60, fontSize: 13),
+              ),
+            ),
+            const SizedBox(width: 4),
+            FilledButton(
+              onPressed: () => _showReelPostSheet(media),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+              ),
+              child: const Text(
+                'Post',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   /// Show the reel posting bottom sheet after recording stops.
   void _showReelPostSheet(MediaItem media) {
     showModalBottomSheet(
@@ -1820,8 +1932,8 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
     ).then((posted) {
       if (posted == true) {
         // Recording was posted — reset state
-        context.read<KaraokeRecordingService>().reset();
         if (mounted) {
+          context.read<KaraokeRecordingService>().reset();
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('🎉 Your karaoke cover has been posted!'),
