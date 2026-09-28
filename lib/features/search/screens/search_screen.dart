@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
+import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
@@ -47,6 +48,18 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _hasSearched = false;
   bool _isListening = false;
   bool _speechReady = false;
+
+  /// Words heard so far in the current voice session.
+  String _voiceText = '';
+
+  /// Mic input level normalised to 0..1, drives the listening pulse.
+  double _soundLevel = 0;
+  double _minSoundLevel = 0;
+  double _maxSoundLevel = 0;
+
+  /// Errors can arrive after the session has ended, and more than one per
+  /// session, so only surface the first.
+  bool _voiceErrorShown = false;
 
   /// Voice search is only supported on Android and iOS.
   bool get _isVoiceSupported {
@@ -150,9 +163,7 @@ class _SearchScreenState extends State<SearchScreen> {
     if (!_isVoiceSupported) return;
     if (_isListening) {
       await _speech.stop();
-      if (mounted) {
-        setState(() => _isListening = false);
-      }
+      _finishVoiceSearch();
       return;
     }
 
@@ -182,20 +193,13 @@ class _SearchScreenState extends State<SearchScreen> {
       }
     }
 
-    // Re-initialise each time so a previously-denied permission is picked up
-    _speechReady = false;
-    _speechReady = await _speech.initialize(
-      onStatus: (status) {
-        if (!mounted) return;
-        if (status == 'done' || status == 'notListening') {
-          setState(() => _isListening = false);
-        }
-      },
-      onError: (_) {
-        if (!mounted) return;
-        setState(() => _isListening = false);
-      },
-    );
+    // initialize() is a no-op after the first success and keeps the callbacks
+    // it was first given, so attach the listeners explicitly every session.
+    if (!_speechReady) {
+      _speechReady = await _speech.initialize();
+    }
+    _speech.statusListener = _onSpeechStatus;
+    _speech.errorListener = _onSpeechError;
 
     if (!_speechReady) {
       if (!mounted) return;
@@ -207,27 +211,179 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    setState(() => _isListening = true);
+    _focusNode.unfocus();
+    _debounceTimer?.cancel();
+    setState(() {
+      _isListening = true;
+      _voiceErrorShown = false;
+      _voiceText = '';
+      _soundLevel = 0;
+      _minSoundLevel = 0;
+      _maxSoundLevel = 0;
+    });
+
     await _speech.listen(
-      // ignore: deprecated_member_use
-      listenMode: stt.ListenMode.search,
+      listenFor: const Duration(seconds: 20),
+      pauseFor: const Duration(seconds: 3),
+      listenOptions: stt.SpeechListenOptions(
+        listenMode: stt.ListenMode.search,
+        partialResults: true,
+        cancelOnError: true,
+      ),
+      onSoundLevelChange: _onSoundLevel,
       onResult: (result) {
+        if (!mounted) return;
         final text = result.recognizedWords.trim();
-        if (text.isEmpty) return;
-
-        _searchController.value = TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: text.length),
-        );
-        _onSearchChanged(text);
-
+        if (text.isNotEmpty) {
+          // Type the words into the field as they are recognised.
+          setState(() => _voiceText = text);
+          _searchController.value = TextEditingValue(
+            text: text,
+            selection: TextSelection.collapsed(offset: text.length),
+          );
+        }
         if (result.finalResult) {
           _speech.stop();
-          if (mounted) {
-            setState(() => _isListening = false);
-          }
+          _finishVoiceSearch();
         }
       },
+    );
+  }
+
+  void _onSpeechStatus(String status) {
+    if (status == 'done' || status == 'notListening') {
+      _finishVoiceSearch();
+    }
+  }
+
+  void _onSpeechError(SpeechRecognitionError error) {
+    if (!mounted) return;
+    final noSpeech =
+        error.errorMsg == 'error_no_match' ||
+        error.errorMsg == 'error_speech_timeout' ||
+        error.errorMsg == 'error_retry'; // iOS: nothing intelligible heard
+    if (!_voiceErrorShown && _voiceText.isEmpty) {
+      _voiceErrorShown = true;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            noSpeech
+                ? "Didn't catch that. Try again."
+                : "Couldn't start voice search. Please try again.",
+          ),
+        ),
+      );
+    }
+    _finishVoiceSearch();
+  }
+
+  void _onSoundLevel(double level) {
+    // iOS reports silence as -infinity dB; skip it or the maths turns to NaN.
+    if (!mounted || !_isListening || !level.isFinite) return;
+    // Platforms report different dB ranges, so normalise against what we've seen.
+    _minSoundLevel = level < _minSoundLevel ? level : _minSoundLevel;
+    _maxSoundLevel = level > _maxSoundLevel ? level : _maxSoundLevel;
+    final range = _maxSoundLevel - _minSoundLevel;
+    setState(() {
+      _soundLevel = range <= 0
+          ? 0
+          : ((level - _minSoundLevel) / range).clamp(0.0, 1.0);
+    });
+  }
+
+  /// Ends the listening session and searches for whatever was heard.
+  /// Safe to call more than once (status, result and error can all fire).
+  void _finishVoiceSearch() {
+    if (!mounted || !_isListening) return;
+    setState(() {
+      _isListening = false;
+      _soundLevel = 0;
+    });
+    final text = _voiceText.trim();
+    if (text.isEmpty) return;
+    _debounceTimer?.cancel();
+    setState(() => _isSearching = true);
+    _performSearch(text);
+  }
+
+  Widget _buildListeningPanel(ThemeData theme, bool isDark) {
+    final pulse = 1.0 + _soundLevel * 0.6;
+    return SliverFillRemaining(
+      hasScrollBody: false,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.screenPadding,
+          vertical: AppSpacing.xxl,
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: AppSpacing.xl),
+            GestureDetector(
+              onTap: _toggleVoiceSearch,
+              child: SizedBox(
+                width: 160,
+                height: 160,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      width: 96 * pulse,
+                      height: 96 * pulse,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary.withOpacity(0.15),
+                      ),
+                    ),
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      width: 96 * (1 + _soundLevel * 0.3),
+                      height: 96 * (1 + _soundLevel * 0.3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary.withOpacity(0.25),
+                      ),
+                    ),
+                    Container(
+                      width: 80,
+                      height: 80,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.primary,
+                      ),
+                      child: const Icon(
+                        Icons.mic_rounded,
+                        color: Colors.white,
+                        size: 40,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              _voiceText.isEmpty ? 'Listening…' : _voiceText,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: _voiceText.isEmpty
+                    ? (isDark ? Colors.white70 : Colors.black54)
+                    : (isDark ? Colors.white : Colors.black),
+              ),
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              _voiceText.isEmpty
+                  ? 'Say a song, artist or album'
+                  : 'Tap the mic when you\'re done',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: isDark ? Colors.white54 : Colors.black45,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -323,7 +479,9 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
 
           // Content
-          if (_isSearching)
+          if (_isListening)
+            _buildListeningPanel(theme, isDark)
+          else if (_isSearching)
             const SliverFillRemaining(
               child: Center(
                 child: CircularProgressIndicator(color: AppColors.primary),

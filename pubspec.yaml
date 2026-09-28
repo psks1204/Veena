@@ -112,6 +112,12 @@ dependency_overrides:
     path: packages/record_linux_stub
   record_windows:
     path: packages/record_windows_stub
+  # speech_to_text 7.3.0 with an iOS fix: listen() failed with
+  # error_listen_failed when the audio session and mic sample rates differed
+  # (always the case after music playback). See VEENA PATCH in
+  # packages/speech_to_text/darwin/.../SpeechToTextPlugin.swift.
+  speech_to_text:
+    path: packages/speech_to_text
 
 dev_dependencies:
   flutter_test:

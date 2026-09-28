@@ -14,6 +14,13 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.RECORD_AUDIO"/>
 
+    <!-- Android 11+ package visibility: lets speech_to_text find the recogniser -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+    </queries>
+
     <application
         android:label="Veena"
         android:name="${applicationName}"
