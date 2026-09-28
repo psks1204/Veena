@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'api_service.dart';
 
 /// App Settings Service
@@ -30,8 +31,21 @@ class AppSettingsService extends ChangeNotifier {
 
   AppSettingsService(this._api);
 
-  /// Current app version — must match pubspec.yaml version
-  static const String currentAppVersion = '2.0.3';
+  /// Installed app version (e.g. "2.0.6") and build number, read from the
+  /// platform bundle at startup by [loadAppVersion], so they always match
+  /// pubspec.yaml instead of a hand-maintained constant.
+  static String currentAppVersion = '';
+  static String currentBuildNumber = '';
+
+  static Future<void> loadAppVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      currentAppVersion = info.version;
+      currentBuildNumber = info.buildNumber;
+    } catch (e) {
+      debugPrint('Could not read app version: $e');
+    }
+  }
 
   /// Fetch settings from the authenticated API
   Future<void> fetchSettings() async {
@@ -136,6 +150,7 @@ class AppSettingsService extends ChangeNotifier {
   /// Compare version strings (e.g. "1.2.3" vs "1.3.0")
   /// Returns true if current app version is below the minimum
   bool get isAppOutdated {
+    if (currentAppVersion.isEmpty) return false;
     return _compareVersions(currentAppVersion, _minimumAppVersion) < 0;
   }
 

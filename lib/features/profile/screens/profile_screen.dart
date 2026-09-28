@@ -216,7 +216,10 @@ class ProfileScreen extends StatelessWidget {
           // Version
           Center(
             child: Text(
-              'Version ${AppSettingsService.currentAppVersion}',
+              AppSettingsService.currentBuildNumber.isEmpty
+                  ? 'Version ${AppSettingsService.currentAppVersion}'
+                  : 'Version ${AppSettingsService.currentAppVersion} '
+                        '(${AppSettingsService.currentBuildNumber})',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: colorScheme.onSurface.withOpacity(0.4),
               ),

@@ -9,6 +9,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'core/services/app_settings_service.dart';
 import 'core/services/audio_handler.dart';
 import 'core/services/push_notification_service.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -77,6 +78,7 @@ Future<void> main() async {
   }
 
   final prefs = await SharedPreferences.getInstance();
+  await AppSettingsService.loadAppVersion();
 
   // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
