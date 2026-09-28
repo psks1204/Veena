@@ -606,10 +606,7 @@ class FullPlayer extends StatelessWidget {
             )
           else
             const SizedBox(),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70),
-          ),
+          const SizedBox(width: 48),
         ],
       ),
     );
@@ -811,13 +808,7 @@ class FullPlayer extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(
-                    Icons.more_vert_rounded,
-                    color: Colors.white,
-                  ),
-                ),
+                const SizedBox(width: 48),
               ],
             ),
           ),

@@ -2197,15 +2197,6 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             ),
                             tooltip: 'Close',
                           ),
-                          IconButton(
-                            onPressed: () {},
-                            icon: const Icon(
-                              Icons.more_horiz_rounded,
-                              color: Colors.white70,
-                              size: 24,
-                            ),
-                            tooltip: 'More options',
-                          ),
                         ],
                       ),
                     ),

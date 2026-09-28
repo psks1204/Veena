@@ -180,26 +180,24 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
           left: 0,
           right: 0,
           height: 500,
-          child: Container(
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: CachedNetworkImageProvider(_displayCover),
-                fit: BoxFit.cover,
-                colorFilter: ColorFilter.mode(
-                  Colors.black.withOpacity(0.6),
-                  BlendMode.darken,
-                ),
-              ),
-            ),
+          // Fade the image itself out rather than painting a background-coloured
+          // gradient over it, which left a dark hairline at the bottom edge.
+          child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (rect) => const LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Colors.black, Colors.transparent],
+            ).createShader(rect),
             child: Container(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    isDark ? AppColors.darkBg : AppColors.lightBg,
-                  ],
+                image: DecorationImage(
+                  image: CachedNetworkImageProvider(_displayCover),
+                  fit: BoxFit.cover,
+                  colorFilter: ColorFilter.mode(
+                    Colors.black.withOpacity(0.6),
+                    BlendMode.darken,
+                  ),
                 ),
               ),
             ),
@@ -226,16 +224,6 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen>
                   ),
                 ),
               ),
-              actions: [
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.favorite_border, color: iconColor),
-                ),
-                IconButton(
-                  onPressed: () {},
-                  icon: Icon(Icons.more_horiz, color: iconColor),
-                ),
-              ],
             ),
             SliverToBoxAdapter(
               child: Padding(
