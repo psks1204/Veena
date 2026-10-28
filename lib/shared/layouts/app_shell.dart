@@ -54,6 +54,11 @@ class _AppShellState extends State<AppShell> {
       selectedIcon: Icon(Icons.search_rounded),
       label: Text('Search'),
     ),
+    AppTabs.karaoke: NavigationRailDestination(
+      icon: Icon(Icons.mic_outlined),
+      selectedIcon: Icon(Icons.mic_rounded),
+      label: Text('Karaoke'),
+    ),
     AppTabs.library: NavigationRailDestination(
       icon: Icon(Icons.library_music_outlined),
       selectedIcon: Icon(Icons.library_music_rounded),
@@ -87,6 +92,11 @@ class _AppShellState extends State<AppShell> {
       activeIcon: Icon(Icons.search_rounded),
       label: 'Search',
     ),
+    AppTabs.karaoke: BottomNavigationBarItem(
+      icon: Icon(Icons.mic_outlined),
+      activeIcon: Icon(Icons.mic_rounded),
+      label: 'Karaoke',
+    ),
     AppTabs.library: BottomNavigationBarItem(
       icon: Icon(Icons.library_music_outlined),
       activeIcon: Icon(Icons.library_music_rounded),
@@ -112,6 +122,7 @@ class _AppShellState extends State<AppShell> {
       AppTabs.home,
       if (!hideReelsTab) AppTabs.uploads,
       AppTabs.search,
+      AppTabs.karaoke,
       AppTabs.library,
       AppTabs.profile,
       AppTabs.shopEntry,

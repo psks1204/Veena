@@ -7,11 +7,18 @@ import '../../../core/services/library_service.dart';
 import '../../../core/navigation/app_navigation.dart';
 import '../../playlist/screens/playlist_detail_screen.dart';
 
-/// Featured Playlists Browse Screen
+/// Featured / Popular Playlists Browse Screen
 ///
-/// Shows all featured playlists in a grid layout.
+/// Shows all playlists in a grid layout.
 class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
-  const FeaturedPlaylistsBrowseScreen({super.key});
+  final String title;
+  final List<Playlist>? playlists;
+
+  const FeaturedPlaylistsBrowseScreen({
+    super.key,
+    this.title = 'Featured Playlists',
+    this.playlists,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +29,8 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
     return Scaffold(
       body: Consumer<LibraryService>(
         builder: (context, libraryService, _) {
-          final playlists = libraryService.featuredPlaylists;
+          final displayPlaylists =
+              playlists ?? libraryService.featuredPlaylists;
 
           return CustomScrollView(
             slivers: [
@@ -33,7 +41,7 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
                 backgroundColor: isDark ? AppColors.darkBg : AppColors.lightBg,
                 flexibleSpace: FlexibleSpaceBar(
                   title: Text(
-                    'Featured Playlists',
+                    title,
                     style: theme.textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: isDark ? Colors.white : Colors.black87,
@@ -56,17 +64,24 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
                 ),
               ),
 
-              if (playlists.isEmpty)
+              if (displayPlaylists.isEmpty)
                 SliverFillRemaining(
                   child: Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.playlist_play_rounded, size: 48, color: Colors.grey[400]),
+                        Icon(
+                          Icons.playlist_play_rounded,
+                          size: 48,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
                         Text(
-                          'No featured playlists',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                          'No playlists available',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 16,
+                          ),
                         ),
                       ],
                     ),
@@ -76,19 +91,22 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
                 SliverPadding(
                   padding: const EdgeInsets.all(AppSpacing.screenPadding),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 200,
-                      mainAxisSpacing: AppSpacing.md,
-                      crossAxisSpacing: AppSpacing.md,
-                      childAspectRatio: 0.75,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final playlist = playlists[index];
-                        return _buildPlaylistCard(context, playlist, isDark, theme);
-                      },
-                      childCount: playlists.length,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 200,
+                          mainAxisSpacing: AppSpacing.md,
+                          crossAxisSpacing: AppSpacing.md,
+                          childAspectRatio: 0.75,
+                        ),
+                    delegate: SliverChildBuilderDelegate((context, index) {
+                      final playlist = displayPlaylists[index];
+                      return _buildPlaylistCard(
+                        context,
+                        playlist,
+                        isDark,
+                        theme,
+                      );
+                    }, childCount: displayPlaylists.length),
                   ),
                 ),
 
@@ -115,6 +133,7 @@ class FeaturedPlaylistsBrowseScreen extends StatelessWidget {
               playlistId: playlist.id,
               playlistTitle: playlist.name,
               coverUrl: playlist.coverUrl,
+              autoPlay: true,
             ),
           ),
         );

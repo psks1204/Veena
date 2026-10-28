@@ -351,7 +351,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   await AppNavigation.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => PlaylistDetailScreen(playlist: item),
+                      builder: (_) =>
+                          PlaylistDetailScreen(playlist: item, autoPlay: true),
                     ),
                   );
                   _loadLibrary(); // Refresh on return

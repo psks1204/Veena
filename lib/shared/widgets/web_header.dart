@@ -181,6 +181,13 @@ class _WebHeaderState extends State<WebHeader> {
           _buildNavLink(AppTabs.search, 'Search', Icons.search_rounded, isDark),
           const SizedBox(width: 8),
           _buildNavLink(
+            AppTabs.karaoke,
+            'Karaoke',
+            Icons.mic_rounded,
+            isDark,
+          ),
+          const SizedBox(width: 8),
+          _buildNavLink(
             AppTabs.library,
             'Your Library',
             Icons.library_music_rounded,

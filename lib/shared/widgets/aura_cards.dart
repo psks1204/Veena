@@ -224,21 +224,21 @@ class _AuraAlbumCardState extends State<AuraAlbumCard> {
                           // Like button
                           if (widget.onLikeTap != null)
                             Positioned(
-                              bottom: 8,
-                              right: 8,
+                              bottom: 6,
+                              right: 6,
                               child: GestureDetector(
                                 onTap: widget.onLikeTap,
                                 child: Container(
-                                  padding: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withOpacity(0.55),
                                     shape: BoxShape.circle,
                                   ),
                                   child: Icon(
                                     widget.isLiked
                                         ? Icons.favorite
                                         : Icons.favorite_border,
-                                    size: 18,
+                                    size: 14,
                                     color: widget.isLiked
                                         ? Colors.red
                                         : Colors.white,
@@ -249,19 +249,19 @@ class _AuraAlbumCardState extends State<AuraAlbumCard> {
                           // More button
                           if (widget.onMoreTap != null)
                             Positioned(
-                              top: 8,
-                              right: 8,
+                              top: 6,
+                              right: 6,
                               child: GestureDetector(
                                 onTap: widget.onMoreTap,
                                 child: Container(
-                                  padding: const EdgeInsets.all(6),
+                                  padding: const EdgeInsets.all(4),
                                   decoration: BoxDecoration(
-                                    color: Colors.black.withOpacity(0.5),
+                                    color: Colors.black.withOpacity(0.55),
                                     shape: BoxShape.circle,
                                   ),
-                                  child: Icon(
+                                  child: const Icon(
                                     Icons.more_vert,
-                                    size: 18,
+                                    size: 14,
                                     color: Colors.white,
                                   ),
                                 ),
@@ -271,7 +271,7 @@ class _AuraAlbumCardState extends State<AuraAlbumCard> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: 5),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: Column(
@@ -280,18 +280,20 @@ class _AuraAlbumCardState extends State<AuraAlbumCard> {
                         Text(
                           widget.title,
                           style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
                             letterSpacing: -0.2,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         Text(
                           widget.subtitle,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: isDark ? Colors.white60 : Colors.black54,
                             fontWeight: FontWeight.w500,
+                            fontSize: 10.5,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,

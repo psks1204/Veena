@@ -517,4 +517,32 @@ class MediaService extends ChangeNotifier {
     }
     return null;
   }
+
+  // ==================== RECOMMENDATIONS ====================
+
+  /// Fetch mood-based song recommendations for a song.
+  /// Calls GET /api/media/{songId}/recommendations?limit={limit}
+  /// Returns a list of recommended MediaItems.
+  Future<List<MediaItem>> fetchRecommendations(
+    String songId, {
+    int limit = 20,
+  }) async {
+    try {
+      final queryParams = {'limit': limit.toString()};
+      final data = await _api.get(
+        '/media/$songId/recommendations',
+        queryParams: queryParams,
+      );
+
+      if (data != null && data['recommendations'] != null) {
+        final recList = data['recommendations'] as List<dynamic>;
+        return recList
+            .map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('[MediaService] fetchRecommendations error: $e');
+    }
+    return [];
+  }
 }

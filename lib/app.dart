@@ -68,6 +68,7 @@ import 'features/alarm/services/alarm_service.dart';
 import 'features/notifications/data/services/notification_service.dart';
 import 'features/notifications/presentation/providers/notification_provider.dart';
 import 'features/player/services/karaoke_recording_service.dart';
+import 'features/karaoke/screens/karaoke_screen.dart';
 
 /// Veena Music Streaming App
 ///
@@ -623,6 +624,7 @@ class _AppRouterState extends State<_AppRouter> {
       const HomeScreen(),
       const UploadsScreen(),
       const SearchScreen(),
+      const KaraokeScreen(),
       const LibraryScreen(),
       ProfileScreen(
         onSignOut: () async {

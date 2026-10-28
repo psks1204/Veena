@@ -12,6 +12,7 @@ class AppNavigation {
   static final homeNavigatorKey = GlobalKey<NavigatorState>();
   static final uploadsNavigatorKey = GlobalKey<NavigatorState>();
   static final searchNavigatorKey = GlobalKey<NavigatorState>();
+  static final karaokeNavigatorKey = GlobalKey<NavigatorState>();
   static final libraryNavigatorKey = GlobalKey<NavigatorState>();
   static final profileNavigatorKey = GlobalKey<NavigatorState>();
 
@@ -38,6 +39,8 @@ class AppNavigation {
         return uploadsNavigatorKey;
       case AppTabs.search:
         return searchNavigatorKey;
+      case AppTabs.karaoke:
+        return karaokeNavigatorKey;
       case AppTabs.library:
         return libraryNavigatorKey;
       case AppTabs.profile:
@@ -56,11 +59,13 @@ class AppNavigation {
         return uploadsNavigatorKey;
       case AppTabs.search:
         return searchNavigatorKey;
+      case AppTabs.karaoke:
+        return karaokeNavigatorKey;
       case AppTabs.library:
         return libraryNavigatorKey;
       case AppTabs.profile:
         return profileNavigatorKey;
-      // Shop tabs (5-8)
+      // Shop tabs
       case AppTabs.shopHome:
         return shopHomeKey;
       case AppTabs.shopOrders:

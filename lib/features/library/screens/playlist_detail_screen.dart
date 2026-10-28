@@ -14,8 +14,13 @@ import '../../player/screens/unified_player_screen.dart';
 
 class PlaylistDetailScreen extends StatefulWidget {
   final Playlist playlist;
+  final bool autoPlay;
 
-  const PlaylistDetailScreen({super.key, required this.playlist});
+  const PlaylistDetailScreen({
+    super.key,
+    required this.playlist,
+    this.autoPlay = false,
+  });
 
   @override
   State<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
@@ -41,6 +46,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
         setState(() {
           _tracks = tracks;
         });
+        if (widget.autoPlay && tracks.isNotEmpty) {
+          _playAll();
+        }
       }
     } catch (e) {
       debugPrint('Error loading playlist tracks: $e');

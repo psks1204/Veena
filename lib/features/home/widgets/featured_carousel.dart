@@ -136,9 +136,9 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                   ),
                 ),
         ),
-        const SizedBox(height: AppSpacing.md),
+        const SizedBox(height: 8),
         // Page Indicators
-        if (pages.length > 1)
+        if (pages.length > 1) ...[
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(pages.length, (index) {
@@ -159,6 +159,8 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
               );
             }),
           ),
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }

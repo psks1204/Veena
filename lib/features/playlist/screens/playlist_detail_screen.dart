@@ -20,11 +20,13 @@ class PlaylistDetailScreen extends StatefulWidget {
     required this.playlistId,
     required this.playlistTitle,
     this.coverUrl,
+    this.autoPlay = false,
   });
 
   final String playlistId;
   final String playlistTitle;
   final String? coverUrl;
+  final bool autoPlay;
 
   @override
   State<PlaylistDetailScreen> createState() => _PlaylistDetailScreenState();
@@ -56,6 +58,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen>
         _isLoading = false;
       });
       debugPrint('[PlaylistDetail] Loaded ${tracks.length} tracks');
+
+      if (widget.autoPlay && tracks.isNotEmpty && mounted) {
+        _playAll();
+      }
     } catch (e) {
       setState(() {
         _error = e.toString();

@@ -178,7 +178,6 @@ class _HomeScreenState extends State<HomeScreen> {
           final videos = dashboard.videos;
           final podcasts = dashboard.podcasts;
           final popularPlaylists = dashboard.popularPlaylists;
-          final karaoke = dashboard.karaoke;
           final hasVisibleContent =
               recentlyPlayed.isNotEmpty ||
               popularPlaylists.isNotEmpty ||
@@ -186,7 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
               latestReleases.isNotEmpty ||
               popularTracks.isNotEmpty ||
               podcasts.isNotEmpty ||
-              karaoke.isNotEmpty ||
               videos.isNotEmpty ||
               dashboard.artists.isNotEmpty ||
               dashboard.featuredActive.isNotEmpty;
@@ -242,9 +240,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         AppNavigation.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => SimpleSectionScreen(
+                            builder: (_) => FeaturedPlaylistsBrowseScreen(
                               title: 'Popular Playlists',
-                              items: [],
+                              playlists: popularPlaylists,
                             ),
                           ),
                         );
@@ -253,7 +251,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   if (isBirthday && user != null)
                     SliverToBoxAdapter(
-                      child: BirthdayBanner(userName: user.displayName),
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 14),
+                        child: BirthdayBanner(userName: user.displayName),
+                      ),
                     ),
 
                   if (audios.isNotEmpty)
@@ -346,26 +347,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                     size: size,
                                     mediaType: 'PODCAST',
                                   ),
-                            ),
-                          ),
-                        );
-                      },
-                    ),
-
-                  if (karaoke.isNotEmpty)
-                    ..._buildSectionSlivers(
-                      context,
-                      title: 'Karaoke',
-                      icon: Icons.mic_rounded,
-                      items: karaoke,
-                      isHorizontal: true,
-                      onSeeAll: () {
-                        AppNavigation.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => SimpleSectionScreen(
-                              title: 'Karaoke',
-                              items: karaoke,
                             ),
                           ),
                         );
@@ -470,11 +451,11 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.only(
                 left: AppSpacing.screenPadding,
                 right: AppSpacing.screenPadding,
-                bottom: AppSpacing.sm,
+                bottom: 6,
               ),
             ),
             SizedBox(
-              height: 200,
+              height: 152,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.screenPadding,
@@ -482,12 +463,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollDirection: Axis.horizontal,
                 itemCount: items.length > 10 ? 10 : items.length,
                 separatorBuilder: (_, __) =>
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final item = items[index];
                   if (item is MediaItem) {
                     return SizedBox(
-                      width: 140,
+                      width: 110,
                       child: AuraAlbumCard(
                         title: item.title,
                         subtitle: item.artistName,
@@ -514,7 +495,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            const SizedBox(height: 14),
           ],
         ),
       ),
@@ -535,39 +516,38 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return [
       SliverToBoxAdapter(
-        child: Padding(
-          padding: const EdgeInsets.only(top: AppSpacing.lg),
-          child: SectionHeader(
-            title: title,
-            actionLabel: 'See all',
-            onActionTap:
-                onSeeAll ??
-                () {
-                  AppNavigation.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => PaginatedSectionScreen(
-                        title: title,
-                        fetchPagedItems: (page, size) =>
-                            mediaService.fetchMedia(
-                              page: page,
-                              size: size,
-                              mediaType: 'AUDIO',
-                            ),
-                      ),
+        child: SectionHeader(
+          title: title,
+          actionLabel: 'See all',
+          onActionTap:
+              onSeeAll ??
+              () {
+                AppNavigation.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => PaginatedSectionScreen(
+                      title: title,
+                      fetchPagedItems: (page, size) =>
+                          mediaService.fetchMedia(
+                            page: page,
+                            size: size,
+                            mediaType: 'AUDIO',
+                          ),
                     ),
-                  );
-                },
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.screenPadding,
-            ),
+                  ),
+                );
+              },
+          padding: const EdgeInsets.only(
+            left: AppSpacing.screenPadding,
+            right: AppSpacing.screenPadding,
+            bottom: 6,
           ),
         ),
       ),
       SliverPadding(
         padding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.screenPadding,
-          vertical: AppSpacing.sm,
+          vertical: 4,
         ),
         sliver: SliverList(
           delegate: SliverChildBuilderDelegate((context, index) {
@@ -594,7 +574,7 @@ class _HomeScreenState extends State<HomeScreen> {
           }, childCount: items.length > 5 ? 5 : items.length),
         ),
       ),
-      const SliverToBoxAdapter(child: SizedBox(height: AppSpacing.lg)),
+      const SliverToBoxAdapter(child: SizedBox(height: 14)),
     ];
   }
 
@@ -690,37 +670,40 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.lg),
-                  child: SectionHeader(
-                    title: 'Featured Playlists',
-                    actionLabel: 'See all',
-                    onActionTap: () {
-                      AppNavigation.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const FeaturedPlaylistsBrowseScreen(),
-                        ),
-                      );
-                    },
+                SectionHeader(
+                  title: 'Featured Playlists',
+                  actionLabel: 'See all',
+                  onActionTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FeaturedPlaylistsBrowseScreen(),
+                      ),
+                    );
+                  },
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.screenPadding,
+                    right: AppSpacing.screenPadding,
+                    bottom: 6,
                   ),
                 ),
 
                 SizedBox(
-                  height: 200,
-                  child: ListView.builder(
+                  height: 152,
+                  child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
                       horizontal: AppSpacing.screenPadding,
                     ),
                     scrollDirection: Axis.horizontal,
                     itemCount: featuredPlaylists.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 10),
                     itemBuilder: (context, index) {
                       final playlist = featuredPlaylists[index];
                       return _buildPlaylistCard(context, playlist, isDark);
                     },
                   ),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: 14),
               ],
             ),
           );
@@ -744,41 +727,45 @@ class _HomeScreenState extends State<HomeScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.lg),
-                  child: SectionHeader(
-                    title: 'Albums',
-                    actionLabel: 'See all',
-                    onActionTap: () {
-                      AppNavigation.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AlbumsBrowseScreen(),
-                        ),
-                      );
-                    },
+                SectionHeader(
+                  title: 'Albums',
+                  actionLabel: 'See all',
+                  onActionTap: () {
+                    AppNavigation.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const AlbumsBrowseScreen(),
+                      ),
+                    );
+                  },
+                  padding: const EdgeInsets.only(
+                    left: AppSpacing.screenPadding,
+                    right: AppSpacing.screenPadding,
+                    bottom: 6,
                   ),
                 ),
                 SizedBox(
-                  height: 200,
+                  height: 152,
                   child: albumService.isLoading
                       ? const Center(
                           child: CircularProgressIndicator(
                             color: AppColors.primary,
                           ),
                         )
-                      : ListView.builder(
+                      : ListView.separated(
                           padding: const EdgeInsets.symmetric(
                             horizontal: AppSpacing.screenPadding,
                           ),
                           scrollDirection: Axis.horizontal,
                           itemCount: albums.length > 10 ? 10 : albums.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 10),
                           itemBuilder: (context, index) {
                             final album = albums[index];
                             return _buildAlbumCard(context, album, isDark);
                           },
                         ),
                 ),
+                const SizedBox(height: 14),
               ],
             ),
           );
@@ -799,23 +786,25 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: SectionHeader(
-                title: 'Artists',
-                actionLabel: 'See all',
-                onActionTap: () {
-                  AppNavigation.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const ArtistsBrowseScreen(),
-                    ),
-                  );
-                },
+            SectionHeader(
+              title: 'Artists',
+              actionLabel: 'See all',
+              onActionTap: () {
+                AppNavigation.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ArtistsBrowseScreen(),
+                  ),
+                );
+              },
+              padding: const EdgeInsets.only(
+                left: AppSpacing.screenPadding,
+                right: AppSpacing.screenPadding,
+                bottom: 6,
               ),
             ),
             SizedBox(
-              height: 160,
+              height: 120,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.screenPadding,
@@ -823,7 +812,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 scrollDirection: Axis.horizontal,
                 itemCount: artists.length > 10 ? 10 : artists.length,
                 separatorBuilder: (_, __) =>
-                    const SizedBox(width: AppSpacing.md),
+                    const SizedBox(width: 10),
                 itemBuilder: (context, index) {
                   final artist = artists[index];
                   return GestureDetector(
@@ -836,19 +825,19 @@ class _HomeScreenState extends State<HomeScreen> {
                       );
                     },
                     child: SizedBox(
-                      width: 110,
+                      width: 85,
                       child: Column(
                         children: [
                           Container(
-                            width: 110,
-                            height: 110,
+                            width: 80,
+                            height: 80,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.2),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
                                 ),
                               ],
                               image:
@@ -874,7 +863,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           ? artist.name[0].toUpperCase()
                                           : '?',
                                       style: TextStyle(
-                                        fontSize: 40,
+                                        fontSize: 28,
                                         fontWeight: FontWeight.bold,
                                         color: isDark
                                             ? Colors.grey[400]
@@ -884,11 +873,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                   )
                                 : null,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 5),
                           Text(
                             artist.name,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              fontSize: 12,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -901,6 +891,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 },
               ),
             ),
+            const SizedBox(height: 14),
           ],
         ),
       ),
@@ -923,13 +914,14 @@ class _HomeScreenState extends State<HomeScreen> {
               playlistId: playlist.id,
               playlistTitle: playlist.name,
               coverUrl: playlist.coverUrl,
+              autoPlay: true,
             ),
           ),
         );
       },
       child: Container(
-        width: 140,
-        margin: const EdgeInsets.only(right: AppSpacing.md),
+        width: 110,
+        margin: const EdgeInsets.only(right: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -940,29 +932,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: AppNetworkImage(
                   imageUrl: playlist.coverUrl ?? '',
                   fit: BoxFit.cover,
-                  memCacheWidth: 280,
+                  memCacheWidth: 220,
                   placeholder: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                   ),
                   errorChild: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
-                    child: const Icon(Icons.playlist_play_rounded, size: 40),
+                    child: const Icon(Icons.playlist_play_rounded, size: 32),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Text(
               playlist.name,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             Text(
               '${playlist.trackCount} songs',
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+                fontSize: 10.5,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -994,8 +990,8 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: Container(
-        width: 140,
-        margin: const EdgeInsets.only(right: AppSpacing.md),
+        width: 110,
+        margin: const EdgeInsets.only(right: 10),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1006,29 +1002,33 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: AppNetworkImage(
                   imageUrl: album.coverUrl ?? '',
                   fit: BoxFit.cover,
-                  memCacheWidth: 280,
+                  memCacheWidth: 220,
                   placeholder: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
                   ),
                   errorChild: Container(
                     color: isDark ? Colors.grey[900] : Colors.grey[200],
-                    child: const Icon(Icons.album_rounded, size: 40),
+                    child: const Icon(Icons.album_rounded, size: 32),
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 5),
             Text(
               album.title,
               style: theme.textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             Text(
               album.artistName,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.grey,
+                fontSize: 10.5,
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

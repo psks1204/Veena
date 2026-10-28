@@ -39,9 +39,9 @@ class FloatingNavBar extends StatelessWidget {
       ),
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).padding.bottom + AppSpacing.xs,
-        top: AppSpacing.sm,
-        left: AppSpacing.sm,
-        right: AppSpacing.sm,
+        top: AppSpacing.xs + 2,
+        left: items.length > 5 ? AppSpacing.xs : AppSpacing.sm,
+        right: items.length > 5 ? AppSpacing.xs : AppSpacing.sm,
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -59,7 +59,10 @@ class FloatingNavBar extends StatelessWidget {
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(4),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: items.length > 5 ? 1 : 4,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: isSelected && isDark
                           ? AppColors.primary.withOpacity(
@@ -75,16 +78,16 @@ class FloatingNavBar extends StatelessWidget {
                             : (isDark
                                   ? AppColors.darkTextSecondary
                                   : AppColors.lightTextSecondary),
-                        size: 26,
+                        size: items.length > 5 ? 23 : 26,
                       ),
-                      child: isSelected
-                          ? (item.activeIcon ?? item.icon)
-                          : item.icon,
+                      child: isSelected ? item.activeIcon : item.icon,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     item.label ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: isSelected
                           ? (isDark
@@ -97,8 +100,8 @@ class FloatingNavBar extends StatelessWidget {
                       fontWeight: isSelected
                           ? FontWeight.w600
                           : FontWeight.normal,
-                      fontSize: 10,
-                      letterSpacing: 0.5,
+                      fontSize: items.length > 5 ? 9.5 : 10,
+                      letterSpacing: items.length > 5 ? 0.1 : 0.5,
                     ),
                   ),
                 ],

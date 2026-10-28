@@ -166,7 +166,14 @@ class FeaturedYoutubeChannelsSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: 'Featured YT Channels'),
+          const SectionHeader(
+            title: 'Featured YT Channels',
+            padding: EdgeInsets.only(
+              left: AppSpacing.screenPadding,
+              right: AppSpacing.screenPadding,
+              bottom: 6,
+            ),
+          ),
           SizedBox(
             height: 214,
             child: ListView.separated(
@@ -185,7 +192,7 @@ class FeaturedYoutubeChannelsSection extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 14),
         ],
       ),
     );

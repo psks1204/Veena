@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:video_player/video_player.dart';
 import 'package:audio_service/audio_service.dart' as audio_service;
@@ -52,6 +53,11 @@ class PlayerProvider extends ChangeNotifier {
   bool _shuffleEnabled = false;
   List<int> _shuffledIndices = [];
   RepeatMode _repeatMode = RepeatMode.off;
+
+  // Recommendation state for infinite playback
+  bool _isFetchingRecommendations = false;
+  String? _lastRecommendationSongId;
+  Future<bool>? _recommendationFuture;
 
   // Play operation lock to prevent duplicate concurrent plays
   int _activePlayOperations = 0;
@@ -221,7 +227,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   /// Called when current track completes - auto-advance based on repeat mode
-  void _onTrackCompleted() {
+  void _onTrackCompleted() async {
     switch (_repeatMode) {
       case RepeatMode.one:
         // Replay current track
@@ -232,18 +238,144 @@ class PlayerProvider extends ChangeNotifier {
         // If at end, loop back to start
         if (hasNext) {
           next();
-        } else if (_queue.isNotEmpty) {
-          _currentIndex = 0;
-          _playCurrentItem();
+        } else if (_currentMedia != null) {
+          final added = await _fetchAndAppendRecommendations(
+            _currentMedia!.id,
+            force: true,
+          );
+          if (added && hasNext) {
+            next();
+          } else if (_queue.isNotEmpty) {
+            _currentIndex = 0;
+            _playCurrentItem();
+          }
         }
         break;
       case RepeatMode.off:
-        // Only advance if there's a next track
         if (hasNext) {
           next();
+        } else if (_currentMedia != null) {
+          debugPrint(
+            '[PlayerProvider] Reached end of queue. Fetching recommendations to continue playback.',
+          );
+          final added = await _fetchAndAppendRecommendations(
+            _currentMedia!.id,
+            force: true,
+          );
+          if (added && hasNext) {
+            next();
+          }
         }
         break;
     }
+  }
+
+  /// Fetch mood-based recommendations for the source song and append to queue
+  Future<bool> _fetchAndAppendRecommendations(
+    String sourceSongId, {
+    bool force = false,
+  }) async {
+    if (_mediaService == null) return false;
+    if (_isFetchingRecommendations && _recommendationFuture != null) {
+      return _recommendationFuture!;
+    }
+    // Only skip if already fetched for this song and there are still songs coming up
+    if (!force && _lastRecommendationSongId == sourceSongId && hasNext) {
+      return false;
+    }
+
+    _isFetchingRecommendations = true;
+    _lastRecommendationSongId = sourceSongId;
+    debugPrint(
+      '[PlayerProvider] Fetching auto-recommendations for song: $sourceSongId (force: $force)',
+    );
+
+    final future = () async {
+      try {
+        var recs = await _mediaService!.fetchRecommendations(
+          sourceSongId,
+          limit: 20,
+        );
+
+        // Fallback to latest releases if recommendations API returns nothing
+        if (recs.isEmpty) {
+          debugPrint(
+            '[PlayerProvider] Recommendations empty, fetching latest releases fallback...',
+          );
+          try {
+            final latestPaged = await _mediaService!.fetchLatestReleases(
+              page: 0,
+              size: 20,
+            );
+            recs = latestPaged.content;
+          } catch (e) {
+            debugPrint('[PlayerProvider] Fallback fetch failed: $e');
+          }
+        }
+
+        if (recs.isNotEmpty) {
+          final existingIds = _queue.map((m) => m.id).toSet();
+          // 1. First prioritize completely unplayed tracks that aren't in queue
+          var newTracks =
+              recs.where((m) => !existingIds.contains(m.id)).toList();
+
+          // 2. If all recommendations are already in the queue, use a sliding window:
+          // exclude only the current song and the last 10 songs in queue.
+          if (newTracks.isEmpty) {
+            final recentWindow = math.min(10, _queue.length);
+            final recentIds = _queue
+                .sublist(_queue.length - recentWindow)
+                .map((m) => m.id)
+                .toSet();
+            recentIds.add(sourceSongId);
+            if (_currentMedia != null) recentIds.add(_currentMedia!.id);
+
+            newTracks = recs.where((m) => !recentIds.contains(m.id)).toList();
+          }
+
+          // 3. If still empty (e.g. small catalog), exclude only the current song
+          if (newTracks.isEmpty) {
+            newTracks = recs
+                .where((m) => m.id != sourceSongId && m.id != _currentMedia?.id)
+                .toList();
+          }
+
+          // 4. If still empty, allow repeating any recommendations
+          if (newTracks.isEmpty) {
+            newTracks = List.from(recs);
+          }
+
+          if (newTracks.isNotEmpty) {
+            final oldLength = _queue.length;
+            _queue.addAll(newTracks);
+
+            if (_shuffleEnabled) {
+              final newIndices = List.generate(
+                newTracks.length,
+                (i) => oldLength + i,
+              );
+              newIndices.shuffle();
+              _shuffledIndices.addAll(newIndices);
+            }
+
+            debugPrint(
+              '[PlayerProvider] Appended ${newTracks.length} recommended songs to queue (total: ${_queue.length})',
+            );
+            notifyListeners();
+            return true;
+          }
+        }
+      } catch (e) {
+        debugPrint('[PlayerProvider] Error fetching recommendations: $e');
+      } finally {
+        _isFetchingRecommendations = false;
+        _recommendationFuture = null;
+      }
+      return false;
+    }();
+
+    _recommendationFuture = future;
+    return future;
   }
 
   /// Toggle shuffle mode on/off
@@ -413,6 +545,11 @@ class PlayerProvider extends ChangeNotifier {
     // Auto-record play event for analytics (Fire-and-forget, non-blocking)
     debugPrint('[PlayerProvider] 📊 Analytics: Recording play for ${media.id}');
     _mediaService?.recordPlay(media.id);
+
+    // Pre-fetch recommendations proactively when playing near the end of queue
+    if (_currentIndex >= _queue.length - 2) {
+      _fetchAndAppendRecommendations(media.id);
+    }
 
     // Fetch full media details asynchronously to enrich credits/artist info from API
     if (_mediaService != null) {
@@ -860,6 +997,20 @@ class PlayerProvider extends ChangeNotifier {
       '[PlayerProvider] next() called - queue: ${_queue.length}, currentIndex: $_currentIndex, hasNext: $hasNext',
     );
     if (!hasNext) {
+      if (_currentMedia != null) {
+        debugPrint(
+          '[PlayerProvider] No next track in queue. Fetching auto-recommendations...',
+        );
+        final added = await _fetchAndAppendRecommendations(
+          _currentMedia!.id,
+          force: true,
+        );
+        if (added && hasNext) {
+          _currentIndex++;
+          await _playCurrentItem();
+          return;
+        }
+      }
       debugPrint('[PlayerProvider] No next track available');
       return;
     }
