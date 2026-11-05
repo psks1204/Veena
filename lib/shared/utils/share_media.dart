@@ -8,28 +8,25 @@ import '../../core/models/media_item.dart';
 String mediaShareUrl(String mediaId) =>
     'https://veenamusiconline.com/song/$mediaId';
 
-String _shareText(String title, String url) =>
-    'Listen to "$title" on Veena Music: $url';
+/// Deep link for a reel. Opens the app when installed, the web page otherwise.
+String reelShareUrl(String mediaId) =>
+    'https://veenamusiconline.com/reel/$mediaId';
+
+String _shareText(String title, String url, {bool isReel = false}) =>
+    isReel
+        ? 'Watch "$title" on Veena: $url'
+        : 'Listen to "$title" on Veena Music: $url';
 
 /// Share a media item's deep link through the native share sheet.
-///
-/// Every platform has a way for `Share.share` to fail that the caller cannot
-/// see: on the web it throws whenever the browser has no Web Share API (every
-/// desktop browser except Safari/Edge) or when the click's user activation has
-/// already been consumed, and on iPad it needs an anchor rect or the popover
-/// has nowhere to attach. Left uncaught inside an async `onPressed`, all of
-/// those look identical to the user — the button does nothing at all.
-///
-/// So the failures are handled here instead: the link goes to the clipboard and
-/// the user is told, which is what they wanted from the share sheet anyway.
-///
-/// [context] must belong to the widget that was tapped — its render box is what
-/// anchors the iPad popover.
+/// If [media.isChannelMedia] is true, generates a reel share link.
 Future<void> shareMedia(BuildContext context, MediaItem media) {
+  final isReel = media.isChannelMedia;
   return shareMediaLink(
     context,
     title: media.title,
-    url: mediaShareUrl(media.id),
+    url: isReel ? reelShareUrl(media.id) : mediaShareUrl(media.id),
+    subject: isReel ? 'Share Reel' : 'Share Song',
+    isReel: isReel,
   );
 }
 
@@ -39,12 +36,13 @@ Future<void> shareMediaLink(
   required String title,
   required String url,
   String subject = 'Share Song',
+  bool isReel = false,
 }) async {
   final messenger = ScaffoldMessenger.maybeOf(context);
 
   try {
     await Share.share(
-      _shareText(title, url),
+      _shareText(title, url, isReel: isReel),
       subject: subject,
       sharePositionOrigin: _originRect(context),
     );
@@ -52,7 +50,9 @@ Future<void> shareMediaLink(
     debugPrint('shareMediaLink: native share unavailable ($e) — copying link');
 
     try {
-      await Clipboard.setData(ClipboardData(text: _shareText(title, url)));
+      await Clipboard.setData(
+        ClipboardData(text: _shareText(title, url, isReel: isReel)),
+      );
       messenger?.showSnackBar(
         const SnackBar(
           content: Text('Sharing is not available here — link copied'),
@@ -62,9 +62,10 @@ Future<void> shareMediaLink(
     } catch (clipboardError) {
       debugPrint('shareMediaLink: clipboard fallback failed: $clipboardError');
       messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('Could not share this song'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(
+            isReel ? 'Could not share this reel' : 'Could not share this song',
+          ),
         ),
       );
     }
@@ -72,9 +73,6 @@ Future<void> shareMediaLink(
 }
 
 /// The tapped widget's rect in global coordinates.
-///
-/// iPad anchors the share popover here; passing null there makes the sheet
-/// fail to present. Harmless everywhere else.
 Rect? _originRect(BuildContext context) {
   final box = context.findRenderObject();
   if (box is! RenderBox || !box.hasSize) return null;

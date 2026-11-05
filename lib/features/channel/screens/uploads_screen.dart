@@ -1,29 +1,32 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../shared/utils/share_media.dart';
 import 'package:video_player/video_player.dart';
 
 import '../../../core/models/media_item.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/utils/count_formatter.dart';
+import '../../../shared/utils/share_media.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
-import 'channel_reels_screen.dart';
-import 'public_channel_screen.dart';
 import '../services/channel_interaction_service.dart';
 import '../services/channel_service.dart';
+import 'public_channel_screen.dart';
+import 'upload_media_screen.dart';
 
-/// Feed screen — vertical-scroll reels UI.
+/// Feed screen — vertical-scroll reels UI for video and audio creator media.
 ///
 /// Playback is fully independent of PlayerProvider; each reel owns its
 /// own VideoPlayerController so the mini-player / main queue are unaffected.
 class UploadsScreen extends StatefulWidget {
-  const UploadsScreen({super.key});
+  final channel_models.UserMediaResponse? initialItem;
+  final String? initialMediaId;
+
+  const UploadsScreen({super.key, this.initialItem, this.initialMediaId});
 
   static VoidCallback? _pauseActiveReel;
 
@@ -50,8 +53,38 @@ class _UploadsScreenState extends State<UploadsScreen> {
   void initState() {
     super.initState();
     UploadsScreen._pauseActiveReel = _pauseAllControllers;
-    _loadMore(refresh: true);
     _pageController.addListener(_onScrollListener);
+
+    if (widget.initialItem != null) {
+      _items.add(widget.initialItem!);
+      unawaited(_initController(0));
+      unawaited(_primeLikeStatus(0));
+      _loadMore(); // Preload remaining feed in background
+    } else if (widget.initialMediaId != null) {
+      _loadInitialMediaId(widget.initialMediaId!);
+    } else {
+      _loadMore(refresh: true);
+    }
+  }
+
+  Future<void> _loadInitialMediaId(String mediaId) async {
+    setState(() => _isLoading = true);
+    try {
+      final media = await context.read<ChannelService>().getPublicMediaById(mediaId);
+      if (media != null && mounted) {
+        setState(() {
+          _items.add(media);
+          _isLoading = false;
+        });
+        unawaited(_initController(0));
+        unawaited(_primeLikeStatus(0));
+        _loadMore();
+        return;
+      }
+    } catch (_) {}
+    if (mounted) {
+      _loadMore(refresh: true);
+    }
   }
 
   @override
@@ -114,7 +147,20 @@ class _UploadsScreenState extends State<UploadsScreen> {
     if (index < 0 || index >= _items.length) return;
     if (_controllers.containsKey(index)) return;
     final item = _items[index];
-    final url = item.hlsUrl;
+    var url = item.hlsUrl;
+    if ((url == null || url.isEmpty) && item.channelId != null) {
+      try {
+        final channelMedia = await context
+            .read<ChannelService>()
+            .getPublicChannelMedia(item.channelId!);
+        final found = channelMedia.content
+            .where((m) => m.id == item.id)
+            .firstOrNull;
+        if (found != null && found.hlsUrl != null && found.hlsUrl!.isNotEmpty) {
+          url = found.hlsUrl;
+        }
+      } catch (_) {}
+    }
     if (url == null || url.isEmpty) return;
     final controller = VideoPlayerController.networkUrl(
       Uri.parse(url),
@@ -298,23 +344,173 @@ class _UploadsScreenState extends State<UploadsScreen> {
     }
   }
 
+  Widget _buildTopHeader() {
+    final canPop = Navigator.of(context).canPop();
+    return SafeArea(
+      top: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            if (canPop) ...[
+              GestureDetector(
+                onTap: () => Navigator.of(context).maybePop(),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.55),
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.18),
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.arrow_back_rounded,
+                    color: Colors.white,
+                    size: 22,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+            ],
+            Text(
+              'Feed',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.3,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withOpacity(0.7),
+                    blurRadius: 8,
+                    offset: const Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            GestureDetector(
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const UploadMediaScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.55),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withOpacity(0.18),
+                    width: 1,
+                  ),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.video_call_rounded, color: Colors.white, size: 20),
+                    SizedBox(width: 6),
+                    Text(
+                      'Create',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final interactionService = context.watch<ChannelInteractionService>();
 
+    Widget content;
     if (_items.isEmpty && _isLoading) {
-      return const Scaffold(
-        backgroundColor: Colors.black,
-        body: Center(
-          child: CircularProgressIndicator(color: AppColors.primary),
+      content = const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    } else if (_items.isEmpty) {
+      content = Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.dynamic_feed_rounded, size: 56, color: Colors.white38),
+            const SizedBox(height: 16),
+            const Text(
+              'No approved media in feed yet',
+              style: TextStyle(color: Colors.white70, fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const UploadMediaScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              ),
+              icon: const Icon(Icons.upload_rounded, size: 18),
+              label: const Text('Upload Reel'),
+            ),
+          ],
         ),
       );
-    }
+    } else {
+      content = PageView.builder(
+        controller: _pageController,
+        scrollDirection: Axis.vertical,
+        physics: const PageScrollPhysics(),
+        itemCount: _hasMore ? _items.length + 1 : _items.length,
+        onPageChanged: _onPageChanged,
+        itemBuilder: (context, index) {
+          if (index == _items.length) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+          final item = _items[index];
+          final media = _toMediaItem(item);
+          final controller = _controllers[index];
+          final isVideo = item.mediaType == channel_models.MediaType.video;
+          final isLiked = interactionService.isLiked(item.id);
+          final likeCount = interactionService.getLikeCount(item.id);
+          final showBurst = _showHeartBurst[item.id] == true;
 
-    if (_items.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Feed')),
-        body: const Center(child: Text('No approved media in feed yet')),
+          if (controller == null) unawaited(_initController(index));
+          return _ReelPage(
+            item: item,
+            media: media,
+            controller: controller,
+            isVideo: isVideo,
+            isLiked: isLiked,
+            likeCount: likeCount,
+            playCount: item.playCount,
+            showHeartBurst: showBurst,
+            onDoubleTap: () =>
+                _toggleLike(item, interactionService, forceLike: true),
+            onLike: () => _toggleLike(item, interactionService),
+            onComment: () => _openComments(media),
+            onShare: () => _share(media),
+            onAddToPlaylist: () => _openAddToPlaylist(media),
+            onArtistTap: () => _openCreatorChannel(item),
+          );
+        },
       );
     }
 
@@ -322,53 +518,17 @@ class _UploadsScreenState extends State<UploadsScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: Colors.black,
-        extendBodyBehindAppBar: true,
-        appBar: AppBar(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          title: const Text(
-            'Feed',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-          ),
-        ),
-        body: PageView.builder(
-          controller: _pageController,
-          scrollDirection: Axis.vertical,
-          physics: const PageScrollPhysics(),
-          itemCount: _hasMore ? _items.length + 1 : _items.length,
-          onPageChanged: _onPageChanged,
-          itemBuilder: (context, index) {
-            if (index == _items.length) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.primary),
-              );
-            }
-            final item = _items[index];
-            final media = _toMediaItem(item);
-            final controller = _controllers[index];
-            final isVideo = item.mediaType == channel_models.MediaType.video;
-            final isLiked = interactionService.isLiked(item.id);
-            final likeCount = interactionService.getLikeCount(item.id);
-            final showBurst = _showHeartBurst[item.id] == true;
-            if (controller == null) unawaited(_initController(index));
-            return _ReelPage(
-              item: item,
-              media: media,
-              controller: controller,
-              isVideo: isVideo,
-              isLiked: isLiked,
-              likeCount: likeCount,
-              playCount: item.playCount,
-              showHeartBurst: showBurst,
-              onDoubleTap: () =>
-                  _toggleLike(item, interactionService, forceLike: true),
-              onLike: () => _toggleLike(item, interactionService),
-              onComment: () => _openComments(media),
-              onShare: () => _share(media),
-              onAddToPlaylist: () => _openAddToPlaylist(media),
-              onArtistTap: () => _openCreatorChannel(item),
-            );
-          },
+        body: Stack(
+          fit: StackFit.expand,
+          children: [
+            content,
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _buildTopHeader(),
+            ),
+          ],
         ),
       ),
     );
@@ -455,13 +615,13 @@ class _ReelPageState extends State<_ReelPage> {
           Container(
             color: Colors.black,
             child: isReady && widget.isVideo
-                ? _VideoBackground(controller: c!)
+                ? _VideoBackground(controller: c)
                 : _ThumbnailBackground(
                     media: widget.media,
                     isVideo: widget.isVideo,
                   ),
           ),
-          if (!widget.isVideo && isReady) _AudioPulse(controller: c!),
+          if (!widget.isVideo && isReady) _AudioPulse(controller: c),
           if (_showPauseIcon)
             Center(
               child: Container(
@@ -501,6 +661,7 @@ class _ReelPageState extends State<_ReelPage> {
               ),
             ),
           ),
+
           Positioned(
             left: 16,
             right: 80,
@@ -730,40 +891,22 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
-    this.label,
   });
 
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
-  final String? label;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            color: color,
-            size: 28,
-            shadows: const [Shadow(blurRadius: 4, color: Colors.black87)],
-          ),
-          if (label != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              label!,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                shadows: [Shadow(blurRadius: 3, color: Colors.black87)],
-              ),
-            ),
-          ],
-        ],
+      child: Icon(
+        icon,
+        color: color,
+        size: 28,
+        shadows: const [Shadow(blurRadius: 4, color: Colors.black87)],
       ),
     );
   }

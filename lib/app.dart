@@ -45,6 +45,8 @@ import 'core/services/ads_service.dart';
 import 'core/navigation/app_navigation.dart';
 import 'core/navigation/app_tabs.dart';
 import 'features/channel/services/channel_service.dart';
+import 'features/channel/services/winner_service.dart';
+import 'features/competition/services/competition_service.dart';
 import 'features/channel/services/channel_interaction_service.dart';
 import 'features/channel/providers/channel_provider.dart';
 import 'features/channel/screens/channel_setup_screen.dart';
@@ -149,6 +151,12 @@ class VeenaApp extends StatelessWidget {
 
         // Channel feature
         Provider<ChannelService>(create: (_) => ChannelService(apiService)),
+        ChangeNotifierProvider<WinnerService>(
+          create: (_) => WinnerService(apiService),
+        ),
+        ChangeNotifierProvider<CompetitionService>(
+          create: (_) => CompetitionService(apiService),
+        ),
         ChangeNotifierProxyProvider<ChannelService, ChannelInteractionService>(
           create: (ctx) =>
               ChannelInteractionService(ctx.read<ChannelService>()),
@@ -216,6 +224,40 @@ class _AppRouter extends StatefulWidget {
 }
 
 class _AppRouterState extends State<_AppRouter> {
+  Future<void> _navigateToReel(String reelId) async {
+    if (!mounted) return;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    final channelService = context.read<ChannelService>();
+
+    try {
+      context.read<PlayerProvider>().pause();
+    } catch (_) {}
+
+    try {
+      final reel = await channelService.getPublicMediaById(reelId);
+      if (!mounted) return;
+      if (reel != null) {
+        rootNavigator.push(
+          MaterialPageRoute(
+            builder: (_) => UploadsScreen(initialItem: reel),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reel not found or no longer available')),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error loading deep linked reel: $e');
+      if (mounted) {
+        rootNavigator.push(
+          MaterialPageRoute(
+            builder: (_) => UploadsScreen(initialMediaId: reelId),
+          ),
+        );
+      }
+    }
+  }
   int _currentIndex = 0;
   bool _settingsFetched = false;
   bool _channelSetupTriggered = false;
@@ -466,12 +508,23 @@ class _AppRouterState extends State<_AppRouter> {
         playerProvider.setMediaDownloadService(mediaDownloadService);
         playerProvider.setAuthService(authService);
 
-        // ── Deep link: navigate to song after login ───────────────────────
+        // ── Deep link: navigate to reel or song after login ────────────────
         final deepLinkService = context.watch<DeepLinkService>();
+        if (deepLinkService.pendingReelId != null) {
+          final reelId = deepLinkService.pendingReelId!;
+          deepLinkService.consumeReel();
+
+          WidgetsBinding.instance.addPostFrameCallback((_) async {
+            if (!mounted) return;
+            debugPrint('🔗 AppRouter: handling deep link for reelId=$reelId');
+            _navigateToReel(reelId);
+          });
+        }
+
         if (deepLinkService.pendingSongId != null) {
           final songId = deepLinkService.pendingSongId!;
           // Consume immediately to prevent duplicate triggers on rebuild
-          deepLinkService.consume();
+          deepLinkService.consumeSong();
 
           WidgetsBinding.instance.addPostFrameCallback((_) async {
             if (!mounted) return;
@@ -486,6 +539,9 @@ class _AppRouterState extends State<_AppRouter> {
               rootNavigator.push(
                 MaterialPageRoute(builder: (_) => const UnifiedPlayerScreen()),
               );
+            } else if (mounted) {
+              // Fallback: If not in catalog, check if it's a channel reel
+              _navigateToReel(songId);
             }
           });
         }
@@ -516,7 +572,9 @@ class _AppRouterState extends State<_AppRouter> {
 
             debugPrint('🔗 AppRouter: handling push notification deep link type=$type, id=$id');
             
-            if (type == 'song') {
+            if (type == 'reel') {
+              _navigateToReel(id);
+            } else if (type == 'song') {
               final item = await mediaService.fetchMediaById(id);
               if (item != null && mounted) {
                 playerProvider.play(item);

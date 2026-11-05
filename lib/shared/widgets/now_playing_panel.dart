@@ -13,6 +13,7 @@ import '../../core/services/app_settings_service.dart';
 import '../../core/services/media_service.dart';
 import '../../features/library/screens/artist_detail_screen.dart';
 import '../../features/player/widgets/comments_sheet.dart';
+import '../../features/channel/services/channel_interaction_service.dart';
 import 'share_song_button.dart';
 import 'web_player_brand_ad.dart';
 
@@ -152,6 +153,7 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
+          _buildLikeButton(media, isDark: isDark),
           if (context.watch<AppSettingsService>().enableComments)
             IconButton(
               onPressed: () {
@@ -159,7 +161,12 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                   context: context,
                   isScrollControlled: true,
                   backgroundColor: Colors.transparent,
-                  builder: (context) => CommentsSheet(mediaId: media.id),
+                  builder: (context) => CommentsSheet(
+                    mediaId: media.id,
+                    source: media.isChannelMedia
+                        ? CommentsSource.channel
+                        : CommentsSource.mainMedia,
+                  ),
                 );
               },
               icon: Icon(
@@ -375,6 +382,74 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
           const SizedBox(height: 24),
         ],
       ),
+    );
+  }
+
+  Widget _buildLikeButton(MediaItem media, {required bool isDark}) {
+    final unselectedColor =
+        isDark ? Colors.white54 : AppColors.lightTextSecondary;
+
+    if (media.isChannelMedia) {
+      return Consumer<ChannelInteractionService>(
+        builder: (context, interactionService, _) {
+          final isLiked = interactionService.isLiked(
+            media.id,
+            initial: media.liked,
+          );
+          return IconButton(
+            tooltip: isLiked ? 'Unlike' : 'Like',
+            onPressed: () async {
+              await interactionService.toggleLike(
+                media.id,
+                initial: isLiked,
+              );
+            },
+            icon: Icon(
+              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              color: isLiked ? AppColors.primary : unselectedColor,
+              size: 20,
+            ),
+            splashRadius: 18,
+          );
+        },
+      );
+    }
+
+    return Consumer<MediaService>(
+      builder: (context, mediaService, _) {
+        final linkedId = media.linkedMediaId ?? media.linkedMedia?.id;
+        final isLiked = mediaService.isLiked(
+          media.id,
+          linkedMediaId: linkedId,
+          initial: media.liked,
+        );
+        return IconButton(
+          tooltip: isLiked ? 'Unlike' : 'Like',
+          onPressed: () async {
+            final libraryService = context.read<LibraryService>();
+            await mediaService.toggleLike(
+              media.id,
+              linkedMediaId: linkedId,
+              initial: media.liked,
+            );
+            if (mediaService.isLiked(
+              media.id,
+              linkedMediaId: linkedId,
+              initial: media.liked,
+            )) {
+              libraryService.addFavoriteLocal(media);
+            } else {
+              libraryService.removeFavoriteLocal(media.id);
+            }
+          },
+          icon: Icon(
+            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: isLiked ? AppColors.primary : unselectedColor,
+            size: 20,
+          ),
+          splashRadius: 18,
+        );
+      },
     );
   }
 
@@ -788,7 +863,9 @@ class _NowPlayingPanelState extends State<NowPlayingPanel> {
                     return OutlinedButton(
                       onPressed: () async {
                         await artistService.toggleFollow(media.artistId!);
-                        await context.read<LibraryService>().getArtists();
+                        if (context.mounted) {
+                          await context.read<LibraryService>().getArtists();
+                        }
                       },
                       style: OutlinedButton.styleFrom(
                         foregroundColor: isDark

@@ -253,6 +253,38 @@ class ChannelService {
     await _api.post('/user/channel/media/$mediaId/play');
   }
 
+  /// Get a single public reel by ID.
+  /// Tries the public media endpoint first, and falls back to recording play / feed lookup
+  /// to support current and future backend versions.
+  Future<UserMediaResponse?> getPublicMediaById(String mediaId) async {
+    // 1. Try public media endpoint (future backend compatibility)
+    try {
+      final data = await _api.get('/user/channel/public/media/$mediaId');
+      if (data != null && data is Map<String, dynamic>) {
+        return UserMediaResponse.fromJson(data);
+      }
+    } catch (_) {}
+
+    // 2. Fallback: Existing backend endpoint /user/channel/media/:id/play returns the UserMediaResponse
+    try {
+      final data = await _api.post('/user/channel/media/$mediaId/play');
+      if (data != null && data is Map<String, dynamic>) {
+        return UserMediaResponse.fromJson(data);
+      }
+    } catch (_) {}
+
+    // 3. Fallback: Check in the public feed
+    try {
+      final feed = await getPublicFeed(page: 0, size: 50);
+      final found = feed.content.where((m) => m.id == mediaId).firstOrNull;
+      if (found != null) {
+        return found;
+      }
+    } catch (_) {}
+
+    return null;
+  }
+
   Future<PagedResponse<Comment>> getMediaComments(
     String mediaId, {
     int page = 0,

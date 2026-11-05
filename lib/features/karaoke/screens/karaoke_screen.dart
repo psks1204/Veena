@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../../../core/models/media_item.dart';
 import '../../../core/providers/player_provider.dart';
 import '../../../core/services/dashboard_service.dart';
@@ -9,11 +11,16 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/media_options_sheet.dart';
+import '../../competition/services/competition_service.dart';
+import '../../competition/widgets/competition_view.dart';
 import '../../player/screens/unified_player_screen.dart';
 
 /// Dedicated Karaoke Screen
 ///
-/// Displays all available karaoke tracks for users to sing along and record covers.
+/// Features two main sections:
+/// 1. "All Songs": Where all available karaoke tracks are shown to sing and record.
+/// 2. "Competition": Where users see ongoing singing competitions, banners,
+///    prizes, live ranking/podium, and winner announcements.
 class KaraokeScreen extends StatefulWidget {
   const KaraokeScreen({super.key});
 
@@ -23,6 +30,7 @@ class KaraokeScreen extends StatefulWidget {
 
 class _KaraokeScreenState extends State<KaraokeScreen> {
   final TextEditingController _searchController = TextEditingController();
+  int _selectedSection = 0; // 0: All Songs, 1: Competition
   bool _isLoading = false;
   String _searchQuery = '';
 
@@ -36,6 +44,7 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadKaraoke();
+      context.read<CompetitionService>().fetchOngoingCompetition();
     });
   }
 
@@ -78,6 +87,7 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
     final dashboard = context.watch<DashboardService>();
     final mediaService = context.watch<MediaService>();
     final player = context.watch<PlayerProvider>();
+    final compService = context.watch<CompetitionService>();
 
     final allKaraoke = dashboard.karaoke;
     final filteredKaraoke = _searchQuery.isEmpty
@@ -91,304 +101,563 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0D0D0D) : AppColors.lightBg,
       body: SafeArea(
-        child: RefreshIndicator(
-          color: AppColors.primary,
-          onRefresh: () => dashboard.fetchKaraoke(notify: true),
-          child: CustomScrollView(
-            slivers: [
-              // Header
-              SliverToBoxAdapter(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.screenPadding,
-                    AppSpacing.md,
-                    AppSpacing.screenPadding,
-                    AppSpacing.sm,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        child: Column(
+          children: [
+            // Top Header & Segmented Pill Switcher
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.screenPadding,
+                AppSpacing.md,
+                AppSpacing.screenPadding,
+                AppSpacing.sm,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.mic_rounded,
+                          color: AppColors.primary,
+                          size: 26,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Icon(
-                              Icons.mic_rounded,
-                              color: AppColors.primary,
-                              size: 26,
+                          Text(
+                            'Karaoke Arena',
+                            style: theme.textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Karaoke',
-                                style: theme.textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                'Sing along and record your favorite covers',
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: isDark ? Colors.white60 : Colors.black54,
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'Sing along, record covers & win prizes',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: isDark ? Colors.white60 : Colors.black54,
+                            ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 14),
-
-                      // Search Bar
-                      Container(
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? Colors.white.withOpacity(0.08)
-                              : Colors.black.withOpacity(0.04),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: TextField(
-                          controller: _searchController,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: isDark ? Colors.white : Colors.black87,
-                          ),
-                          decoration: InputDecoration(
-                            hintText: 'Search karaoke songs...',
-                            hintStyle: TextStyle(
-                              color: isDark ? Colors.white38 : Colors.black38,
-                              fontSize: 14,
-                            ),
-                            prefixIcon: Icon(
-                              Icons.search_rounded,
-                              size: 20,
-                              color: isDark ? Colors.white54 : Colors.black45,
-                            ),
-                            suffixIcon: _searchQuery.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () => _searchController.clear(),
-                                  )
-                                : null,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                            ),
-                          ),
-                        ),
-                      ),
                     ],
                   ),
-                ),
-              ),
+                  const SizedBox(height: 14),
 
-              // Content List
-              if (_isLoading && allKaraoke.isEmpty)
-                const SliverFillRemaining(
-                  child: Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
-                  ),
-                )
-              else if (filteredKaraoke.isEmpty)
-                SliverFillRemaining(
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
+                  // Segmented Tabs: [ 🎤 All Songs ] [ 🏆 Competition ]
+                  Container(
+                    height: 44,
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.06)
+                          : Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(22),
+                      border: Border.all(
+                        color: isDark
+                            ? Colors.white.withOpacity(0.08)
+                            : Colors.black.withOpacity(0.06),
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Icon(
-                          Icons.mic_off_rounded,
-                          size: 56,
-                          color: isDark ? Colors.white24 : Colors.black26,
+                        Expanded(
+                          child: _buildSegmentButton(
+                            title: 'All Songs',
+                            icon: Icons.queue_music_rounded,
+                            isSelected: _selectedSection == 0,
+                            isDark: isDark,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedSection = 0);
+                            },
+                          ),
                         ),
-                        const SizedBox(height: 12),
-                        Text(
-                          _searchQuery.isNotEmpty
-                              ? 'No karaoke songs matching "$_searchQuery"'
-                              : 'No karaoke songs available yet',
-                          style: TextStyle(
-                            color: isDark ? Colors.white60 : Colors.black54,
-                            fontSize: 15,
+                        Expanded(
+                          child: _buildSegmentButton(
+                            title: 'Competition',
+                            icon: Icons.emoji_events_rounded,
+                            isSelected: _selectedSection == 1,
+                            isDark: isDark,
+                            badge: compService.currentCompetition?.isOngoing == true
+                                ? 'LIVE'
+                                : null,
+                            onTap: () {
+                              HapticFeedback.selectionClick();
+                              setState(() => _selectedSection = 1);
+                            },
                           ),
                         ),
                       ],
                     ),
                   ),
-                )
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.screenPadding,
-                    vertical: AppSpacing.xs,
-                  ),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final track = filteredKaraoke[index];
-                        final isPlaying =
-                            player.currentMedia?.id == track.id && player.isPlaying;
+                ],
+              ),
+            ),
 
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 8),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? (isPlaying
-                                    ? AppColors.primary.withOpacity(0.12)
-                                    : Colors.white.withOpacity(0.04))
-                                : (isPlaying
-                                    ? AppColors.primary.withOpacity(0.08)
-                                    : Colors.black.withOpacity(0.03)),
-                            borderRadius: BorderRadius.circular(12),
-                            border: isPlaying
-                                ? Border.all(
-                                    color: AppColors.primary.withOpacity(0.4),
-                                    width: 1,
-                                  )
-                                : null,
+            // Content: Tab 0 (All Songs) or Tab 1 (Competition View)
+            Expanded(
+              child: _selectedSection == 0
+                  ? _buildSongsSection(
+                      context: context,
+                      filteredKaraoke: filteredKaraoke,
+                      allKaraoke: allKaraoke,
+                      isDark: isDark,
+                      player: player,
+                      mediaService: mediaService,
+                      compService: compService,
+                      dashboard: dashboard,
+                    )
+                  : CompetitionView(
+                      onSingNowTap: () => setState(() => _selectedSection = 0),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSegmentButton({
+    required String title,
+    required IconData icon,
+    required bool isSelected,
+    required bool isDark,
+    required VoidCallback onTap,
+    String? badge,
+  }) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: AppColors.primary.withOpacity(0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        alignment: Alignment.center,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isSelected
+                  ? Colors.white
+                  : (isDark ? Colors.white70 : Colors.black87),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? Colors.white
+                    : (isDark ? Colors.white70 : Colors.black87),
+              ),
+            ),
+            if (badge != null) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isSelected ? Colors.white : Colors.redAccent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? AppColors.primary : Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSongsSection({
+    required BuildContext context,
+    required List<MediaItem> filteredKaraoke,
+    required List<MediaItem> allKaraoke,
+    required bool isDark,
+    required PlayerProvider player,
+    required MediaService mediaService,
+    required CompetitionService compService,
+    required DashboardService dashboard,
+  }) {
+    final ongoingComp = compService.currentCompetition;
+
+    return RefreshIndicator(
+      color: AppColors.primary,
+      onRefresh: () async {
+        await dashboard.fetchKaraoke(notify: true);
+        await compService.fetchOngoingCompetition(forceRefresh: true);
+      },
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+                vertical: AppSpacing.xs,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Active Competition Teaser Banner (if ongoing)
+                  if (ongoingComp != null && ongoingComp.isOngoing) ...[
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.selectionClick();
+                        setState(() => _selectedSection = 1);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: isDark
+                                ? [const Color(0xFF331422), const Color(0xFF1E1420)]
+                                : [const Color(0xFFFDE8F1), const Color(0xFFFEEFF6)],
                           ),
-                          child: ListTile(
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 2,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: AppColors.primary.withOpacity(0.35),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.emoji_events_rounded,
+                                color: AppColors.primary,
+                                size: 18,
+                              ),
                             ),
-                            leading: ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: SizedBox(
-                                width: 48,
-                                height: 48,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    if (track.thumbnailUrl != null &&
-                                        track.thumbnailUrl!.isNotEmpty)
-                                      AppNetworkImage(
-                                        imageUrl: track.thumbnailUrl!,
-                                        fit: BoxFit.cover,
-                                        memCacheWidth: 150,
-                                      )
-                                    else
-                                      Container(
-                                        color: isDark
-                                            ? Colors.grey[850]
-                                            : Colors.grey[300],
-                                        child: const Icon(
-                                          Icons.mic_rounded,
-                                          size: 24,
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Competition Live!',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: isDark ? Colors.white : Colors.black87,
                                         ),
                                       ),
-                                    if (isPlaying)
-                                      Container(
-                                        color: Colors.black45,
-                                        child: const Center(
-                                          child: Icon(
-                                            Icons.graphic_eq_rounded,
+                                      if (ongoingComp.daysRemaining > 0) ...[
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          '(${ongoingComp.daysRemaining}d left)',
+                                          style: const TextStyle(
+                                            fontSize: 11,
                                             color: AppColors.primary,
-                                            size: 22,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            title: Text(
-                              track.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 14,
-                                color: isPlaying
-                                    ? AppColors.primary
-                                    : (isDark ? Colors.white : Colors.black87),
-                              ),
-                            ),
-                            subtitle: Row(
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 5,
-                                    vertical: 1,
+                                      ],
+                                    ],
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.18),
-                                    borderRadius: BorderRadius.circular(4),
-                                  ),
-                                  child: const Text(
-                                    'KARAOKE',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.primary,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Expanded(
-                                  child: Text(
-                                    track.artistName,
+                                  Text(
+                                    ongoingComp.prize != null
+                                        ? 'Sing & win: ${ongoingComp.prize}'
+                                        : 'Sing your cover and climb the leaderboard',
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 12,
-                                      color: isDark ? Colors.white54 : Colors.black54,
+                                      fontSize: 11,
+                                      color: isDark ? Colors.white60 : Colors.black54,
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: Icon(
-                                    mediaService.isLiked(
-                                      track.id,
-                                      initial: track.liked,
-                                    )
-                                        ? Icons.favorite
-                                        : Icons.favorite_border,
-                                    size: 20,
-                                    color: mediaService.isLiked(
-                                      track.id,
-                                      initial: track.liked,
-                                    )
-                                        ? AppColors.primary
-                                        : (isDark ? Colors.white38 : Colors.black38),
-                                  ),
-                                  onPressed: () =>
-                                      mediaService.toggleLike(track.id, initial: track.liked),
-                                ),
-                                IconButton(
-                                  icon: Icon(
-                                    Icons.more_vert_rounded,
-                                    size: 20,
-                                    color: isDark ? Colors.white38 : Colors.black38,
-                                  ),
-                                  onPressed: () {
-                                    MediaOptionsSheet.show(context, mediaItem: track);
-                                  },
-                                ),
-                              ],
+                            const Icon(
+                              Icons.arrow_forward_ios_rounded,
+                              size: 14,
+                              color: AppColors.primary,
                             ),
-                            onTap: () => _playKaraokeTrack(filteredKaraoke, index),
-                          ),
-                        );
-                      },
-                      childCount: filteredKaraoke.length,
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+
+                  // Search Bar
+                  Container(
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: isDark
+                          ? Colors.white.withOpacity(0.08)
+                          : Colors.black.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: TextField(
+                      controller: _searchController,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: isDark ? Colors.white : Colors.black87,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Search karaoke songs...',
+                        hintStyle: TextStyle(
+                          color: isDark ? Colors.white38 : Colors.black38,
+                          fontSize: 14,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.search_rounded,
+                          size: 20,
+                          color: isDark ? Colors.white54 : Colors.black45,
+                        ),
+                        suffixIcon: _searchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () => _searchController.clear(),
+                              )
+                            : null,
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
                     ),
                   ),
-                ),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
-            ],
+                  const SizedBox(height: 10),
+                ],
+              ),
+            ),
           ),
-        ),
+
+          // Content List
+          if (_isLoading && allKaraoke.isEmpty)
+            const SliverFillRemaining(
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              ),
+            )
+          else if (filteredKaraoke.isEmpty)
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.mic_off_rounded,
+                      size: 56,
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      _searchQuery.isNotEmpty
+                          ? 'No karaoke songs matching "$_searchQuery"'
+                          : 'No karaoke songs available yet',
+                      style: TextStyle(
+                        color: isDark ? Colors.white60 : Colors.black54,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.screenPadding,
+                vertical: AppSpacing.xs,
+              ),
+              sliver: SliverList(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) {
+                    final track = filteredKaraoke[index];
+                    final isPlaying =
+                        player.currentMedia?.id == track.id && player.isPlaying;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? (isPlaying
+                                ? AppColors.primary.withOpacity(0.12)
+                                : Colors.white.withOpacity(0.04))
+                            : (isPlaying
+                                ? AppColors.primary.withOpacity(0.08)
+                                : Colors.black.withOpacity(0.03)),
+                        borderRadius: BorderRadius.circular(12),
+                        border: isPlaying
+                            ? Border.all(
+                                color: AppColors.primary.withOpacity(0.4),
+                                width: 1,
+                              )
+                            : null,
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 2,
+                        ),
+                        leading: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: SizedBox(
+                            width: 48,
+                            height: 48,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                if (track.thumbnailUrl != null &&
+                                    track.thumbnailUrl!.isNotEmpty)
+                                  AppNetworkImage(
+                                    imageUrl: track.thumbnailUrl!,
+                                    fit: BoxFit.cover,
+                                    memCacheWidth: 150,
+                                  )
+                                else
+                                  Container(
+                                    color: isDark
+                                        ? Colors.grey[850]
+                                        : Colors.grey[300],
+                                    child: const Icon(
+                                      Icons.mic_rounded,
+                                      size: 24,
+                                    ),
+                                  ),
+                                if (isPlaying)
+                                  Container(
+                                    color: Colors.black45,
+                                    child: const Center(
+                                      child: Icon(
+                                        Icons.graphic_eq_rounded,
+                                        color: AppColors.primary,
+                                        size: 22,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          track.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: isPlaying
+                                ? AppColors.primary
+                                : (isDark ? Colors.white : Colors.black87),
+                          ),
+                        ),
+                        subtitle: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                                vertical: 1,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary.withOpacity(0.18),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'KARAOKE',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                track.artistName,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: isDark ? Colors.white54 : Colors.black54,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                mediaService.isLiked(
+                                  track.id,
+                                  initial: track.liked,
+                                )
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                size: 20,
+                                color: mediaService.isLiked(
+                                  track.id,
+                                  initial: track.liked,
+                                )
+                                    ? AppColors.primary
+                                    : (isDark ? Colors.white38 : Colors.black38),
+                              ),
+                              onPressed: () => mediaService.toggleLike(
+                                track.id,
+                                initial: track.liked,
+                              ),
+                            ),
+                            IconButton(
+                              icon: Icon(
+                                Icons.more_vert_rounded,
+                                size: 20,
+                                color: isDark ? Colors.white38 : Colors.black38,
+                              ),
+                              onPressed: () {
+                                MediaOptionsSheet.show(context, mediaItem: track);
+                              },
+                            ),
+                          ],
+                        ),
+                        onTap: () => _playKaraokeTrack(filteredKaraoke, index),
+                      ),
+                    );
+                  },
+                  childCount: filteredKaraoke.length,
+                ),
+              ),
+            ),
+          const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        ],
       ),
     );
   }

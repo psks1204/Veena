@@ -24,6 +24,7 @@ import '../../../core/navigation/app_navigation.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/services/media_service.dart';
 import '../widgets/comments_sheet.dart';
+import '../../channel/services/channel_interaction_service.dart';
 import '../../../shared/widgets/player_artwork_ad_swap.dart';
 import '../../../shared/widgets/player_ad_rotator.dart';
 import '../../../shared/widgets/subscription_modal.dart';
@@ -700,6 +701,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                 ),
                 Row(
                   children: [
+                    _buildLikeButton(media),
                     if (context.watch<AppSettingsService>().enableComments)
                       IconButton(
                         onPressed: () {
@@ -707,8 +709,12 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                             context: context,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
-                            builder: (context) =>
-                                CommentsSheet(mediaId: media.id),
+                            builder: (context) => CommentsSheet(
+                              mediaId: media.id,
+                              source: media.isChannelMedia
+                                  ? CommentsSource.channel
+                                  : CommentsSource.mainMedia,
+                            ),
                           );
                         },
                         icon: const Icon(
@@ -716,6 +722,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                           color: Colors.white70,
                           size: 24,
                         ),
+                        tooltip: 'Comments',
                       ),
                     IconButton(
                       onPressed: () => _showQueueSheet(player),
@@ -724,6 +731,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         color: Colors.white70,
                         size: 24,
                       ),
+                      tooltip: 'Queue',
                     ),
                   ],
                 ),
@@ -997,6 +1005,55 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
   }
 
   Widget _buildEngagementStats(MediaItem media, {bool centered = false}) {
+    final labelColor = Colors.white.withOpacity(0.78);
+    if (media.isChannelMedia) {
+      return Consumer<ChannelInteractionService>(
+        builder: (context, interactionService, _) {
+          final likeCount = interactionService.getLikeCount(
+            media.id,
+            initial: media.likeCount,
+          );
+          return Row(
+            mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
+            mainAxisAlignment: centered
+                ? MainAxisAlignment.center
+                : MainAxisAlignment.start,
+            children: [
+              Icon(Icons.play_arrow_rounded, color: labelColor, size: 14),
+              const SizedBox(width: 2),
+              Text(
+                formatCompactCount(media.playedCount),
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '·',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.55),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.favorite_rounded, color: labelColor, size: 12),
+              const SizedBox(width: 4),
+              Text(
+                formatCompactCount(likeCount),
+                style: TextStyle(
+                  color: labelColor,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    }
+
     return Consumer<MediaService>(
       builder: (context, mediaService, _) {
         final linkedId = media.linkedMediaId ?? media.linkedMedia?.id;
@@ -1005,7 +1062,6 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           linkedMediaId: linkedId,
           initial: media.likeCount,
         );
-        final labelColor = Colors.white.withOpacity(0.78);
 
         return Row(
           mainAxisSize: centered ? MainAxisSize.min : MainAxisSize.max,
@@ -1043,6 +1099,72 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
               ),
             ),
           ],
+        );
+      },
+    );
+  }
+
+  /// Like button for media player alongside comment button
+  Widget _buildLikeButton(MediaItem media, {double size = 24}) {
+    if (media.isChannelMedia) {
+      return Consumer<ChannelInteractionService>(
+        builder: (context, interactionService, _) {
+          final isLiked = interactionService.isLiked(
+            media.id,
+            initial: media.liked,
+          );
+          return IconButton(
+            tooltip: isLiked ? 'Unlike' : 'Like',
+            onPressed: () async {
+              HapticFeedback.lightImpact();
+              await interactionService.toggleLike(
+                media.id,
+                initial: isLiked,
+              );
+            },
+            icon: Icon(
+              isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              color: isLiked ? AppColors.primary : Colors.white70,
+              size: size,
+            ),
+          );
+        },
+      );
+    }
+
+    return Consumer<MediaService>(
+      builder: (context, mediaService, _) {
+        final linkedId = media.linkedMediaId ?? media.linkedMedia?.id;
+        final isLiked = mediaService.isLiked(
+          media.id,
+          linkedMediaId: linkedId,
+          initial: media.liked,
+        );
+        return IconButton(
+          tooltip: isLiked ? 'Unlike' : 'Like',
+          onPressed: () async {
+            HapticFeedback.lightImpact();
+            final libraryService = context.read<LibraryService>();
+            await mediaService.toggleLike(
+              media.id,
+              linkedMediaId: linkedId,
+              initial: media.liked,
+            );
+            if (mediaService.isLiked(
+              media.id,
+              linkedMediaId: linkedId,
+              initial: media.liked,
+            )) {
+              libraryService.addFavoriteLocal(media);
+            } else {
+              libraryService.removeFavoriteLocal(media.id);
+            }
+          },
+          icon: Icon(
+            isLiked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+            color: isLiked ? AppColors.primary : Colors.white70,
+            size: size,
+          ),
         );
       },
     );
@@ -1531,6 +1653,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
 
           Row(
             children: [
+              _buildLikeButton(player.currentMedia!),
               if (showComments)
                 IconButton(
                   onPressed: () {
@@ -1538,8 +1661,12 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                       context: context,
                       isScrollControlled: true,
                       backgroundColor: Colors.transparent,
-                      builder: (context) =>
-                          CommentsSheet(mediaId: player.currentMedia!.id),
+                      builder: (context) => CommentsSheet(
+                        mediaId: player.currentMedia!.id,
+                        source: player.currentMedia!.isChannelMedia
+                            ? CommentsSource.channel
+                            : CommentsSource.mainMedia,
+                      ),
                     );
                   },
                   icon: const Icon(
@@ -1547,6 +1674,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                     color: Colors.white70,
                     size: 24,
                   ),
+                  tooltip: 'Comments',
                 ),
               IconButton(
                 onPressed: () => _showQueueSheet(player),
@@ -1555,6 +1683,7 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                   color: Colors.white70,
                   size: 24,
                 ),
+                tooltip: 'Queue',
               ),
             ],
           ),
@@ -2309,7 +2438,9 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
                         return GestureDetector(
                           onTap: () async {
                             await artistService.toggleFollow(media.artistId!);
-                            await context.read<LibraryService>().getArtists();
+                            if (context.mounted) {
+                              await context.read<LibraryService>().getArtists();
+                            }
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -2443,16 +2574,22 @@ class _UnifiedPlayerScreenState extends State<UnifiedPlayerScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
+              _buildLikeButton(media, size: 28),
               if (context.watch<AppSettingsService>().enableComments)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(left: 4, right: 8),
                   child: IconButton(
                     onPressed: () {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
                         backgroundColor: Colors.transparent,
-                        builder: (context) => CommentsSheet(mediaId: media.id),
+                        builder: (context) => CommentsSheet(
+                          mediaId: media.id,
+                          source: media.isChannelMedia
+                              ? CommentsSource.channel
+                              : CommentsSource.mainMedia,
+                        ),
                       );
                     },
                     icon: const Icon(
