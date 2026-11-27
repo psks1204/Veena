@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/navigation/app_navigation.dart';
+import '../../core/navigation/app_tabs.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/providers/app_mode_provider.dart';
 import '../widgets/floating_nav_bar.dart';
@@ -27,6 +28,16 @@ class ShopShell extends StatefulWidget {
   final List<Widget> screens;
   final MiniPlayerData? miniPlayerData;
 
+  /// The navigator key for shop tab [shopTab] (0 = Store … 3 = Cart).
+  ///
+  /// Must come from the AppTabs shop constants, never a hard-coded offset: the
+  /// music tabs' keys are global too, and when the shells swap in one frame a
+  /// shared key moves that navigator across. A `+ 5` offset written before the
+  /// Karaoke tab existed landed the Store tab on the Profile tab's key, so the
+  /// shop opened on the Profile page whenever Profile had been visited.
+  static GlobalKey<NavigatorState> navigatorKeyFor(int shopTab) =>
+      AppNavigation.getNavigatorKey(AppTabs.shopHome + shopTab);
+
   @override
   State<ShopShell> createState() => _ShopShellState();
 }
@@ -44,9 +55,8 @@ class _ShopShellState extends State<ShopShell> {
   }
 
   Widget _buildNavigator(int tabIndex, Widget root) {
-    // Shop tabs use indices 5-8 in AppNavigation
     return Navigator(
-      key: AppNavigation.getNavigatorKey(tabIndex + 5),
+      key: ShopShell.navigatorKeyFor(tabIndex),
       onGenerateRoute: (settings) =>
           MaterialPageRoute(settings: settings, builder: (_) => root),
     );
