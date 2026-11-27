@@ -43,7 +43,6 @@ import 'shared/layouts/shop_shell.dart';
 import 'core/services/push_notification_service.dart';
 import 'core/services/ads_service.dart';
 import 'core/navigation/app_navigation.dart';
-import 'core/navigation/app_tabs.dart';
 import 'features/channel/services/channel_service.dart';
 import 'features/channel/services/winner_service.dart';
 import 'features/competition/services/competition_service.dart';
@@ -325,6 +324,9 @@ class _AppRouterState extends State<_AppRouter> {
 
         // Show login if not authenticated
         if (authService.state != AuthState.authenticated) {
+          // Drop the dead token right away so 401s still in flight from the
+          // old session don't try to sign out (or refresh) again.
+          context.read<ApiService>().clearAccessToken();
           // Reset so settings and channel setup are re-triggered on next login
           _settingsFetched = false;
           _channelSetupTriggered = false;
@@ -379,6 +381,24 @@ class _AppRouterState extends State<_AppRouter> {
           return success;
         };
 
+        // Session over (a request was rejected and the token couldn't be
+        // refreshed): sign out. Wired before any gate below can return early,
+        // so it is in place for the very first requests.
+        apiService.onUnauthorized = () {
+          if (authService.isSigningOut ||
+              authService.state != AuthState.authenticated) {
+            debugPrint('⚠️ 401 received but already signing out, skipping');
+            return;
+          }
+          if (authService.lastRefreshFailedTransiently) {
+            // Couldn't reach the auth server — not a refused session.
+            debugPrint('⚠️ 401 received while offline; keeping session');
+            return;
+          }
+          debugPrint('⚠️ Session expired! Signing out...');
+          authService.signOut();
+        };
+
         // Fetch app settings once after login
         _fetchSettingsOnce();
 
@@ -422,6 +442,12 @@ class _AppRouterState extends State<_AppRouter> {
         if (profileProvider.needsDobSetup && !_dobSetupTriggered) {
           _dobSetupTriggered = true;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            // The session may have ended before this frame was drawn.
+            if (!mounted ||
+                authService.state != AuthState.authenticated ||
+                !profileProvider.needsDobSetup) {
+              return;
+            }
             Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute(
                 builder: (_) =>
@@ -486,19 +512,6 @@ class _AppRouterState extends State<_AppRouter> {
             subscriptionProvider.initialize();
           });
         }
-
-        // Handle 401 Unauthorized - Logout automatically
-        apiService.onUnauthorized = () {
-          // Prevent infinite loop: don't call signOut if already signing out
-          if (!authService.isSigningOut) {
-            debugPrint('⚠️ Unauthorized! Signing out...');
-            authService.signOut();
-          } else {
-            debugPrint(
-              '⚠️ 401 received but signOut already in progress, skipping',
-            );
-          }
-        };
 
         // Connect player to services
         final playerProvider = context.read<PlayerProvider>();
@@ -657,10 +670,8 @@ class _AppRouterState extends State<_AppRouter> {
                 if (_currentIndex == index) {
                   AppNavigation.popToFirst();
                 } else {
-                  if (_currentIndex == AppTabs.uploads &&
-                      index != AppTabs.uploads) {
-                    UploadsScreen.pauseReelPlayback();
-                  }
+                  // Reels on the tab being left pause themselves: AppShell
+                  // turns tickers off for hidden tabs, which they watch.
                   setState(() => _currentIndex = index);
                 }
               },

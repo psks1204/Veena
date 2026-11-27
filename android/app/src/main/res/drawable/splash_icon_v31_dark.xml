@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Dark-mode twin of splash_icon_v31.xml; see the note there on the inset. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/logo_square_dark"
-    android:insetLeft="10%"
-    android:insetRight="10%"
-    android:insetTop="10%"
-    android:insetBottom="10%" />
+    android:insetLeft="21%"
+    android:insetRight="21%"
+    android:insetTop="21%"
+    android:insetBottom="21%" />

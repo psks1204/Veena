@@ -81,8 +81,13 @@ Future<AuthResult> refreshToken(String refreshTokenValue) async {
       final tokens = json.decode(response.body);
       return AuthResult(success: true, accessToken: tokens['access_token'], idToken: tokens['id_token']);
     }
+    // e.g. "HTTP 400: {"error":"invalid_grant"}" once the refresh token has
+    // expired — lets AuthService tell a refused session from a server blip.
+    return AuthResult(
+      success: false,
+      error: 'HTTP ${response.statusCode}: ${response.body}',
+    );
   } catch (e) { return AuthResult(success: false, error: e.toString()); }
-  return AuthResult(success: false);
 }
 
 Future<AuthResult?> handleWebCallback() async {
@@ -118,9 +123,15 @@ Future<AuthResult?> handleWebCallback() async {
         return null; 
       }
 
-      await storeTokens(accessToken: accessToken, refreshToken: tokens['refresh_token'], idToken: idToken);
+      final String? refreshToken = tokens['refresh_token'];
+      await storeTokens(accessToken: accessToken, refreshToken: refreshToken, idToken: idToken);
       html.window.history.replaceState(null, '', '/');
-      return AuthResult(success: true, accessToken: accessToken, idToken: idToken);
+      return AuthResult(
+        success: true,
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+        idToken: idToken,
+      );
     }
   } catch (e) { return AuthResult(success: false, error: e.toString()); }
   return null;

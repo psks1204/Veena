@@ -11,6 +11,7 @@ import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/utils/count_formatter.dart';
+import '../../../shared/utils/on_screen_playback.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
 import '../models/channel.dart' as channel_models;
@@ -56,7 +57,8 @@ class ChannelReelsScreen extends StatefulWidget {
   State<ChannelReelsScreen> createState() => _ChannelReelsScreenState();
 }
 
-class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
+class _ChannelReelsScreenState extends State<ChannelReelsScreen>
+    with OnScreenPlaybackMixin {
   late final PageController _pageController;
   final List<channel_models.UserMediaResponse> _items = [];
   final Map<int, VideoPlayerController> _controllers = {};
@@ -64,6 +66,9 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
 
   channel_models.ChannelResponse? _channel;
   int _currentPage = 0;
+  // The user tapped the current reel to pause it. Coming back to the
+  // screen shouldn't override that; swiping to another reel clears it.
+  bool _userPaused = false;
   int _page = 0;
   bool _isLoading = false;
   bool _isDeleting = false;
@@ -101,6 +106,24 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
     super.dispose();
   }
 
+  /// Another tab or page took over the screen (or the app was backgrounded):
+  /// stop; when the reels are back in view, carry on with the current one.
+  @override
+  void onPlaybackAllowedChanged(bool allowed) {
+    if (!allowed) {
+      for (final c in _controllers.values) {
+        if (c.value.isPlaying) c.pause();
+      }
+      return;
+    }
+    final c = _controllers[_currentPage];
+    if (c == null) {
+      unawaited(_initController(_currentPage));
+    } else if (!_userPaused && c.value.isInitialized && !c.value.isPlaying) {
+      c.play();
+    }
+  }
+
   bool get _isMine => widget.mode == ChannelReelsMode.myChannel;
 
   String get _screenTitle {
@@ -130,14 +153,17 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
 
   void _onPageChanged(int page) {
     _controllers[_currentPage]?.pause();
+    _userPaused = false;
     setState(() => _currentPage = page);
     unawaited(_primeLikeStatus(page));
     unawaited(_primeLikeStatus(page + 1));
 
     final c = _controllers[page];
     if (c != null && c.value.isInitialized) {
-      c.play();
-      unawaited(_recordPlay(page));
+      if (playbackAllowed) {
+        c.play();
+        unawaited(_recordPlay(page));
+      }
     } else {
       unawaited(_initController(page));
     }
@@ -238,17 +264,23 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
 
     try {
       await controller.initialize();
-      controller.setLooping(true);
+      // Paging away, a refresh, a delete or leaving the screen disposes
+      // controllers; this one is no longer ours to touch.
+      if (!mounted || _controllers[index] != controller) return;
+      await controller.setLooping(true);
 
-      if (!mounted) return;
-      if (index == _currentPage) {
+      // Only start if these reels are still what the user is looking at —
+      // the video may finish loading after they've switched tab or screen.
+      if (index == _currentPage && playbackAllowed && !_userPaused) {
         await controller.play();
         unawaited(_recordPlay(index));
       }
-      setState(() {});
+      if (mounted) setState(() {});
     } catch (_) {
-      _controllers[index]?.dispose();
-      _controllers.remove(index);
+      if (_controllers[index] == controller) {
+        _controllers.remove(index);
+        controller.dispose();
+      }
     }
   }
 
@@ -318,7 +350,7 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       builder: (_) =>
           CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
     );
-    if (mounted) _controllers[_currentPage]?.play();
+    if (playbackAllowed && !_userPaused) _controllers[_currentPage]?.play();
   }
 
   Future<void> _openAddToPlaylist(MediaItem media) async {
@@ -331,7 +363,7 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => AddToPlaylistSheet(mediaItem: media),
     );
-    if (mounted) _controllers[_currentPage]?.play();
+    if (playbackAllowed && !_userPaused) _controllers[_currentPage]?.play();
   }
 
   Future<void> _share(MediaItem media) => shareMedia(context, media);
@@ -523,6 +555,7 @@ class _ChannelReelsScreenState extends State<ChannelReelsScreen> {
               onShare: () => _share(media),
               onAddToPlaylist: () => _openAddToPlaylist(media),
               onArtistTap: () => _openArtistChannel(item),
+              onUserPausedChanged: (paused) => _userPaused = paused,
               onDelete: () => _deleteCurrent(item),
             );
           },
@@ -550,6 +583,7 @@ class _ReelPage extends StatefulWidget {
     required this.onShare,
     required this.onAddToPlaylist,
     required this.onArtistTap,
+    required this.onUserPausedChanged,
     required this.onDelete,
   });
 
@@ -569,6 +603,9 @@ class _ReelPage extends StatefulWidget {
   final VoidCallback onShare;
   final VoidCallback onAddToPlaylist;
   final VoidCallback onArtistTap;
+
+  /// Reports a tap that paused (true) or resumed (false) this reel.
+  final ValueChanged<bool> onUserPausedChanged;
   final VoidCallback onDelete;
 
   @override
@@ -590,6 +627,7 @@ class _ReelPageState extends State<_ReelPage> {
     if (c == null || !c.value.isInitialized) return;
     if (c.value.isPlaying) {
       c.pause();
+      widget.onUserPausedChanged(true);
       setState(() => _showPauseIcon = true);
       _pauseIconTimer?.cancel();
       _pauseIconTimer = Timer(const Duration(milliseconds: 800), () {
@@ -597,6 +635,7 @@ class _ReelPageState extends State<_ReelPage> {
       });
     } else {
       c.play();
+      widget.onUserPausedChanged(false);
       setState(() => _showPauseIcon = false);
     }
   }

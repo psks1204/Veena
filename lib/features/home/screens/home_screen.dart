@@ -232,7 +232,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   if (popularPlaylists.isNotEmpty)
                     ..._buildSectionSlivers(
                       context,
-                      title: 'Popular Playlists',
+                      title: 'Popular Playlist / Chart',
                       icon: Icons.playlist_play_rounded,
                       items: popularPlaylists,
                       isHorizontal: true,
@@ -241,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (_) => FeaturedPlaylistsBrowseScreen(
-                              title: 'Popular Playlists',
+                              title: 'Popular Playlist / Chart',
                               playlists: popularPlaylists,
                             ),
                           ),

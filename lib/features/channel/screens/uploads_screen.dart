@@ -9,6 +9,7 @@ import '../../../core/models/media_item.dart';
 import '../../../core/services/app_settings_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../shared/utils/count_formatter.dart';
+import '../../../shared/utils/on_screen_playback.dart';
 import '../../../shared/utils/share_media.dart';
 import '../../library/widgets/add_to_playlist_sheet.dart';
 import '../../player/widgets/comments_sheet.dart';
@@ -28,23 +29,24 @@ class UploadsScreen extends StatefulWidget {
 
   const UploadsScreen({super.key, this.initialItem, this.initialMediaId});
 
-  static VoidCallback? _pauseActiveReel;
-
-  static void pauseReelPlayback() {
-    _pauseActiveReel?.call();
-  }
-
   @override
   State<UploadsScreen> createState() => _UploadsScreenState();
 }
 
-class _UploadsScreenState extends State<UploadsScreen> {
+class _UploadsScreenState extends State<UploadsScreen>
+    with OnScreenPlaybackMixin {
   final PageController _pageController = PageController();
   final List<channel_models.UserMediaResponse> _items = [];
   final Map<int, VideoPlayerController> _controllers = {};
+  // Pages whose controller is being set up, so a rebuild mid-setup can't
+  // start a second one (the first would play on, unreachable by pause).
+  final Set<int> _initializing = {};
   final Map<String, bool> _showHeartBurst = {};
 
   int _currentPage = 0;
+  // The user tapped the current reel to pause it. Coming back to the
+  // screen shouldn't override that; swiping to another reel clears it.
+  bool _userPaused = false;
   bool _isLoading = false;
   bool _hasMore = true;
   int _feedPage = 0;
@@ -52,7 +54,6 @@ class _UploadsScreenState extends State<UploadsScreen> {
   @override
   void initState() {
     super.initState();
-    UploadsScreen._pauseActiveReel = _pauseAllControllers;
     _pageController.addListener(_onScrollListener);
 
     if (widget.initialItem != null) {
@@ -89,9 +90,6 @@ class _UploadsScreenState extends State<UploadsScreen> {
 
   @override
   void dispose() {
-    if (UploadsScreen._pauseActiveReel == _pauseAllControllers) {
-      UploadsScreen._pauseActiveReel = null;
-    }
     _pageController.dispose();
     for (final c in _controllers.values) {
       c.dispose();
@@ -105,6 +103,22 @@ class _UploadsScreenState extends State<UploadsScreen> {
     super.deactivate();
   }
 
+  /// Another tab or page took over the screen (or the app was backgrounded):
+  /// stop; when the feed is back in view, carry on with the current reel.
+  @override
+  void onPlaybackAllowedChanged(bool allowed) {
+    if (!allowed) {
+      _pauseAllControllers();
+      return;
+    }
+    final c = _controllers[_currentPage];
+    if (c == null) {
+      unawaited(_initController(_currentPage));
+    } else if (!_userPaused && c.value.isInitialized && !c.value.isPlaying) {
+      c.play();
+    }
+  }
+
   void _onScrollListener() {
     if (!_pageController.hasClients) return;
     final page = _pageController.page?.round() ?? 0;
@@ -115,13 +129,16 @@ class _UploadsScreenState extends State<UploadsScreen> {
 
   void _onPageChanged(int page) {
     _controllers[_currentPage]?.pause();
+    _userPaused = false;
     setState(() => _currentPage = page);
     unawaited(_primeLikeStatus(page));
     unawaited(_primeLikeStatus(page + 1));
     final c = _controllers[page];
     if (c != null && c.value.isInitialized) {
-      c.play();
-      unawaited(_recordPlay(page));
+      if (playbackAllowed) {
+        c.play();
+        unawaited(_recordPlay(page));
+      }
     } else {
       unawaited(_initController(page));
     }
@@ -145,36 +162,55 @@ class _UploadsScreenState extends State<UploadsScreen> {
 
   Future<void> _initController(int index) async {
     if (index < 0 || index >= _items.length) return;
-    if (_controllers.containsKey(index)) return;
+    if (_controllers.containsKey(index) || !_initializing.add(index)) return;
     final item = _items[index];
-    var url = item.hlsUrl;
-    if ((url == null || url.isEmpty) && item.channelId != null) {
-      try {
-        final channelMedia = await context
-            .read<ChannelService>()
-            .getPublicChannelMedia(item.channelId!);
-        final found = channelMedia.content
-            .where((m) => m.id == item.id)
-            .firstOrNull;
-        if (found != null && found.hlsUrl != null && found.hlsUrl!.isNotEmpty) {
-          url = found.hlsUrl;
-        }
-      } catch (_) {}
+    VideoPlayerController? controller;
+    try {
+      var url = item.hlsUrl;
+      if ((url == null || url.isEmpty) && item.channelId != null) {
+        try {
+          final channelMedia = await context
+              .read<ChannelService>()
+              .getPublicChannelMedia(item.channelId!);
+          final found = channelMedia.content
+              .where((m) => m.id == item.id)
+              .firstOrNull;
+          if (found != null &&
+              found.hlsUrl != null &&
+              found.hlsUrl!.isNotEmpty) {
+            url = found.hlsUrl;
+          }
+        } catch (_) {}
+      }
+      // The feed was refreshed or closed while we looked the URL up.
+      if (url == null || url.isEmpty || !mounted) return;
+      if (index >= _items.length || _items[index].id != item.id) return;
+
+      controller = VideoPlayerController.networkUrl(
+        Uri.parse(url),
+        videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
+      );
+      _controllers[index] = controller;
+      await controller.initialize();
+      // Paging away, a refresh or leaving the screen disposes controllers;
+      // this one is no longer ours to touch.
+      if (!mounted || _controllers[index] != controller) return;
+      await controller.setLooping(true);
+      // Only start if the feed is still what the user is looking at — the
+      // video may finish loading after they've switched tab or screen.
+      if (index == _currentPage && playbackAllowed && !_userPaused) {
+        await controller.play();
+        unawaited(_recordPlay(index));
+      }
+      if (mounted) setState(() {});
+    } catch (_) {
+      if (controller != null && _controllers[index] == controller) {
+        _controllers.remove(index);
+        controller.dispose();
+      }
+    } finally {
+      _initializing.remove(index);
     }
-    if (url == null || url.isEmpty) return;
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: true),
-    );
-    _controllers[index] = controller;
-    await controller.initialize();
-    controller.setLooping(true);
-    if (!mounted) return;
-    if (index == _currentPage) {
-      await controller.play();
-      unawaited(_recordPlay(index));
-    }
-    if (mounted) setState(() {});
   }
 
   Future<void> _recordPlay(int index) async {
@@ -295,7 +331,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
       builder: (_) =>
           CommentsSheet(mediaId: media.id, source: CommentsSource.channel),
     );
-    if (mounted) _controllers[_currentPage]?.play();
+    if (playbackAllowed && !_userPaused) _controllers[_currentPage]?.play();
   }
 
   Future<void> _openAddToPlaylist(MediaItem media) async {
@@ -308,7 +344,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => AddToPlaylistSheet(mediaItem: media),
     );
-    if (mounted) _controllers[_currentPage]?.play();
+    if (playbackAllowed && !_userPaused) _controllers[_currentPage]?.play();
   }
 
   Future<void> _share(MediaItem media) => shareMedia(context, media);
@@ -509,6 +545,7 @@ class _UploadsScreenState extends State<UploadsScreen> {
             onShare: () => _share(media),
             onAddToPlaylist: () => _openAddToPlaylist(media),
             onArtistTap: () => _openCreatorChannel(item),
+            onUserPausedChanged: (paused) => _userPaused = paused,
           );
         },
       );
@@ -553,6 +590,7 @@ class _ReelPage extends StatefulWidget {
     required this.onShare,
     required this.onAddToPlaylist,
     required this.onArtistTap,
+    required this.onUserPausedChanged,
   });
 
   final channel_models.UserMediaResponse item;
@@ -570,6 +608,9 @@ class _ReelPage extends StatefulWidget {
   final VoidCallback onAddToPlaylist;
   final VoidCallback onArtistTap;
 
+  /// Reports a tap that paused (true) or resumed (false) this reel.
+  final ValueChanged<bool> onUserPausedChanged;
+
   @override
   State<_ReelPage> createState() => _ReelPageState();
 }
@@ -583,6 +624,7 @@ class _ReelPageState extends State<_ReelPage> {
     if (c == null || !c.value.isInitialized) return;
     if (c.value.isPlaying) {
       c.pause();
+      widget.onUserPausedChanged(true);
       setState(() => _showPauseIcon = true);
       _pauseIconTimer?.cancel();
       _pauseIconTimer = Timer(const Duration(milliseconds: 800), () {
@@ -590,6 +632,7 @@ class _ReelPageState extends State<_ReelPage> {
       });
     } else {
       c.play();
+      widget.onUserPausedChanged(false);
       setState(() => _showPauseIcon = false);
     }
   }

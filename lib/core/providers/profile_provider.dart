@@ -86,10 +86,15 @@ class ProfileProvider extends ChangeNotifier {
         }
       }
 
-      // 4) Check if user still needs to set up name / date of birth
+      // 4) Check if user still needs to set up name / date of birth — but
+      // only from a profile that actually loaded. A failed fetch (offline,
+      // server error, expired session) says nothing about what's on file;
+      // reading it as "no birth date" used to put users with an expired
+      // session on the mandatory DOB screen with no way out.
+      final loaded = _profile;
       _needsNameSetup =
-          _profile?.name == null || _profile!.name!.trim().isEmpty;
-      _needsDobSetup = _profile?.birthDate == null;
+          loaded != null && (loaded.name == null || loaded.name!.trim().isEmpty);
+      _needsDobSetup = loaded != null && loaded.birthDate == null;
       _error = null;
     } catch (e) {
       debugPrint('❌ ProfileProvider.initializeOnLogin: $e');

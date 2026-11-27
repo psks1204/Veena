@@ -18,13 +18,12 @@ class ApiService {
   static const String baseUrl = 'https://veena.dgfly.in/api';
 
   String? _accessToken;
-  DateTime? _tokenSetTime; // Track when token was set for grace period
 
   // Read-only token access for specialized requests (e.g., binary downloads).
   String? get accessToken => _accessToken;
 
-  /// Callback to be invoked when a 401 Unauthorized response is received
-  /// This should trigger logout and redirect to login
+  /// Called when the session is over — a request was rejected and the token
+  /// could not be refreshed. Should sign the user out.
   OnUnauthorizedCallback? onUnauthorized;
 
   /// Callback to be invoked when a 401 is received, to attempt a token refresh
@@ -32,20 +31,14 @@ class ApiService {
 
   /// Set the access token for authenticated requests
   void setAccessToken(String? token) {
-    // Only update if token actually changed
     if (_accessToken == token) return;
-
     _accessToken = token;
-    if (token != null) {
-      _tokenSetTime = DateTime.now();
-      debugPrint('[ApiService] Token set at $_tokenSetTime');
-    }
+    if (token != null) debugPrint('[ApiService] Access token updated');
   }
 
   /// Clear the access token (used during logout)
   void clearAccessToken() {
     _accessToken = null;
-    _tokenSetTime = null;
   }
 
   /// Get headers with authentication
@@ -54,46 +47,66 @@ class ApiService {
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
   };
 
-  /// Helper: Execute request with retry logic for 401
+  /// Send a request, recovering from a 401 where possible.
+  ///
+  /// On a 401:
+  ///  1. If the token was replaced while the request was in flight (another
+  ///     request refreshed it, or the user signed in again), resend once with
+  ///     the current token.
+  ///  2. Otherwise try to refresh the token and resend.
+  ///  3. If the refresh fails, the session is over: [onUnauthorized] signs the
+  ///     user out. This must happen however soon after launch or sign-in the
+  ///     401 arrives — an expired token restored at startup fails on its very
+  ///     first requests, and ignoring those left users stuck on the
+  ///     date-of-birth gate with a dead session.
+  ///
+  /// A 401 that comes back for a freshly refreshed token is not an expired
+  /// session: the backend also answers 401 for actions the user may not take
+  /// (e.g. editing a playlist they don't own), so that is surfaced as an
+  /// error without signing out.
+  ///
+  /// [requestFn] must read the current token each time it is called.
   Future<dynamic> _retryRequest(
     Future<http.Response> Function() requestFn, {
     bool skipUnauthorizedCallback = false,
   }) async {
-    try {
-      final response = await requestFn();
-
-      // Check for 401
-      if (response.statusCode == 401 && !skipUnauthorizedCallback) {
-        // Try refresh if callback is available
-        if (onRefreshToken != null) {
-          debugPrint('🔄 401 received, attempting token refresh...');
-          try {
-            final success = await onRefreshToken!();
-            if (success) {
-              debugPrint('✅ Token refresh successful, retrying request...');
-              // Retry request (ApiService token should have been updated by callback)
-              final retryResponse = await requestFn();
-              return _handleResponse(
-                retryResponse,
-                skipUnauthorizedCallback: skipUnauthorizedCallback,
-              );
-            } else {
-              debugPrint('❌ Token refresh failed');
-            }
-          } catch (e) {
-            debugPrint('❌ Token refresh error: $e');
-          }
-        }
-      }
-
-      return _handleResponse(
-        response,
-        skipUnauthorizedCallback: skipUnauthorizedCallback,
-      );
-    } catch (e) {
-      // If we rethrew from inside, it bubbles up
-      rethrow;
+    var sentWith = _accessToken;
+    var response = await requestFn();
+    if (response.statusCode != 401 || skipUnauthorizedCallback) {
+      return _handleResponse(response);
     }
+
+    // 1. Sent with a token that has since been replaced: resend once.
+    if (_accessToken != null && _accessToken != sentWith) {
+      sentWith = _accessToken;
+      response = await requestFn();
+      if (response.statusCode != 401) return _handleResponse(response);
+    }
+
+    // Signed out (or never signed in): there is no session to recover or end.
+    if (_accessToken == null) return _handleResponse(response);
+
+    // 2. Refresh and resend.
+    debugPrint('🔄 401 received, attempting token refresh...');
+    var refreshed = false;
+    try {
+      refreshed = await onRefreshToken?.call() ?? false;
+    } catch (e) {
+      debugPrint('❌ Token refresh error: $e');
+    }
+    if (refreshed) {
+      debugPrint('✅ Token refresh successful, retrying request...');
+      return _handleResponse(await requestFn());
+    }
+
+    // 3. The session can't be renewed. Only end it if it is still the
+    // session this request was made with (not one started since).
+    debugPrint('❌ Token refresh failed');
+    if (_accessToken != null && _accessToken == sentWith) {
+      debugPrint('🔒 Session expired — signing out');
+      onUnauthorized?.call();
+    }
+    return _handleResponse(response);
   }
 
   /// GET request
@@ -381,12 +394,9 @@ class ApiService {
     }
   }
 
-  /// Handle HTTP response
-  /// [skipUnauthorizedCallback] - If true, a 401 won't trigger logout callback
-  dynamic _handleResponse(
-    http.Response response, {
-    bool skipUnauthorizedCallback = false,
-  }) {
+  /// Turn a response into decoded JSON, or throw [ApiException].
+  /// Signing out on 401 is decided by [_retryRequest], not here.
+  dynamic _handleResponse(http.Response response) {
     debugPrint('📥 Status: ${response.statusCode}');
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -394,32 +404,6 @@ class ApiService {
       return jsonDecode(response.body);
     } else if (response.statusCode == 401) {
       debugPrint('🔒 401 Unauthorized received');
-
-      // Skip logout callback if requested (used during logout to prevent loops)
-      if (skipUnauthorizedCallback) {
-        debugPrint(
-          '🔒 Skipping logout callback (skipUnauthorizedCallback=true)',
-        );
-        throw ApiException(
-          'Unauthorized - Session expired',
-          response.statusCode,
-        );
-      }
-
-      // Only trigger logout if:
-      // 1. We have a token set
-      // 2. Token was set more than 3 seconds ago (grace period for stale requests)
-      final shouldLogout =
-          _accessToken != null &&
-          (_tokenSetTime == null ||
-              DateTime.now().difference(_tokenSetTime!).inSeconds > 3);
-
-      if (shouldLogout) {
-        debugPrint('🔒 Triggering logout (token expired)');
-        onUnauthorized?.call();
-      } else {
-        debugPrint('🔒 Ignoring 401 - within grace period after login');
-      }
       throw ApiException(
         _extractErrorMessage(
           response,

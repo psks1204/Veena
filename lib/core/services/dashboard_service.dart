@@ -35,6 +35,30 @@ class DashboardService extends ChangeNotifier {
   List<MediaItem> get featuredActive => _featuredActive;
   List<MediaItem> get podcasts => _podcasts;
   List<MediaItem> get karaoke => _karaoke;
+
+  /// Karaoke songs added to the list per scroll step.
+  static const int karaokePageSize = 20;
+  // GET /user/dashboard/karaoke always returns (at most) the newest 10.
+  static const int _karaokeDashboardLimit = 10;
+  // Rows of the full catalogue (GET /media) fetched per request while looking
+  // for more karaoke songs, and how many such requests one step may make.
+  // Karaoke songs are sparse in the catalogue (~2% at the time of writing),
+  // so read it in big pages to keep round-trips down.
+  static const int _karaokeCatalogPageSize = 100;
+  static const int _karaokeMaxCatalogRequests = 6;
+  // Next GET /media page to scan; 0 means nothing beyond the first 10 yet.
+  int _karaokeCatalogPage = 0;
+  bool _hasMoreKaraoke = true;
+  bool _isLoadingMoreKaraoke = false;
+  // Bumped on every reload so a page that lands after a refresh is dropped.
+  int _karaokeGeneration = 0;
+  // Set when a page fails, so the UI offers a retry instead of re-requesting
+  // on every rebuild (which would hammer the server while offline).
+  bool _karaokeLoadMoreFailed = false;
+  bool get hasMoreKaraoke => _hasMoreKaraoke;
+  bool get isLoadingMoreKaraoke => _isLoadingMoreKaraoke;
+  bool get karaokeLoadMoreFailed => _karaokeLoadMoreFailed;
+
   List<Artist> _artists = [];
   List<Artist> get artists => _artists;
   bool get isLoading => _isLoading;
@@ -144,9 +168,11 @@ class DashboardService extends ChangeNotifier {
             debugPrint('Dashboard featured active fetch error: $e');
           }
         })(),
-        // Karaoke
+        // Karaoke — prefetch the first page, but leave the list alone once
+        // the user has scrolled further into it on the Karaoke tab.
         (() async {
           try {
+            if (_karaokeCatalogPage > 0) return;
             await fetchKaraoke(notify: false);
           } catch (e) {
             debugPrint('Dashboard karaoke fetch error: $e');
@@ -281,13 +307,23 @@ class DashboardService extends ChangeNotifier {
     }
   }
 
-  /// Fetch karaoke tracks
-  /// GET /api/user/dashboard/karaoke
+  /// Reload karaoke from the start, dropping anything loaded by scrolling.
+  ///
+  /// GET /api/user/dashboard/karaoke is quick but only ever returns the
+  /// newest 10 karaoke songs; [loadMoreKaraoke] finds the rest.
   Future<List<MediaItem>> fetchKaraoke({bool notify = true}) async {
+    final generation = ++_karaokeGeneration;
+    _isLoadingMoreKaraoke = false;
+    _karaokeLoadMoreFailed = false;
     try {
       final data = await _api.get('/user/dashboard/karaoke');
+      if (generation != _karaokeGeneration) return _karaoke;
       if (data != null && data is List) {
-        _karaoke = data.map((item) => MediaItem.fromJson(item)).toList();
+        final items = data.map((item) => MediaItem.fromJson(item)).toList();
+        _karaoke = _dedupeById(items);
+        _karaokeCatalogPage = 0;
+        // Fewer than the endpoint's cap means that's every karaoke song.
+        _hasMoreKaraoke = items.length >= _karaokeDashboardLimit;
         if (notify) notifyListeners();
       }
       return _karaoke;
@@ -295,6 +331,70 @@ class DashboardService extends ChangeNotifier {
       debugPrint('Karaoke fetch error: $e');
       return [];
     }
+  }
+
+  /// Append roughly [karaokePageSize] more karaoke songs.
+  ///
+  /// There is no paged karaoke endpoint, so this pages through the whole
+  /// public catalogue (GET /api/media, newest first — the same order as the
+  /// karaoke endpoint) and keeps the songs flagged `karaoke`, skipping ones
+  /// already in the list. Safe to call repeatedly: it no-ops while a step is
+  /// in flight or once the catalogue's last page has been read.
+  Future<void> loadMoreKaraoke() async {
+    if (_isLoadingMoreKaraoke || !_hasMoreKaraoke) return;
+    final generation = _karaokeGeneration;
+    _isLoadingMoreKaraoke = true;
+    _karaokeLoadMoreFailed = false;
+    notifyListeners();
+
+    try {
+      final known = _karaoke.map((m) => m.id).toSet();
+      var added = 0;
+      for (var request = 0;
+          request < _karaokeMaxCatalogRequests && added < karaokePageSize;
+          request++) {
+        final data = await _api.get(
+          '/media',
+          queryParams: {
+            'page': '$_karaokeCatalogPage',
+            'size': '$_karaokeCatalogPageSize',
+          },
+        );
+        // A refresh started meanwhile; this page belongs to the old list.
+        if (generation != _karaokeGeneration) return;
+
+        final content = data is Map && data['content'] is List
+            ? data['content'] as List
+            : const [];
+        final fresh = content
+            .map((item) => MediaItem.fromJson(item as Map<String, dynamic>))
+            .where((m) => m.isKaraoke && known.add(m.id))
+            .toList();
+        // Keep each page as it lands, so a later failure loses nothing.
+        if (fresh.isNotEmpty) _karaoke = [..._karaoke, ...fresh];
+        added += fresh.length;
+        _karaokeCatalogPage++;
+
+        final isLast = data is Map ? (data['last'] as bool? ?? true) : true;
+        if (isLast || content.isEmpty) {
+          _hasMoreKaraoke = false;
+          break;
+        }
+      }
+    } catch (e) {
+      debugPrint('Karaoke load-more error: $e');
+      if (generation == _karaokeGeneration) _karaokeLoadMoreFailed = true;
+    } finally {
+      if (generation == _karaokeGeneration) {
+        _isLoadingMoreKaraoke = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  static List<MediaItem> _dedupeById(List<MediaItem> items) {
+    final seen = <String>{};
+    return items.where((m) => seen.add(m.id)).toList();
   }
 
   /// Fetch active featured items

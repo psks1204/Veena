@@ -28,6 +28,7 @@ class AuthService extends ChangeNotifier {
   String? _errorMessage;
   bool _isAuthInProgress = false; // Flag to prevent re-initialization during OAuth
   bool _isSigningOut = false; // Flag to prevent re-entrant signOut calls
+  bool _lastRefreshFailedTransiently = false;
 
   AuthState get state => _state;
   String? get accessToken => _accessToken;
@@ -35,6 +36,12 @@ class AuthService extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _accessToken != null;
   bool get isSigningOut => _isSigningOut; // Expose for ApiService to check
+
+  /// True when the last token refresh failed for a reason that may pass
+  /// (no network, auth server hiccup) rather than because the session was
+  /// refused. The session is kept in that case so the app still opens
+  /// offline; it's ended once a refresh is actually rejected.
+  bool get lastRefreshFailedTransiently => _lastRefreshFailedTransiently;
 
   // User profile data (fetched from userinfo endpoint)
   String? _userName;
@@ -115,6 +122,9 @@ class AuthService extends ChangeNotifier {
         final result = await platform.handleWebCallback();
         if (result != null && result.success) {
           _accessToken = result.accessToken;
+          // Keep it in memory too, or the session can't be renewed until
+          // the page is reloaded.
+          _refreshToken = result.refreshToken;
           _idToken = result.idToken;
           _state = AuthState.authenticated;
           notifyListeners();
@@ -126,6 +136,31 @@ class AuthService extends ChangeNotifier {
       _accessToken = tokens['access_token'];
       _refreshToken = tokens['refresh_token'];
       _idToken = tokens['id_token'];
+
+      // A stored token may have expired while the app was closed. Renew it
+      // before entering the app; if the session is refused, start signed
+      // out instead of opening the app on a dead session (which used to end
+      // on the date-of-birth gate with no way out).
+      if (_accessToken != null && isJwtExpired(_accessToken!)) {
+        // Bounded so a stalled network can't hold the splash screen; a slow
+        // refresh still lands in the background and is reused by the API.
+        final renewed = await refreshAccessToken().timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            _lastRefreshFailedTransiently = true;
+            return false;
+          },
+        );
+        if (!renewed && !_lastRefreshFailedTransiently) {
+          debugPrint('[AuthService] Stored session expired; signing out');
+          await platform.clearTokens();
+          _accessToken = null;
+          _refreshToken = null;
+          _idToken = null;
+        }
+        // Couldn't reach the auth server: keep the session for now. The
+        // first rejected API call refreshes again and ends it if refused.
+      }
 
       if (_accessToken != null) {
         if (kIsWeb && _idToken != null) {
@@ -270,35 +305,101 @@ class AuthService extends ChangeNotifier {
   Future<bool>? _refreshFuture;
 
   Future<bool> refreshAccessToken() async {
-    if (_refreshToken == null) return false;
-    
-    // If a refresh is already in progress, wait for it
-    if (_refreshFuture != null) {
-      return _refreshFuture!;
+    final refreshToken = _refreshToken;
+    if (refreshToken == null) {
+      _lastRefreshFailedTransiently = false;
+      return false;
     }
 
-    // Start a new refresh task
+    // If a refresh is already in progress, share its result.
+    final inFlight = _refreshFuture;
+    if (inFlight != null) return inFlight;
+
     final completer = Completer<bool>();
     _refreshFuture = completer.future;
 
+    var success = false;
     try {
-      final result = await platform.refreshToken(_refreshToken!);
-      if (result.success) {
+      final result = await platform.refreshToken(refreshToken);
+      // Signed out while the refresh was in flight: don't revive the session.
+      if (_refreshToken != refreshToken) {
+        _lastRefreshFailedTransiently = false;
+      } else if (result.success && result.accessToken != null) {
         _accessToken = result.accessToken;
-        _idToken = result.idToken;
-        await platform.storeTokens(accessToken: _accessToken, idToken: _idToken);
-        completer.complete(true);
-        _refreshFuture = null; // Clear future after completion
-        return true;
+        _idToken = result.idToken ?? _idToken;
+        await platform.storeTokens(
+          accessToken: _accessToken,
+          idToken: result.idToken,
+        );
+        _lastRefreshFailedTransiently = false;
+        success = true;
+      } else {
+        _lastRefreshFailedTransiently = isTransientAuthError(result.error);
+        debugPrint('[AuthService] Token refresh failed: ${result.error}');
       }
-    } catch (e) { 
-      debugPrint(e.toString()); 
+    } catch (e) {
+      _lastRefreshFailedTransiently = isTransientAuthError(e.toString());
+      debugPrint('[AuthService] Token refresh error: $e');
     }
-    
-    completer.complete(false);
+
     _refreshFuture = null;
+    completer.complete(success);
+    return success;
+  }
+}
+
+/// Whether a JWT's `exp` claim is in the past (or within [leeway] of it).
+/// Returns false when the token can't be read, leaving the server to judge.
+bool isJwtExpired(
+  String token, {
+  Duration leeway = const Duration(seconds: 30),
+  DateTime? now,
+}) {
+  try {
+    final parts = token.split('.');
+    if (parts.length != 3) return false;
+    final payload = json.decode(
+      utf8.decode(base64Url.decode(base64Url.normalize(parts[1]))),
+    );
+    final exp = payload is Map ? payload['exp'] : null;
+    if (exp is! num) return false;
+    final expiry = DateTime.fromMillisecondsSinceEpoch(
+      (exp * 1000).toInt(),
+      isUtc: true,
+    );
+    return !(now ?? DateTime.now()).toUtc().isBefore(expiry.subtract(leeway));
+  } catch (_) {
     return false;
   }
+}
+
+/// Whether a token-refresh error looks temporary (no network, auth server
+/// unavailable) rather than a refusal such as an expired or revoked refresh
+/// token (`invalid_grant`).
+bool isTransientAuthError(String? error) {
+  if (error == null || error.isEmpty) return false;
+  final e = error.toLowerCase();
+  if (e.contains('invalid_grant') ||
+      e.contains('invalid_client') ||
+      e.contains('unauthorized_client') ||
+      e.contains('invalid_token')) {
+    return false;
+  }
+  const hints = [
+    'network',
+    'socket',
+    'connection',
+    'internet',
+    'offline',
+    'timed out',
+    'timeout',
+    'host lookup',
+    'unreachable',
+    'xmlhttprequest',
+    'failed to fetch',
+    'http 5', // auth server error, e.g. "HTTP 503"
+  ];
+  return hints.any(e.contains);
 }
 
 // PKCE Helpers

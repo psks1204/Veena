@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../../../core/providers/profile_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../auth/services/auth_service.dart';
 
 /// Date of Birth Gate Screen
 ///
@@ -99,6 +100,14 @@ class _DateOfBirthGateScreenState extends State<DateOfBirthGateScreen> {
         _error = provider.error ?? 'Failed to save. Please try again.';
       });
     }
+  }
+
+  /// The one way off this screen besides saving — e.g. a different account,
+  /// or a session that can't save any more. Signing out returns to the login
+  /// screen; the app router tears this gate down.
+  Future<void> _signOut() async {
+    setState(() => _isSaving = true);
+    await context.read<AuthService>().signOut();
   }
 
   @override
@@ -277,6 +286,18 @@ class _DateOfBirthGateScreenState extends State<DateOfBirthGateScreen> {
                                   letterSpacing: 0.5,
                                 ),
                               ),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    TextButton(
+                      onPressed: _isSaving ? null : _signOut,
+                      child: Text(
+                        'Sign out',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: theme.colorScheme.onSurface.withOpacity(0.6),
+                        ),
                       ),
                     ),
                     const SizedBox(height: AppSpacing.xl),

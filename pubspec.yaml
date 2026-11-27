@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 3.0.0+21
+version: 3.0.1+22
 
 environment:
   sdk: ^3.10.7
@@ -199,6 +199,10 @@ flutter_native_splash:
   image_dark: "assets/images/logo_dark.png"
   branding_dark: "assets/images/logo_dark.png"
 
+  # NOTE: the Android 12+ splash is hand-tuned in android/app/src/main/res
+  # (drawable/splash_icon_v31*.xml + values*-v31/styles.xml) so the whole
+  # logo fits the circular crop. Re-running flutter_native_splash:create
+  # overwrites those files and brings back the cut-off logo.
   android_12:
     image: "assets/images/logo_light.png"
     icon_background_color: "#FFFFFF"

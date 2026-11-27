@@ -245,7 +245,13 @@ class _AppShellState extends State<AppShell> {
     return IndexedStack(
       index: widget.currentIndex,
       children: List.generate(_navigatorWidgets.length, (i) {
-        return _navigatorWidgets[i] ?? const SizedBox.shrink();
+        // Hidden tabs stay alive but with tickers off. Besides idling their
+        // animations, this is how a reel feed knows its tab was left and
+        // stops playing (see OnScreenPlaybackMixin).
+        return TickerMode(
+          enabled: i == widget.currentIndex,
+          child: _navigatorWidgets[i] ?? const SizedBox.shrink(),
+        );
       }),
     );
   }

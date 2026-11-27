@@ -68,6 +68,28 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
     }
   }
 
+  bool _loadMoreScheduled = false;
+
+  /// Ask for the next page after this frame — loading notifies listeners,
+  /// which can't happen while the list is still building.
+  void _scheduleLoadMore(DashboardService dashboard) {
+    // The tab stays alive while hidden and still rebuilds when a page lands;
+    // only fetch while it's on screen (AppShell turns tickers off otherwise).
+    if (!TickerMode.of(context)) return;
+    if (_loadMoreScheduled ||
+        !dashboard.hasMoreKaraoke ||
+        dashboard.isLoadingMoreKaraoke ||
+        dashboard.karaokeLoadMoreFailed) {
+      return;
+    }
+    _loadMoreScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMoreScheduled = false;
+      if (!mounted) return;
+      context.read<DashboardService>().loadMoreKaraoke();
+    });
+  }
+
   void _playKaraokeTrack(List<MediaItem> allTracks, int index) {
     final player = context.read<PlayerProvider>();
     player.playQueue(allTracks, startIndex: index);
@@ -97,6 +119,12 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
             final artist = track.artistName.toLowerCase();
             return title.contains(_searchQuery) || artist.contains(_searchQuery);
           }).toList();
+
+    // Search runs over the songs loaded so far, so while a query is active
+    // keep pulling in the remaining pages until the whole catalogue is in.
+    if (_searchQuery.isNotEmpty && _selectedSection == 0) {
+      _scheduleLoadMore(dashboard);
+    }
 
     return Scaffold(
       backgroundColor: isDark ? const Color(0xFF0D0D0D) : AppColors.lightBg,
@@ -464,6 +492,29 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
                 child: CircularProgressIndicator(color: AppColors.primary),
               ),
             )
+          else if (filteredKaraoke.isEmpty &&
+              _searchQuery.isNotEmpty &&
+              (dashboard.hasMoreKaraoke || dashboard.isLoadingMoreKaraoke) &&
+              !dashboard.karaokeLoadMoreFailed)
+            // No match yet, but there are songs we haven't fetched.
+            SliverFillRemaining(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const CircularProgressIndicator(color: AppColors.primary),
+                    const SizedBox(height: 12),
+                    Text(
+                      'Searching all karaoke songs...',
+                      style: TextStyle(
+                        color: isDark ? Colors.white60 : Colors.black54,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
           else if (filteredKaraoke.isEmpty)
             SliverFillRemaining(
               child: Center(
@@ -498,6 +549,10 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
               sliver: SliverList(
                 delegate: SliverChildBuilderDelegate(
                   (context, index) {
+                    // Nearing the end of what's loaded: fetch the next page.
+                    if (index >= filteredKaraoke.length - 5) {
+                      _scheduleLoadMore(dashboard);
+                    }
                     final track = filteredKaraoke[index];
                     final isPlaying =
                         player.currentMedia?.id == track.id && player.isPlaying;
@@ -656,9 +711,46 @@ class _KaraokeScreenState extends State<KaraokeScreen> {
                 ),
               ),
             ),
+          if (filteredKaraoke.isNotEmpty)
+            SliverToBoxAdapter(
+              child: _buildLoadMoreFooter(dashboard, isDark),
+            ),
           const SliverToBoxAdapter(child: SizedBox(height: 120)),
         ],
       ),
     );
+  }
+
+  /// Spinner while the next page loads, or a retry button if it failed.
+  Widget _buildLoadMoreFooter(DashboardService dashboard, bool isDark) {
+    if (dashboard.isLoadingMoreKaraoke) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: AppColors.primary,
+            ),
+          ),
+        ),
+      );
+    }
+    if (dashboard.karaokeLoadMoreFailed && dashboard.hasMoreKaraoke) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+          child: TextButton.icon(
+            onPressed: dashboard.loadMoreKaraoke,
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text("Couldn't load more songs. Retry"),
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+          ),
+        ),
+      );
+    }
+    return const SizedBox.shrink();
   }
 }

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+ splash icon. The system crops it to a circle 2/3 the icon's
+     width, and the logo is wide ("Music of Rajasthan" under the veena), so it
+     is inset until its farthest pixel sits inside that circle. Below ~19% the
+     ends of the text and the veena get cut off. Keep values-v31 free of
+     windowSplashScreenIconBackgroundColor: without it the icon gets the larger
+     288dp canvas, so the logo is drawn bigger. -->
 <inset xmlns:android="http://schemas.android.com/apk/res/android"
     android:drawable="@drawable/logo_square"
-    android:insetLeft="10%"
-    android:insetRight="10%"
-    android:insetTop="10%"
-    android:insetBottom="10%" />
+    android:insetLeft="21%"
+    android:insetRight="21%"
+    android:insetTop="21%"
+    android:insetBottom="21%" />
