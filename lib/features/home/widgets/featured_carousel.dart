@@ -13,6 +13,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../shared/widgets/app_network_image.dart';
 import '../../../shared/widgets/google_banner_ad.dart';
+import '../../../shared/widgets/nitshop_banner_ad.dart';
 import '../../../shared/widgets/subscription_modal.dart';
 import '../../../shared/widgets/web_brand_ad_card.dart';
 
@@ -104,7 +105,12 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     itemBuilder: (context, index) {
                       final page = pages[index];
                       if (page.isAd) {
-                        return _buildAdPage(context, theme, page.brandAd);
+                        return _buildAdPage(
+                          context,
+                          theme,
+                          page.brandAd,
+                          page.isNitShop,
+                        );
                       }
                       return _buildFeaturedItem(
                         context,
@@ -124,7 +130,12 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
                     itemBuilder: (context, index) {
                       final page = pages[index];
                       if (page.isAd) {
-                        return _buildAdPage(context, theme, page.brandAd);
+                        return _buildAdPage(
+                          context,
+                          theme,
+                          page.brandAd,
+                          page.isNitShop,
+                        );
                       }
                       return _buildFeaturedItem(
                         context,
@@ -335,8 +346,15 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     final pages = <_CarouselPage>[];
     for (int i = 0; i < items.length; i++) {
       pages.add(_CarouselPage(item: items[i], mediaIndex: i));
+      // Web: the first ad slot is NitShop's banner, right after the first
+      // featured song; the brand ads follow it in order. Mobile shows its
+      // AdMob unit in every slot.
+      if (kIsWeb && i == 0) {
+        pages.add(const _CarouselPage(isAd: true, isNitShop: true));
+        continue;
+      }
       final brandAd = kIsWeb
-          ? BrandAdsService.brandAds[i % BrandAdsService.brandAds.length]
+          ? BrandAdsService.brandAds[(i - 1) % BrandAdsService.brandAds.length]
           : null;
       pages.add(_CarouselPage(isAd: true, brandAd: brandAd));
     }
@@ -347,9 +365,11 @@ class _FeaturedCarouselState extends State<FeaturedCarousel> {
     BuildContext context,
     ThemeData theme, [
     BrandAd? brandAd,
+    bool isNitShop = false,
   ]) {
     // On Web, render Google Ads styled real-brand sponsored card
     if (kIsWeb) {
+      if (isNitShop) return const NitShopBannerAd();
       final ad = brandAd ?? BrandAdsService.getRandomAd();
       return WebBrandAdCard(ad: ad);
     }
@@ -406,10 +426,14 @@ class _CarouselPage {
     this.mediaIndex,
     this.isAd = false,
     this.brandAd,
+    this.isNitShop = false,
   });
 
   final MediaItem? item;
   final int? mediaIndex;
   final bool isAd;
   final BrandAd? brandAd;
+
+  /// The NitShop house ad (web only).
+  final bool isNitShop;
 }
