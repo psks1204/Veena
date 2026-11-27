@@ -71,37 +71,49 @@ class FloatingNavBar extends StatelessWidget {
                           : Colors.transparent,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: IconTheme(
-                      data: IconThemeData(
-                        color: isSelected
-                            ? AppColors.primary
-                            : (isDark
-                                  ? AppColors.darkTextSecondary
-                                  : AppColors.lightTextSecondary),
-                        size: items.length > 5 ? 23 : 26,
+                    // The selected icon grows a touch; cheap (a transform on
+                    // one small icon) and reads as "you are here".
+                    child: AnimatedScale(
+                      scale: isSelected ? 1.12 : 1.0,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutBack,
+                      child: IconTheme(
+                        data: IconThemeData(
+                          color: isSelected
+                              ? AppColors.primary
+                              : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
+                          size: items.length > 5 ? 23 : 26,
+                        ),
+                        child: isSelected ? item.activeIcon : item.icon,
                       ),
-                      child: isSelected ? item.activeIcon : item.icon,
                     ),
                   ),
                   const SizedBox(height: 2),
-                  Text(
-                    item.label ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: isSelected
-                          ? (isDark
-                                ? Colors.white
-                                : AppColors
-                                      .lightTextPrimary) // Selected text is white/dark
-                          : (isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                      fontSize: items.length > 5 ? 9.5 : 10,
-                      letterSpacing: items.length > 5 ? 0.1 : 0.5,
+                  AnimatedDefaultTextStyle(
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOut,
+                    style: (theme.textTheme.labelSmall ?? const TextStyle())
+                        .copyWith(
+                          color: isSelected
+                              ? (isDark
+                                    ? Colors.white
+                                    : AppColors
+                                          .lightTextPrimary) // Selected text is white/dark
+                              : (isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary),
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          fontSize: items.length > 5 ? 9.5 : 10,
+                          letterSpacing: items.length > 5 ? 0.1 : 0.5,
+                        ),
+                    child: Text(
+                      item.label ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ],

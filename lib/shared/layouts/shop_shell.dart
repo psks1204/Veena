@@ -5,6 +5,7 @@ import '../../core/navigation/app_navigation.dart';
 import '../../core/navigation/app_tabs.dart';
 import '../../core/providers/player_provider.dart';
 import '../../core/providers/app_mode_provider.dart';
+import '../widgets/animated_indexed_stack.dart';
 import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
 import '../widgets/mini_player.dart';
@@ -77,7 +78,8 @@ class _ShopShellState extends State<ShopShell> {
   }
 
   Widget _buildContent(int index) {
-    return IndexedStack(index: index, children: _navigators);
+    // Same fade-in as the music tabs, also played when the shop opens.
+    return AnimatedIndexedStack(index: index, children: _navigators);
   }
 
   Widget _buildMobile(BuildContext context) {

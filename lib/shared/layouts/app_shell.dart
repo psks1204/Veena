@@ -11,6 +11,7 @@ import '../widgets/floating_nav_bar.dart';
 import '../widgets/desktop_player_bar.dart';
 import '../widgets/now_playing_panel.dart';
 import '../widgets/web_header.dart';
+import '../widgets/animated_indexed_stack.dart';
 
 /// Responsive App Shell with Nested Navigation
 ///
@@ -242,7 +243,8 @@ class _AppShellState extends State<AppShell> {
       );
     }
 
-    return IndexedStack(
+    // Switching tabs fades the new tab in (see AnimatedIndexedStack).
+    return AnimatedIndexedStack(
       index: widget.currentIndex,
       children: List.generate(_navigatorWidgets.length, (i) {
         // Hidden tabs stay alive but with tickers off. Besides idling their
